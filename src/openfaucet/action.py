@@ -124,8 +124,10 @@ class ActionSetNwTos(__action('ActionSetNwTos', OFPAT_SET_NW_TOS,
                               '!B3x', ('nw_tos',))):
 
   def serialize(self):
-    # The DSCP field has only its 6 MSBs meaningful. Check that the 2
-    # LSBs are zeroed.
+    # In OpenFlow 1.0.0, the "nw_tos" field doesn't contain the whole
+    # IP TOS field, only the 6 bits of the DSCP field in mask
+    # 0xfc. The 2 LSBs don't have any meaning and must be ignored. Be
+    # strict and enforce users to set those bits to zero.
     if self.nw_tos & 0x3:
       raise ValueError('unused lower bits in nw_tos are set', self.nw_tos)
     return super(ActionSetNwTos, self).serialize()
@@ -133,8 +135,10 @@ class ActionSetNwTos(__action('ActionSetNwTos', OFPAT_SET_NW_TOS,
   @classmethod
   def deserialize(cls, buf):
     a = super(ActionSetNwTos, cls).deserialize(buf)
-    # The DSCP field has only its 6 MSBs meaningful. Check that the 2
-    # LSBs are zeroed.
+
+    # In OpenFlow 1.0.0, the "nw_tos" field doesn't contain the whole
+    # IP TOS field, only the 6 bits of the DSCP field in mask
+    # 0xfc. The 2 LSBs don't have any meaning and must be ignored.
     if a.nw_tos & 0x3:
       # Be liberal. Zero out those bits instead of raising an exception.
       # TODO(romain): Log this.

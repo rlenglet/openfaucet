@@ -599,7 +599,7 @@ class Match(collections.namedtuple('Match', (
     dl_vlan: The input VLAN id, as a 16-bit unsigned integer.
     dl_vlan_pcp: The input VLAN priority, as a 8-bit unsigned integer.
     dl_type: The Ethernet frame type, as a 16-bit unsigned integer.
-    nw_tos: The IP ToS (actually only the DSCP field's 6 bits), as an 8-bit
+    nw_tos: The IP ToS (only the DSCP field's 6 bits), as an 8-bit
         unsigned integer.
     nw_proto: The IP protocol, or the lower 8 bits of the ARP opcode, as an
         8-bit unsigned integer.
@@ -720,6 +720,9 @@ class Match(collections.namedtuple('Match', (
 
     # Be liberal. Ignore undefined wildcards bits that are set.
 
+    # In OpenFlow 1.0.0, the "nw_tos" field doesn't contain the whole
+    # IP TOS field, only the 6 bits of the DSCP field in mask
+    # 0xfc. The 2 LSBs don't have any meaning and must be ignored.
     if nw_tos & 0x03:
       # Be liberal. Zero out those bits instead of raising an exception.
       # TODO(romain): Log this.
