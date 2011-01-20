@@ -34,17 +34,13 @@ def __action(type_name, action_type, format, field_names, verbose=False):
     type_name: The name of the type to generate.
     action_type: The OFPAT_* type of the action.
     format: The struct format of the action-specific representation.
-    field_names: The sequence of names of fields in the action. Must not
-        contain 'type'.
+    field_names: The tuple of name strings of fields in the
+        action. Must not contain 'type'.
     verbose: If True, the code for the generated type is printed.
   """
   # Use generic programming, using dynamic generation of code and
-  # execution, as is done in standard module collections, in
-  # namedtuple().
-  
-  # Make sure that field_names is a tuple of strings.
-  field_names = tuple(str(n) for n in field_names)
-
+  # execution, as is done in function namedtuple() in standard module
+  # collections.
   template = '''class %(type_name)s(_collections.namedtuple(
       '%(type_name)s', %(field_names)s)):\n
       def _get_type(self):
@@ -68,7 +64,7 @@ def __action(type_name, action_type, format, field_names, verbose=False):
   result = namespace[type_name]
 
   # TODO(romain): Add __module__ attribute to result to enable
-  # pickling in some environments, like it's done in
+  # pickling in some environments, as done in
   # collections.namedtuple()?
 
   return result
@@ -76,29 +72,81 @@ def __action(type_name, action_type, format, field_names, verbose=False):
 
 ActionOutput = __action('ActionOutput', OFPAT_OUTPUT,
                         '!HH', ('port', 'max_len'))
+
+
 ActionSetVlanVid = __action('ActionSetVlanVid', OFPAT_SET_VLAN_VID,
                             '!H2x', ('vlan_vid',))
-# TODO(romain): The PCP field has only its 3 LSBs meaningful. Check
-# that the 5 MSBs are zeroed.
-ActionSetVlanPcp = __action('ActionSetVlanPcp', OFPAT_SET_VLAN_PCP,
-                            '!B3x', ('vlan_pcp',))
+
+
+class ActionSetVlanPcp(__action('ActionSetVlanPcp', OFPAT_SET_VLAN_PCP,
+                                '!B3x', ('vlan_pcp',))):
+
+  def serialize(self):
+    # The PCP field has only its 3 LSBs meaningful. Check that the 5
+    # MSBs are zeroed.
+    if self.vlan_pcp & 0xf8:
+      raise ValueError('vlan_pcp has non-zero MSB bits set', self.vlan_pcp)
+    return super(ActionSetVlanPcp, self).serialize()
+
+  @classmethod
+  def deserialize(cls, buf):
+    a = super(ActionSetVlanPcp, cls).deserialize(buf)
+    # The PCP field has only its 3 LSBs meaningful. Check that the 5
+    # MSBs are zeroed.
+    if a.vlan_pcp & 0xf8:
+      # TODO(romain): Zero out those bits instead of raising an exception.
+      raise ValueError('vlan_pcp has non-zero MSB bits set', a.vlan_pcp)
+    return a
+
+
 ActionStripVlan = __action('ActionStripVlan', OFPAT_STRIP_VLAN, '', ())
+
+
 ActionSetDlSrc = __action('ActionSetDlSrc', OFPAT_SET_DL_SRC,
                           '!6s6x', ('dl_addr',))
+
+
 ActionSetDlDst = __action('ActionSetDlDst', OFPAT_SET_DL_DST,
                           '!6s6x', ('dl_addr',))
+
+
 ActionSetNwSrc = __action('ActionSetNwSrc', OFPAT_SET_NW_SRC,
                           '!4s', ('nw_addr',))
+
+
 ActionSetNwDst = __action('ActionSetNwDst', OFPAT_SET_NW_DST,
                           '!4s', ('nw_addr',))
-# TODO(romain): The DSCP field has only its 6 MSBs meaningful. Check
-# that the 3 LSBs are zeroed.
-ActionSetNwTos = __action('ActionSetNwTos', OFPAT_SET_NW_TOS,
-                          '!B3x', ('nw_tos',))
+
+
+class ActionSetNwTos(__action('ActionSetNwTos', OFPAT_SET_NW_TOS,
+                              '!B3x', ('nw_tos',))):
+
+  def serialize(self):
+    # The DSCP field has only its 6 MSBs meaningful. Check that the 2
+    # LSBs are zeroed.
+    if self.nw_tos & 0x2:
+      raise ValueError('unused lower bits in nw_tos are set', self.nw_tos)
+    return super(ActionSetNwTos, self).serialize()
+
+  @classmethod
+  def deserialize(cls, buf):
+    a = super(ActionSetNwTos, cls).deserialize(buf)
+    # The DSCP field has only its 6 MSBs meaningful. Check that the 2
+    # LSBs are zeroed.
+    if a.nw_tos & 0x2:
+      # TODO(romain): Zero out those bits instead of raising an exception.
+      raise ValueError('unused lower bits in nw_tos are set', a.nw_tos)
+    return a
+
+
 ActionSetTpSrc = __action('ActionSetTpSrc', OFPAT_SET_TP_SRC,
                           '!H2x', ('tp_port',))
+
+
 ActionSetTpDst = __action('ActionSetTpDst', OFPAT_SET_TP_DST,
                           '!H2x', ('tp_port',))
+
+
 ActionEnqueue = __action('ActionEnqueue', OFPAT_ENQUEUE,
                          '!H2xL', ('port', 'queue_id'))
 
