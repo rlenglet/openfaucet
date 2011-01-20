@@ -28,24 +28,31 @@ OFPAT_VENDOR = 12
 
 
 def __action(type_name, action_type, format, field_names, verbose=False):
-  """Generates a type for an OpenFlow action.
+  """Generates a class for an OpenFlow action.
+
+  The returned class creates objects that serialize / deserialize the
+  data for an action, which is sent / received after the
+  ofp_action_header. The ofp_action_header information for an action
+  (the type and length fields) must be serialized / deserialized by
+  users of the generated class.
 
   Args:
     type_name: The name of the type to generate.
     action_type: The OFPAT_* type of the action.
-    format: The struct format of the action-specific representation.
+    format: The struct format of the action-specific representation
+        which is sent / receifed after the ofp_action_header.
     field_names: The tuple of name strings of fields in the
-        action. Must not contain 'type'.
+        action. Must not contain 'type' or 'format_length'.
     verbose: If True, the code for the generated type is printed.
   """
   # Use generic programming, using dynamic generation of code and
   # execution, as is done in function namedtuple() in standard module
   # collections.
+  format_length = struct.calcsize(format)
   template = '''class %(type_name)s(_collections.namedtuple(
       '%(type_name)s', %(field_names)s)):\n
-      def _get_type(self):
-        return %(action_type)d\n
-      type = _property(_get_type)\n
+      type = %(action_type)d\n
+      format_length = %(format_length)d\n
       def serialize(self):
         return _struct.pack('%(format)s', *self)\n
       @classmethod
@@ -68,6 +75,31 @@ def __action(type_name, action_type, format, field_names, verbose=False):
   # collections.namedtuple()?
 
   return result
+
+
+def vendor_action(type_name, vendor_id, format, field_names, verbose=False):
+  """Generates a class for an OpenFlow OFPAT_VENDOR action.
+
+  The returned class creates objects that serialize / deserialize the
+  data for a vendor action, which is sent / received after the
+  ofp_action_vendor_header. The ofp_action_vendor_header information
+  for an action (the type, length, and vendor fields) must be
+  serialized / deserialized by users of the generated class.
+
+  Args:
+    type_name: The name of the type to generate.
+    vendor_id: The OpenFlow vendor ID, as a 32-bit unsigned integer.
+    format: The struct format of the action-specific representation
+        which is sent / receifed after the ofp_action_vendor_header.
+    field_names: The tuple of name strings of fields in the
+        action. Must not contain 'type', 'format_length', or 'vendor_id'.
+    verbose: If True, the code for the generated type is printed.
+  """
+  result = __action(type_name, OFPAT_VENDOR, format, field_names,
+                    verbose=verbose)
+  result.vendor_id = vendor_id
+  return result
+
 
 
 ActionOutput = __action('ActionOutput', OFPAT_OUTPUT,

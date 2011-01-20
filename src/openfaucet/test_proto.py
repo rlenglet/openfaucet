@@ -3,6 +3,7 @@
 import struct
 import unittest2
 
+from openfaucet import action
 from openfaucet import buffer
 from openfaucet import proto
 
@@ -884,6 +885,15 @@ class MockOpenflowProtocolSubclass(proto.OpenflowProtocol):
   def handle_port_status(self, reason, desc):
     self.calls_made.append(('handle_port_status', reason, desc))
 
+  def handle_packet_out(self, buffer_id, in_port, actions, data):
+    self.calls_made.append(('handle_packet_out', buffer_id, in_port, actions,
+                            data))
+
+
+MockVendorAction = action.vendor_action('MockVendorAction', 0x4242,
+                                        '!L', ('dummy',))
+
+
 class MockVendorHandler(object):
   """A mock vendor extension implementation.
   """
@@ -892,11 +902,18 @@ class MockVendorHandler(object):
     # A list of (ofproto, msg_length, xid, bytes) tuples.
     self.received_callbacks = []
 
-  vendor_id = 4242
+  vendor_id = 0x4242
 
   def handle_vendor_message(self, ofproto, msg_length, xid, buffer):
     bytes = buffer.read_bytes(msg_length - 12)  # Consume the remaining bytes.
-    self.received_callbacks.append((ofproto, msg_length, xid, bytes))
+    self.received_callbacks.append(('handle_vendor_message', ofproto,
+                                    msg_length, xid, bytes))
+
+  def deserialize_vendor_action(self, length, buffer):
+    a = MockVendorAction.deserialize(buffer)
+    self.received_callbacks.append(('deserialize_vendor_action', type, length,
+                                    buffer, a))
+    return a
 
 
 class TestOpenflowProtocol(unittest2.TestCase):
@@ -1296,16 +1313,155 @@ class TestOpenflowProtocol(unittest2.TestCase):
                               + pp.serialize())
     self.assertListEqual([], self.proto.calls_made)
 
-  def test_send_packet_out(self):
-    FIXME
+  def test_send_packet_out_buffered_no_actions(self):
+    self.proto.connectionMade()
+
+    self.proto.send_packet_out(0x01010101, 0xabcd, (), ())
+    self.assertEqual('\x01\x0d\x00\x10\x00\x00\x00\x00'
+                     '\x01\x01\x01\x01\xab\xcd\x00\x00'
+                     , self._get_next_sent_message())
+
+  def test_send_packet_out_unbuffered_no_actions(self):
+    self.proto.connectionMade()
+
+    self.proto.send_packet_out(0xffffffff, 0xabcd, (), ('helloworld',))
+    self.assertEqual('\x01\x0d\x00\x1a\x00\x00\x00\x00'
+                     '\xff\xff\xff\xff\xab\xcd\x00\x00'
+                     'helloworld'
+                     , self._get_next_sent_message())
+
+  def test_send_packet_out_buffered_two_actions(self):
+    self.proto.connectionMade()
+
+    self.proto.send_packet_out(
+        0x01010101, 0xabcd, (
+            action.ActionOutput(port=0x1234, max_len=0x9abc),
+            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+        ())
+    self.assertEqual('\x01\x0d\x00\x28\x00\x00\x00\x00'
+                     '\x01\x01\x01\x01\xab\xcd\x00\x02'
+                     '\x00\x00\x00\x08'
+                         '\x12\x34\x9a\xbc'
+                     '\x00\x05\x00\x10'
+                         '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00',
+                     self._get_next_sent_message())
+
+  def test_send_packet_out_unbuffered_two_actions(self):
+    self.proto.connectionMade()
+
+    self.proto.send_packet_out(
+        0xffffffff, 0xabcd, (
+            action.ActionOutput(port=0x1234, max_len=0x9abc),
+            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+        ('helloworld',))
+    self.assertEqual('\x01\x0d\x00\x32\x00\x00\x00\x00'
+                     '\xff\xff\xff\xff\xab\xcd\x00\x02'
+                     '\x00\x00\x00\x08'
+                         '\x12\x34\x9a\xbc'
+                     '\x00\x05\x00\x10'
+                         '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00'
+                     'helloworld',
+                     self._get_next_sent_message())
+
+  def test_send_packet_out_unbuffered_vendor_action(self):
+    self.proto.connectionMade()
+
+    self.proto.send_packet_out(
+        0xffffffff, 0xabcd, (MockVendorAction(dummy=0x15263748),),
+        ('helloworld',))
+    self.assertEqual('\x01\x0d\x00\x26\x00\x00\x00\x00'
+                     '\xff\xff\xff\xff\xab\xcd\x00\x01'
+                     '\x00\x0c\x00\x0c' '\x00\x00\x42\x42'
+                         '\x15\x26\x37\x48'
+                     'helloworld',
+                     self._get_next_sent_message())
+
+  def test_send_packet_out_unbuffered_no_data(self):
+    self.proto.connectionMade()
+
+    with self.assertRaises(ValueError):
+      self.proto.send_packet_out(
+          0xffffffff, 0xabcd, (
+              action.ActionOutput(port=0x1234, max_len=0x9abc),
+              action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+          ())
+    self.assertIsNone(self._get_next_sent_message())
+
+  def test_send_packet_out_buffered_with_data(self):
+    self.proto.connectionMade()
+
+    with self.assertRaises(ValueError):
+      self.proto.send_packet_out(
+          0x01010101, 0xabcd, (
+              action.ActionOutput(port=0x1234, max_len=0x9abc),
+              action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+          ('helloworld',))
+    self.assertIsNone(self._get_next_sent_message())
+
+  def test_send_packet_out_invalid_port0xff01(self):
+    self.proto.connectionMade()
+
+    with self.assertRaises(ValueError):
+      self.proto.send_packet_out(
+          0x01010101, 0xff01, (
+              action.ActionOutput(port=0x1234, max_len=0x9abc),
+              action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+          ())
+    self.assertIsNone(self._get_next_sent_message())
+
+  def test_handle_packet_out_buffered_two_actions(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived(
+        '\x01\x0d\x00\x28\x00\x00\x00\x00'
+        '\x01\x01\x01\x01\xab\xcd\x00\x02'
+        '\x00\x00\x00\x08'
+            '\x12\x34\x9a\xbc'
+        '\x00\x05\x00\x10'
+            '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00')
+    self.assertListEqual([(
+        'handle_packet_out', 0x01010101, 0xabcd, (
+            action.ActionOutput(port=0x1234, max_len=0x9abc),
+            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+        '')], self.proto.calls_made)
+
+  def test_handle_packet_out_unbuffered_two_actions(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived(
+        '\x01\x0d\x00\x32\x00\x00\x00\x00'
+        '\xff\xff\xff\xff\xab\xcd\x00\x02'
+        '\x00\x00\x00\x08'
+            '\x12\x34\x9a\xbc'
+        '\x00\x05\x00\x10'
+            '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00'
+        'helloworld')
+    self.assertListEqual([(
+        'handle_packet_out', 0xffffffff, 0xabcd, (
+            action.ActionOutput(port=0x1234, max_len=0x9abc),
+            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+        'helloworld')], self.proto.calls_made)
+
+  def test_handle_packet_out_unbuffered_vendor_action(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived('\x01\x0d\x00\x26\x00\x00\x00\x00'
+                            '\xff\xff\xff\xff\xab\xcd\x00\x01'
+                            '\x00\x0c\x00\x0c' '\x00\x00\x42\x42'
+                                '\x15\x26\x37\x48'
+                            'helloworld')
+
+    self.assertListEqual([('handle_packet_out', 0xffffffff, 0xabcd,
+                           (MockVendorAction(dummy=0x15263748),), 'helloworld')],
+                          self.proto.calls_made)
+
+
 
   # TODO(romain): Test handling of bogus messages, with wrong data and
   # / or wrong message lengths.
 
   # TODO(romain): Test proper handling of small chunks of data.
 
-
-  # TODO(romain): Test all Action* classes.
 
 class TestOpenflowProtocolRequestTracker(unittest2.TestCase):
 

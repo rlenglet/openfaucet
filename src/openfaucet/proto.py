@@ -12,6 +12,7 @@ import collections
 import struct
 from twisted.internet import protocol
 
+from openfaucet import action
 from openfaucet import buffer
 
 
@@ -229,6 +230,27 @@ OFPPR_ADD = 0
 OFPPR_DELETE = 1
 OFPPR_MODIFY = 2
 
+# Port numbers. Physical ports are numbered starting from 1.
+# Maximum number of physical switch ports.
+OFPP_MAX = 0xff00
+# Send the packet out the input port. This virtual port must be
+# explicitly used in order to send back out of the input port.
+OFPP_IN_PORT = 0xfff8
+# Perform actions in the flow table. This can be the destination port
+# only for OFPT_PACKET_OUT messages.
+OFPP_TABLE = 0xfff9
+# Process with normal L2/L3 switching.
+OFPP_NORMAL = 0xfffa
+# All physical ports except input port and those disabled by STP.
+OFPP_FLOOD = 0xfffb
+# All physical ports except input port.
+OFPP_ALL = 0xfffc
+# Send to controller.
+OFPP_CONTROLLER = 0xfffd
+# Local openflow "port".
+OFPP_LOCAL = 0xfffe
+# Not associated with a physical port.
+OFPP_NONE = 0xffff
 
 class PortFeatures(collections.namedtuple('PortFeatures', (
     # Flags to indicate the link modes.
@@ -1041,8 +1063,53 @@ class OpenflowProtocol(protocol.Protocol):
     self.handle_port_status(reason, desc)
 
   def _handle_packet_out(self, msg_length, xid):
-    pass
+    if msg_length < 16:
+      # TODO(romain): Log and close the connection.
+      raise ValueError('OFPT_PACKET_OUT message has invalid length')
+    buffer_id, in_port, actions_len = self._buffer.unpack('!LHH')
 
+    if msg_length < (16 + actions_len * 8):
+      # TODO(romain): Log and close the connection.
+      raise ValueError('OFPT_PACKET_OUT message has invalid actions length')
+
+    actions = []
+    for i in xrange(actions_len):
+      action_type, action_length = self._buffer.unpack('!HH')
+      if action_length < 8:
+        # TODO(romain): Log and close the connection.
+        raise ValueError('invalid action length', action_length)
+
+      # Delegate the OFPAT_VENDOR actions deserialization to the
+      # vendor handler.
+      if action_type == action.OFPAT_VENDOR:
+        vendor_id = self._buffer.unpack('!L')[0]
+        vendor_handler = self._vendor_handlers.get(vendor_id)
+        if vendor_handler is None:
+          # TODO(romain): Log and close the connection.
+          raise ValueError('OFPAT_VENDOR action with unknown vendor id',
+                           vendor_id)
+        a = vendor_handler.deserialize_vendor_action(action_length,
+                                                     self._buffer)
+        # TODO(romain): Test that the vendor handler deserialized
+        # exactly action_length bytes.
+
+      else:  # Standard action type.
+        action_class = action.ACTION_TYPES.get(action_type)
+        # TODO(romain): Implement support for VENDOR actions.
+        if action_class is None:
+          # TODO(romain): Log and close the connection.
+          raise ValueError('invalid action type', action_type)
+        if action_length != 4 + action_class.format_length:
+          # TODO(romain): Log and close the connection.
+          raise ValueError('invalid action length for type', action_type,
+                           action_length)
+        a = action_class.deserialize(self._buffer)
+
+      actions.append(a)
+
+    actions = tuple(actions)
+    data = self._buffer.read_bytes(self._buffer.message_bytes_left)
+    self.handle_packet_out(buffer_id, in_port, actions, data)
 
   def _handle_flow_mod(self, msg_length, xid):
     pass
@@ -1236,11 +1303,24 @@ class OpenflowProtocol(protocol.Protocol):
     """
     pass
 
-  def handle_packet_out(self):
-    """Handle the reception of a OFPT_FIXME message.
+  def handle_packet_out(self, buffer_id, in_port, actions, data):
+    """Handle the reception of a OFPT_PACKET_OUT message.
 
     This method does nothing and should be redefined in subclasses.
+
+    Args:
+      buffer_id: The buffer ID assigned by the datapath, as a 32-bit
+          unsigned integer. If 0xffffffff, the frame is not buffered,
+          and the entire frame is passed in data.
+      in_port: The port from which the frame is to be sent. OFPP_NONE
+          if none.
+      actions: The tuple of Action* objects specifying the actions to
+          perform on the frame.
+      data: The entire Ethernet frame, as a sequence of byte
+          buffers. Should be of length 0 if buffer_id is -1, and
+          should be of length >0 otherwise.
     """
+    pass
 
   def handle_flow_mod(self):
     """Handle the reception of a OFPT_FIXME message.
@@ -1507,10 +1587,39 @@ class OpenflowProtocol(protocol.Protocol):
       actions: The list of Action* objects specifying the actions to
           perform on the frame.
       data: The entire Ethernet frame, as a sequence of byte
-          buffers. Must be None if buffer_id is -1, and not None
-          otherwise.
+          buffers. Should be of length 0 if buffer_id is -1, and
+          should be of length >0 otherwise.
     """
-    FIXME
+    data_len = sum(len(d) for d in data)
+    if buffer_id == 0xffffffff:
+      if data_len == 0:
+        raise ValueError('data non-empty for non-buffered frame')
+    else:
+      if data_len > 0:
+        # TODO(romain): Check that the length is greater than the
+        # minimum length of an Ethernet packet, although this is not
+        # imposed by the OpenFlow 1.0.0 spec.
+        raise ValueError('data empty for buffered frame')
+
+    if in_port < 1 or (in_port > OFPP_MAX and in_port not in (
+        OFPP_IN_PORT, OFPP_TABLE, OFPP_NORMAL, OFPP_FLOOD, OFPP_ALL,
+        OFPP_CONTROLLER, OFPP_LOCAL, OFPP_NONE)):
+      raise ValueError('invalid in_port', in_port)
+
+    all_data = [struct.pack('!LHH', buffer_id, in_port, len(actions))]
+    for a in actions:
+      a_ser = a.serialize()
+      if a.type == action.OFPAT_VENDOR:
+        # If the actions is a OFPAT_VENDOR action, generate the
+        # ofp_action_vendor_header for the action.
+        all_data.append(struct.pack('!HHL', a.type, 8+len(a_ser), a.vendor_id))
+      else:
+        # Otherwise, generate the ofp_action_header for the action.
+        all_data.append(struct.pack('!HH', a.type, 4+len(a_ser)))
+      # Then generate the action data.
+      all_data.append(a_ser)
+    all_data.extend(data)
+    self._send_message(OFPT_PACKET_OUT, data=all_data)
 
 
 class OpenflowProtocolRequestTracker(OpenflowProtocol):
