@@ -54,24 +54,25 @@ class TestPortFeatures(unittest2.TestCase):
     self.assertTupleEqual(pf, proto.PortFeatures.deserialize(pf.serialize()))
 
   def test_deserialize(self):
-    pf = proto.PortFeatures.deserialize(0x0000076a)
     self.assertTupleEqual((False, True, False, True, False, True, True,
-                           False, True, True, True, False), pf)
+                           False, True, True, True, False),
+                          proto.PortFeatures.deserialize(0x0000076a))
 
   def test_deserialize_every_flag(self):
     for i in xrange(0, 12):
       flag = 1 << i
-      pf = proto.PortFeatures.deserialize(flag)
       args = [False]*11
       args.insert(i, True)
       args = tuple(args)
-      self.assertTupleEqual(args, pf)
+      self.assertTupleEqual(args, proto.PortFeatures.deserialize(flag))
 
   def test_deserialize_every_invalid_bit(self):
     for i in xrange(12, 32):
-      flag = 1 << i
-      with self.assertRaises(ValueError):
-        proto.PortFeatures.deserialize(flag)
+      flags = (1 << i) | 0x0000076a
+      # The invalid bit is ignored.
+      self.assertTupleEqual((False, True, False, True, False, True, True,
+                             False, True, True, True, False),
+                            proto.PortFeatures.deserialize(flags))
 
 
 class TestPhyPort(unittest2.TestCase):
@@ -192,7 +193,6 @@ class TestPhyPort(unittest2.TestCase):
                     '\x00\x00\x01\x20' '\x00\x00\x05\x20'
                     '\x00\x00\x0d\x20' '\x00\x00\x03\x20')
     self.buf.set_message_boundaries(48)
-    pp = proto.PhyPort.deserialize(self.buf)
     self.assertTupleEqual(
         (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport', False, True, False, True,
          True, False, False, True, proto.OFPPS_STP_FORWARD,
@@ -201,7 +201,8 @@ class TestPhyPort(unittest2.TestCase):
          _create_port_features(mode_1gb_fd=True, fiber=True, pause=True,
                                pause_asym=True),
          _create_port_features(mode_1gb_fd=True, fiber=True,
-                               autoneg=True)), pp)
+                               autoneg=True)),
+      proto.PhyPort.deserialize(self.buf))
     # Test that the deserialization consumed all 48 bytes.
     with self.assertRaises(AssertionError):
       self.buf.skip_bytes(1)
@@ -215,7 +216,6 @@ class TestPhyPort(unittest2.TestCase):
                       '\x00\x00\x01\x20' '\x00\x00\x05\x20'
                       '\x00\x00\x0d\x20' '\x00\x00\x03\x20')
       self.buf.set_message_boundaries(48)
-      pp = proto.PhyPort.deserialize(self.buf)
       args = [False]*6
       args.insert(i, True)
       args[0:0] = [0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport']
@@ -228,17 +228,26 @@ class TestPhyPort(unittest2.TestCase):
                    _create_port_features(mode_1gb_fd=True, fiber=True,
                                          autoneg=True)])
       args = tuple(args)
-      self.assertTupleEqual(args, pp)
+      self.assertTupleEqual(args, proto.PhyPort.deserialize(self.buf))
 
-  def test_deserialize_invalid_config_flag_0x80(self):
+  def test_deserialize_invalid_config_flag_0x9a(self):
     self.buf.append('\x00\x42' '\xab\xcd\xef\xa0\xb1\xc2'
                     'testport\x00\x00\x00\x00\x00\x00\x00\x00'
-                    '\x00\x00\x00\x80' '\x00\x00\x02\x01'
+                    '\x00\x00\x00\x9a' '\x00\x00\x02\x01'
                     '\x00\x00\x01\x20' '\x00\x00\x05\x20'
                     '\x00\x00\x0d\x20' '\x00\x00\x03\x20')
     self.buf.set_message_boundaries(48)
-    with self.assertRaises(ValueError):
-      proto.PhyPort.deserialize(self.buf)
+    # The undefined bits in the config bitset are ignored.
+    self.assertTupleEqual(
+        (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport', False, True, False, True,
+         True, False, False, True, proto.OFPPS_STP_FORWARD,
+         _create_port_features(mode_1gb_fd=True, fiber=True),
+         _create_port_features(mode_1gb_fd=True, fiber=True, pause=True),
+         _create_port_features(mode_1gb_fd=True, fiber=True, pause=True,
+                               pause_asym=True),
+         _create_port_features(mode_1gb_fd=True, fiber=True,
+                               autoneg=True)),
+      proto.PhyPort.deserialize(self.buf))
 
   def test_deserialize_every_state_stp(self):
     for i in (proto.OFPPS_STP_LISTEN, proto.OFPPS_STP_LEARN,
@@ -250,7 +259,6 @@ class TestPhyPort(unittest2.TestCase):
                        + '\x00\x00\x01\x20' '\x00\x00\x05\x20'
                        '\x00\x00\x0d\x20' '\x00\x00\x03\x20')
       self.buf.set_message_boundaries(48)
-      pp = proto.PhyPort.deserialize(self.buf)
       args = (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport', False, True, False,
               True, True, False, False, True, i,
               _create_port_features(mode_1gb_fd=True, fiber=True),
@@ -258,27 +266,45 @@ class TestPhyPort(unittest2.TestCase):
               _create_port_features(mode_1gb_fd=True, fiber=True, pause=True,
                                     pause_asym=True),
               _create_port_features(mode_1gb_fd=True, fiber=True, autoneg=True))
-      self.assertTupleEqual(args, pp)
+      self.assertTupleEqual(args, proto.PhyPort.deserialize(self.buf))
 
-  def test_deserialize_invalid_state_stp_0x400(self):
+  def test_deserialize_invalid_state_stp_0x0601(self):
     self.buf.append('\x00\x42' '\xab\xcd\xef\xa0\xb1\xc2'
                     'testport\x00\x00\x00\x00\x00\x00\x00\x00'
-                    '\x00\x00\x00\x1a' '\x00\x00\x04\x00'
+                    '\x00\x00\x00\x1a' '\x00\x00\x06\x81'
                     '\x00\x00\x01\x20' '\x00\x00\x05\x20'
                     '\x00\x00\x0d\x20' '\x00\x00\x03\x20')
     self.buf.set_message_boundaries(48)
-    with self.assertRaises(ValueError):
-      proto.PhyPort.deserialize(self.buf)
+    # The invalid bit at 0x0400 in the state is ignored.
+    self.assertTupleEqual(
+        (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport', False, True, False, True,
+         True, False, False, True, proto.OFPPS_STP_FORWARD,
+         _create_port_features(mode_1gb_fd=True, fiber=True),
+         _create_port_features(mode_1gb_fd=True, fiber=True, pause=True),
+         _create_port_features(mode_1gb_fd=True, fiber=True, pause=True,
+                               pause_asym=True),
+         _create_port_features(mode_1gb_fd=True, fiber=True,
+                               autoneg=True)),
+      proto.PhyPort.deserialize(self.buf))
 
-  def test_deserialize_invalid_state_bit_0x080(self):
+  def test_deserialize_invalid_state_bit_0x0281(self):
     self.buf.append('\x00\x42' '\xab\xcd\xef\xa0\xb1\xc2'
                     'testport\x00\x00\x00\x00\x00\x00\x00\x00'
-                    '\x00\x00\x00\x1a' '\x00\x00\x00\x80'
+                    '\x00\x00\x00\x1a' '\x00\x00\x02\x81'
                     '\x00\x00\x01\x20' '\x00\x00\x05\x20'
                     '\x00\x00\x0d\x20' '\x00\x00\x03\x20')
     self.buf.set_message_boundaries(48)
-    with self.assertRaises(ValueError):
-      proto.PhyPort.deserialize(self.buf)
+    # The invalid bit at 0x0080 in the state is ignored.
+    self.assertTupleEqual(
+        (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport', False, True, False, True,
+         True, False, False, True, proto.OFPPS_STP_FORWARD,
+         _create_port_features(mode_1gb_fd=True, fiber=True),
+         _create_port_features(mode_1gb_fd=True, fiber=True, pause=True),
+         _create_port_features(mode_1gb_fd=True, fiber=True, pause=True,
+                               pause_asym=True),
+         _create_port_features(mode_1gb_fd=True, fiber=True,
+                               autoneg=True)),
+      proto.PhyPort.deserialize(self.buf))
 
 
 class TestSwitchFeatures(unittest2.TestCase):
@@ -524,18 +550,22 @@ class TestSwitchFeatures(unittest2.TestCase):
   def test_deserialize_reserved_capability_flag_0x10(self):
     self.buf.append('\x00\x00\x00\x00\x00\x12\x34\x56'
                      '\x00\x00\x00\x05' '\x03\x00\x00\x00'
-                     '\x00\x00\x00\x10' '\x00\x00\x01\x2d')
+                     '\x00\x00\x00\xb5' '\x00\x00\x01\x2d')
     self.buf.set_message_boundaries(24)
-    with self.assertRaises(ValueError):
-      proto.SwitchFeatures.deserialize(self.buf)
+    # The reserved bit at 0x00000010 is ignored.
+    self.assertTupleEqual((0x123456, 5, 3, True, False, True, False, True, False,
+                          True, frozenset((0, 2, 3, 5, 8)), ()),
+                          proto.SwitchFeatures.deserialize(self.buf))
 
   def test_deserialize_invalid_capability_flag_0x0100(self):
     self.buf.append('\x00\x00\x00\x00\x00\x12\x34\x56'
                     '\x00\x00\x00\x05' '\x03\x00\x00\x00'
-                    '\x00\x00\x01\x00' '\x00\x00\x01\x2d')
+                    '\x00\x00\x01\xa5' '\x00\x00\x01\x2d')
     self.buf.set_message_boundaries(24)
-    with self.assertRaises(ValueError):
-      proto.SwitchFeatures.deserialize(self.buf)
+    # The reserved bit at 0x00000100 is ignored.
+    self.assertTupleEqual((0x123456, 5, 3, True, False, True, False, True, False,
+                          True, frozenset((0, 2, 3, 5, 8)), ()),
+                          proto.SwitchFeatures.deserialize(self.buf))
 
   def test_deserialize_every_action(self):
     for i in xrange(0, 32):

@@ -94,8 +94,10 @@ class ActionSetVlanPcp(__action('ActionSetVlanPcp', OFPAT_SET_VLAN_PCP,
     # The PCP field has only its 3 LSBs meaningful. Check that the 5
     # MSBs are zeroed.
     if a.vlan_pcp & 0xf8:
-      # TODO(romain): Zero out those bits instead of raising an exception.
-      raise ValueError('vlan_pcp has non-zero MSB bits set', a.vlan_pcp)
+      # Be liberal. Zero out those bits instead of raising an exception.
+      # TODO(romain): Log this.
+      # ('vlan_pcp has non-zero MSB bits set', a.vlan_pcp)
+      a = a._replace(vlan_pcp=a.vlan_pcp & 0x07)
     return a
 
 
@@ -124,7 +126,7 @@ class ActionSetNwTos(__action('ActionSetNwTos', OFPAT_SET_NW_TOS,
   def serialize(self):
     # The DSCP field has only its 6 MSBs meaningful. Check that the 2
     # LSBs are zeroed.
-    if self.nw_tos & 0x2:
+    if self.nw_tos & 0x3:
       raise ValueError('unused lower bits in nw_tos are set', self.nw_tos)
     return super(ActionSetNwTos, self).serialize()
 
@@ -133,9 +135,11 @@ class ActionSetNwTos(__action('ActionSetNwTos', OFPAT_SET_NW_TOS,
     a = super(ActionSetNwTos, cls).deserialize(buf)
     # The DSCP field has only its 6 MSBs meaningful. Check that the 2
     # LSBs are zeroed.
-    if a.nw_tos & 0x2:
-      # TODO(romain): Zero out those bits instead of raising an exception.
-      raise ValueError('unused lower bits in nw_tos are set', a.nw_tos)
+    if a.nw_tos & 0x3:
+      # Be liberal. Zero out those bits instead of raising an exception.
+      # TODO(romain): Log this.
+      # ('unused lower bits in nw_tos are set', a.nw_tos)
+      a = a._replace(nw_tos=a.nw_tos & 0xfc)
     return a
 
 

@@ -38,8 +38,8 @@ class TestActions(unittest2.TestCase):
     self.assertEqual(2, a.type)
     self.assertEqual('\x02\x00\x00\x00', a.serialize())
 
-  def test_serialize_action_set_vlan_pcp_invalid_pcp_0x08(self):
-    a = action.ActionSetVlanPcp(vlan_pcp=0x08)
+  def test_serialize_action_set_vlan_pcp_invalid_pcp_0x0a(self):
+    a = action.ActionSetVlanPcp(vlan_pcp=0x0a)
     self.assertEqual(2, a.type)
     with self.assertRaises(ValueError):
       a.serialize()
@@ -50,11 +50,11 @@ class TestActions(unittest2.TestCase):
     self.assertTupleEqual((0x02,),
                           action.ActionSetVlanPcp.deserialize(self.buf))
 
-  def test_deserialize_action_set_vlan_pcp_invalid_pcp_0x80(self):
-    self.buf.append('\x08\x00\x00\x00')
+  def test_deserialize_action_set_vlan_pcp_invalid_pcp_0x0a(self):
+    self.buf.append('\x0a\x00\x00\x00')
     self.buf.set_message_boundaries(4)
-    with self.assertRaises(ValueError):
-      action.ActionSetVlanPcp.deserialize(self.buf)
+    self.assertTupleEqual((0x02,),  # Invalid bits are zeroed out.
+                          action.ActionSetVlanPcp.deserialize(self.buf))
 
   def test_serialize_action_strip_vlan(self):
     a = action.ActionStripVlan()
@@ -120,8 +120,8 @@ class TestActions(unittest2.TestCase):
     self.assertEqual('\x8c\x00\x00\x00',
                      a.serialize())
 
-  def test_serialize_action_set_nw_tos_invalid_tos_0x02(self):
-    a = action.ActionSetNwTos(nw_tos=0x02)
+  def test_serialize_action_set_nw_tos_invalid_tos_0x86(self):
+    a = action.ActionSetNwTos(nw_tos=0x86)
     self.assertEqual(8, a.type)
     with self.assertRaises(ValueError):
       a.serialize()
@@ -132,11 +132,11 @@ class TestActions(unittest2.TestCase):
     self.assertTupleEqual((0x8c,),
                           action.ActionSetNwTos.deserialize(self.buf))
 
-  def test_deserialize_action_set_nw_tos_invalid_tos_0x02(self):
-    self.buf.append('\x02\x00\x00\x00')
+  def test_deserialize_action_set_nw_tos_invalid_tos_0x86(self):
+    self.buf.append('\x86\x00\x00\x00')
     self.buf.set_message_boundaries(4)
-    with self.assertRaises(ValueError):
-      action.ActionSetNwTos.deserialize(self.buf)
+    self.assertTupleEqual((0x84,),  # Invalid bits are zeroed out.
+                          action.ActionSetNwTos.deserialize(self.buf))
 
   def test_serialize_action_set_tp_src(self):
     a = action.ActionSetTpSrc(tp_port=0x1234)

@@ -298,7 +298,10 @@ class PortFeatures(collections.namedtuple('PortFeatures', (
       ValueError if the integer has undefined bits set.
     """
     if v & ~((1 << 12)-1):
-      raise ValueError('undefined bits set', v)
+      # Be liberal. Ignore those bits instead of raising an exception.
+      # TODO(romain): Log this.
+      # ('undefined bits set', v)
+      pass
     # The boolean flags are in the same order as the bits, from LSB to MSB.
     args = [bool(v & (1 << i)) for i in xrange(0, 12)]
     return PortFeatures(*args)
@@ -390,9 +393,15 @@ class PhyPort(collections.namedtuple('PhyPort', (
      supported_ser, peer_ser) = buf.unpack(cls.FORMAT)
 
     if config_ser & ~((1 << 7)-1):
-      raise ValueError('undefined config bits set', config_ser)
+      # Be liberal. Ignore those bits instead of raising an exception.
+      # TODO(romain): Log this.
+      # ('undefined config bits set', config_ser)
+      pass
     if state_ser & ~(OFPPS_LINK_DOWN | OFPPS_STP_MASK):
-      raise ValueError('undefined state bits set', state_ser)
+      # Be liberal. Ignore those bits instead of raising an exception.
+      # TODO(romain): Log this.
+      # ('undefined state bits set', state_ser)
+      pass
 
     args = [port_no, hw_addr, name.rstrip('\x00')]
     # The boolean flags are in the same order as the bits, from LSB to MSB.
@@ -484,9 +493,16 @@ class SwitchFeatures(collections.namedtuple('SwitchFeatures', (
     args = [datapath_id, n_buffers, n_tables]
 
     if capabilities_ser & OFPC_RESERVED:
-      raise ValueError('reserved capabilities bit set', capabilities_ser)
+      # Be liberal. Ignore those bits instead of raising an exception.
+      # TODO(romain): Log this.
+      # ('reserved capabilities bit set', capabilities_ser)
+      pass
     if capabilities_ser & ~((1 << 8) - 1):
-      raise ValueError('undefined capabilities bits set', capabilities_ser)
+      # Be liberal. Ignore those bits instead of raising an exception.
+      # TODO(romain): Log this.
+      # ('undefined capabilities bits set', capabilities_ser)
+      pass
+
     # The boolean flags are in the same order as the bits, from LSB to MSB.
     # Skip bit 4 as it is reserved.
     args.extend(bool(capabilities_ser & (1 << i)) for i in xrange(0, 8)
@@ -563,6 +579,8 @@ class SwitchConfig(collections.namedtuple('SwitchConfig', (
     """
     config_frag, miss_send_len = buf.unpack(cls.FORMAT)
     if config_frag & ~OFPC_FRAG_MASK:
+      # TODO(romain): Be liberal? Zero out those bits instead of
+      # raising an exception?
       raise ValueError('undefined config bits set', config_frag)
     return SwitchConfig(config_frag=config_frag, miss_send_len=miss_send_len)
 
@@ -699,9 +717,15 @@ class Match(collections.namedtuple('Match', (
     """
     (wildcards, in_port, dl_src, dl_dst, dl_vlan, dl_vlan_pcp, dl_type, nw_tos,
      nw_proto, nw_src, nw_dst, tp_src, tp_dst) = buf.unpack(cls.FORMAT)
-    # TODO(romain): Check that no invalid wildcards bits are set.
-    if nw_tos & 0x02:
-      raise ValueError('unused lower bits in nw_tos are set', nw_tos)
+
+    # Be liberal. Ignore undefined wildcards bits that are set.
+
+    if nw_tos & 0x03:
+      # Be liberal. Zero out those bits instead of raising an exception.
+      # TODO(romain): Log this.
+      # ('unused lower bits in nw_tos are set', nw_tos)
+      nw_tos &= 0xfc
+
     nw_src_prefix_length = 32 - (
         (wildcards & OFPFW_NW_SRC_MASK) >> OFPFW_NW_SRC_SHIFT)
     nw_dst_prefix_length = 32 - (
@@ -984,7 +1008,7 @@ class OpenflowProtocol(protocol.Protocol):
     buffer_id, total_len, in_port, reason = self._buffer.unpack('!LHHBx')
     if reason not in (OFPR_NO_MATCH, OFPR_ACTION):
       # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_PACKET_IN message has invalid reason')
+      raise ValueError('OFPT_PACKET_IN message has invalid reason', reason)
     data = self._buffer.read_bytes(msg_length - 18)
     self.handle_packet_in(buffer_id, total_len, in_port, reason, data)
 
@@ -997,7 +1021,7 @@ class OpenflowProtocol(protocol.Protocol):
      packet_count, byte_count) = self._buffer.unpack('!QHBxLLH2xQQ')
     if reason not in (OFPRR_IDLE_TIMEOUT, OFPRR_HARD_TIMEOUT, OFPRR_DELETE):
       # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_FLOW_REMOVED message has invalid reason')
+      raise ValueError('OFPT_FLOW_REMOVED message has invalid reason', reason)
     self.handle_flow_removed(
         match, cookie, priority, reason, duration_sec, duration_nsec,
         idle_timeout, packet_count, byte_count)
@@ -1008,7 +1032,8 @@ class OpenflowProtocol(protocol.Protocol):
       raise ValueError('OFPT_PORT_STATUS message has invalid length')
     (reason,) = self._buffer.unpack('!B7x')
     if reason not in (OFPPR_ADD, OFPPR_DELETE, OFPPR_MODIFY):
-      raise ValueError('invalid reason', reason)
+      # TODO(romain): Log and close the connection.
+      raise ValueError('OFPT_PORT_STATUS message has invalid reason', reason)
     desc = PhyPort.deserialize(self._buffer)
     self.handle_port_status(reason, desc)
 
