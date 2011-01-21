@@ -40,7 +40,7 @@ def __action(type_name, action_type, format, field_names, verbose=False):
     type_name: The name of the type to generate.
     action_type: The OFPAT_* type of the action.
     format: The struct format of the action-specific representation
-        which is sent / receifed after the ofp_action_header.
+        which is sent / received after the ofp_action_header.
     field_names: The tuple of name strings of fields in the
         action. Must not contain 'type' or 'format_length'.
     verbose: If True, the code for the generated type is printed.
@@ -90,7 +90,7 @@ def vendor_action(type_name, vendor_id, format, field_names, verbose=False):
     type_name: The name of the type to generate.
     vendor_id: The OpenFlow vendor ID, as a 32-bit unsigned integer.
     format: The struct format of the action-specific representation
-        which is sent / receifed after the ofp_action_vendor_header.
+        which is sent / received after the ofp_action_vendor_header.
     field_names: The tuple of name strings of fields in the
         action. Must not contain 'type', 'format_length', or 'vendor_id'.
     verbose: If True, the code for the generated type is printed.

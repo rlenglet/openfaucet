@@ -889,6 +889,14 @@ class MockOpenflowProtocolSubclass(proto.OpenflowProtocol):
     self.calls_made.append(('handle_packet_out', buffer_id, in_port, actions,
                             data))
 
+  def handle_flow_mod(
+      self, match, cookie, command, idle_timeout, hard_timeout, priority,
+      buffer_id, out_port, send_flow_rem, check_overlap, emerg, actions):
+    self.calls_made.append((
+        'handle_flow_mod', match, cookie, command, idle_timeout, hard_timeout,
+        priority, buffer_id, out_port, send_flow_rem, check_overlap, emerg,
+        actions))
+
 
 MockVendorAction = action.vendor_action('MockVendorAction', 0x4242,
                                         '!L', ('dummy',))
@@ -1375,6 +1383,7 @@ class TestOpenflowProtocol(unittest2.TestCase):
                          '\x15\x26\x37\x48'
                      'helloworld',
                      self._get_next_sent_message())
+    # TODO(romain): Test that the vendor handler received the right callback.
 
   def test_send_packet_out_unbuffered_no_data(self):
     self.proto.connectionMade()
@@ -1450,15 +1459,149 @@ class TestOpenflowProtocol(unittest2.TestCase):
                             '\x00\x0c\x00\x0c' '\x00\x00\x42\x42'
                                 '\x15\x26\x37\x48'
                             'helloworld')
-
     self.assertListEqual([('handle_packet_out', 0xffffffff, 0xabcd,
                            (MockVendorAction(dummy=0x15263748),), 'helloworld')],
                           self.proto.calls_made)
+    # TODO(romain): Test that the vendor handler received the right callback.
 
+  def test_send_flow_mod(self):
+    self.proto.connectionMade()
 
+    match = proto.Match(
+        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
+        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
+        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
+        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
+        tp_src=0x38, tp_dst=0x49)
+    self.proto.send_flow_mod(
+        match, 0x12345678, proto.OFPFC_MODIFY, 0x4231, 0, 0x1000, 0x01010101,
+        0xabcd, True, False, False, (
+            action.ActionOutput(port=0x1234, max_len=0x9abc),
+            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
+    self.assertEqual('\x01\x0e\x00\x60\x00\x00\x00\x00'
+                     + match.serialize()
+                     + '\x00\x00\x00\x00\x12\x34\x56\x78'
+                     '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
+                     '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01'
+                     '\x00\x00\x00\x08'
+                         '\x12\x34\x9a\xbc'
+                     '\x00\x05\x00\x10'
+                         '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00',
+                     self._get_next_sent_message())
 
-  # TODO(romain): Test handling of bogus messages, with wrong data and
-  # / or wrong message lengths.
+  def test_send_flow_mod_invalid_cookie_minus1(self):
+    self.proto.connectionMade()
+
+    match = proto.Match(
+        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
+        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
+        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
+        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
+        tp_src=0x38, tp_dst=0x49)
+    with self.assertRaises(ValueError):
+      self.proto.send_flow_mod(
+          match, 0xffffffffffffffff, proto.OFPFC_MODIFY, 0x4231, 0, 0x1000,
+          0x01010101, 0xabcd, True, False, False, ())
+    self.assertIsNone(self._get_next_sent_message())
+
+  def test_send_flow_mod_invalid_command_5(self):
+    self.proto.connectionMade()
+
+    match = proto.Match(
+        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
+        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
+        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
+        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
+        tp_src=0x38, tp_dst=0x49)
+    with self.assertRaises(ValueError):
+      self.proto.send_flow_mod(
+          match, 0x12345678, 5, 0x4231, 0, 0x1000,
+          0x01010101, 0xabcd, True, False, False, ())
+    self.assertIsNone(self._get_next_sent_message())
+
+  def test_handle_flow_mod_two_actions(self):
+    self.proto.connectionMade()
+
+    match = proto.Match(
+        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
+        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
+        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
+        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
+        tp_src=0x38, tp_dst=0x49)
+    self.proto.dataReceived(
+        '\x01\x0e\x00\x60\x00\x00\x00\x00'
+        + match.serialize()
+        + '\x00\x00\x00\x00\x12\x34\x56\x78'
+        '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
+        '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01'
+        '\x00\x00\x00\x08'
+            '\x12\x34\x9a\xbc'
+        '\x00\x05\x00\x10'
+            '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00')
+    self.assertListEqual(
+        [('handle_flow_mod', match, 0x12345678, proto.OFPFC_MODIFY, 0x4231, 0,
+          0x1000, 0x01010101, 0xabcd, True, False, False, (
+              action.ActionOutput(port=0x1234, max_len=0x9abc),
+              action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))],
+        self.proto.calls_made)
+
+  def test_handle_flow_mod_no_actions(self):
+    self.proto.connectionMade()
+
+    match = proto.Match(
+        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
+        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
+        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
+        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
+        tp_src=0x38, tp_dst=0x49)
+    self.proto.dataReceived(
+        '\x01\x0e\x00\x48\x00\x00\x00\x00'
+        + match.serialize()
+        + '\x00\x00\x00\x00\x12\x34\x56\x78'
+        '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
+        '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01')
+    self.assertListEqual(
+        [('handle_flow_mod', match, 0x12345678, proto.OFPFC_MODIFY, 0x4231, 0,
+          0x1000, 0x01010101, 0xabcd, True, False, False, ())],
+        self.proto.calls_made)
+
+  def test_handle_flow_mod_invalid_cookie_minus1(self):
+    self.proto.connectionMade()
+
+    match = proto.Match(
+        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
+        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
+        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
+        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
+        tp_src=0x38, tp_dst=0x49)
+    with self.assertRaises(ValueError):
+      self.proto.dataReceived(
+          '\x01\x0e\x00\x48\x00\x00\x00\x00'
+          + match.serialize()
+          + '\xff\xff\xff\xff\xff\xff\xff\xff'
+          '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
+          '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01')
+    self.assertListEqual([], self.proto.calls_made)
+
+  def test_handle_flow_mod_invalid_command_5(self):
+    self.proto.connectionMade()
+
+    match = proto.Match(
+        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
+        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
+        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
+        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
+        tp_src=0x38, tp_dst=0x49)
+    with self.assertRaises(ValueError):
+      self.proto.dataReceived(
+          '\x01\x0e\x00\x48\x00\x00\x00\x00'
+          + match.serialize()
+          + '\x00\x00\x00\x00\x12\x34\x56\x78'
+          '\x00\x05' '\x42\x31\x00\x00' '\x10\x00'
+          '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01')
+    self.assertListEqual([], self.proto.calls_made)
+
+  # TODO(romain): Test handling of bogus messages, with wrong message lengths.
 
   # TODO(romain): Test proper handling of small chunks of data.
 

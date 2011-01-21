@@ -252,6 +252,19 @@ OFPP_LOCAL = 0xfffe
 # Not associated with a physical port.
 OFPP_NONE = 0xffff
 
+# OFPT_FLOW_MOD message commands.
+OFPFC_ADD = 0
+OFPFC_MODIFY = 1
+OFPFC_MODIFY_STRICT = 2
+OFPFC_DELETE = 3
+OFPFC_DELETE_STRICT = 4
+
+# OFPT_FLOW_MOD message flags.
+OFPFF_SEND_FLOW_REM = 1 << 0
+OFPFF_CHECK_OVERLAP = 1 << 1
+OFPFF_EMERG = 1 << 2
+
+
 class PortFeatures(collections.namedtuple('PortFeatures', (
     # Flags to indicate the link modes.
     'mode_10mb_hd', 'mode_10mb_fd', 'mode_100mb_hd', 'mode_100mb_fd',
@@ -1072,48 +1085,44 @@ class OpenflowProtocol(protocol.Protocol):
       # TODO(romain): Log and close the connection.
       raise ValueError('OFPT_PACKET_OUT message has invalid actions length')
 
-    actions = []
-    for i in xrange(actions_len):
-      action_type, action_length = self._buffer.unpack('!HH')
-      if action_length < 8:
-        # TODO(romain): Log and close the connection.
-        raise ValueError('invalid action length', action_length)
-
-      # Delegate the OFPAT_VENDOR actions deserialization to the
-      # vendor handler.
-      if action_type == action.OFPAT_VENDOR:
-        vendor_id = self._buffer.unpack('!L')[0]
-        vendor_handler = self._vendor_handlers.get(vendor_id)
-        if vendor_handler is None:
-          # TODO(romain): Log and close the connection.
-          raise ValueError('OFPAT_VENDOR action with unknown vendor id',
-                           vendor_id)
-        a = vendor_handler.deserialize_vendor_action(action_length,
-                                                     self._buffer)
-        # TODO(romain): Test that the vendor handler deserialized
-        # exactly action_length bytes.
-
-      else:  # Standard action type.
-        action_class = action.ACTION_TYPES.get(action_type)
-        # TODO(romain): Implement support for VENDOR actions.
-        if action_class is None:
-          # TODO(romain): Log and close the connection.
-          raise ValueError('invalid action type', action_type)
-        if action_length != 4 + action_class.format_length:
-          # TODO(romain): Log and close the connection.
-          raise ValueError('invalid action length for type', action_type,
-                           action_length)
-        a = action_class.deserialize(self._buffer)
-
-      actions.append(a)
-
-    actions = tuple(actions)
+    actions = tuple(self._deserialize_action() for i in xrange(actions_len))
     data = self._buffer.read_bytes(self._buffer.message_bytes_left)
     self.handle_packet_out(buffer_id, in_port, actions, data)
 
   def _handle_flow_mod(self, msg_length, xid):
-    pass
+    if msg_length < 72:
+      # TODO(romain): Log and close the connection.
+      raise ValueError('OFPT_FLOW_MOD message has invalid length')
 
+    match = Match.deserialize(self._buffer)
+    (cookie, command, idle_timeout, hard_timeout, priority, buffer_id,
+     out_port, flags) = self._buffer.unpack('!QHHHHLHH')
+
+    if cookie == 0xffffffffffffffff:
+      # TODO(romain): Log and close the connection.
+      raise ValueError('reserved cookie', cookie)
+    if command not in (OFPFC_ADD, OFPFC_MODIFY, OFPFC_MODIFY_STRICT,
+                       OFPFC_DELETE, OFPFC_DELETE_STRICT):
+      # TODO(romain): Log and close the connection.
+      raise ValueError('invalid command', command)
+    if flags & ~(OFPFF_SEND_FLOW_REM | OFPFF_CHECK_OVERLAP | OFPFF_EMERG):
+      # Be liberal. Ignore those bits instead of raising an exception.
+      # TODO(romain): Log this.
+      # ('undefined flag bits set', flags)
+      pass
+    # TODO(romain): Check that the port is valid for this message
+    # type. E.g. *_TABLE should be invalid?
+
+    send_flow_rem = flags & OFPFF_SEND_FLOW_REM
+    check_overlap = flags & OFPFF_CHECK_OVERLAP
+    emerg = flags & OFPFF_EMERG
+    actions = []
+    while self._buffer.message_bytes_left > 0:
+      actions.append(self._deserialize_action())
+    actions = tuple(actions)
+    self.handle_flow_mod(match, cookie, command, idle_timeout, hard_timeout,
+                         priority, buffer_id, out_port, send_flow_rem,
+                         check_overlap, emerg, actions)
 
   def _handle_port_mod(self, msg_length, xid):
     pass
@@ -1322,11 +1331,50 @@ class OpenflowProtocol(protocol.Protocol):
     """
     pass
 
-  def handle_flow_mod(self):
-    """Handle the reception of a OFPT_FIXME message.
+  def handle_flow_mod(
+      self, match, cookie, command, idle_timeout, hard_timeout, priority,
+      buffer_id, out_port, send_flow_rem, check_overlap, emerg, actions):
+    """Handle the reception of a OFPT_FLOW_MOD message.
 
     This method does nothing and should be redefined in subclasses.
+
+    Args:
+      match: A Match object describing the fields of the flow.
+      cookie: An opaque 64-bit unsigned integer issued by the
+          controller. 0xffffffffffffffff is reserved and must not be
+          used.
+      command: The action to perform by the datapath, either
+          OFPFC_ADD (add a new flow),
+          OFPFC_MODIFY (modify all matching flows),
+          OFPFC_MODIFY_STRICT (modify flows strictly matching wildcards),
+          OFPFC_DELETE (delete all matching flows),
+          or OFPFC_DELETE_STRICT (delete flows strictly matching wildcards).
+      idle_timeout: The idle time before discarding in seconds, as a
+          16-bit unsigned integer.
+      hard_timeout: The maximum time before discarding in seconds, as
+          a 16-bit unsigned integer.
+      priority: The priority level of the flow entry, as a 16-bit
+          unsigned integer.
+      buffer_id: The buffer ID assigned by the datapath of a buffered
+          packet to apply the flow to, as a 32-bit unsigned
+          integer. If 0xffffffff, no buffered packet is to be applied
+          the flow actions.
+      out_port: For OFPFC_DELETE* commands, an output port that is
+          required to be included in matching flows. If OFPP_NONE, no
+          restriction applies in matching. For other commands, this is
+          ignored.
+      send_flow_rem: If True, send a OFPT_FLOW_REMOVED message when
+          the flow expires or is deleted.
+      check_overlap: If True, check for overlapping entries first,
+          i.e. if there are conflicting entries with the same
+          priority, the flow is not added and the modification fails.
+      emerg: if True, the switch must consider this flow entry as an
+          emergency entry, and only use it for forwarding when
+          disconnected from the controller.
+      actions: The sequence of Action* objects specifying the actions
+          to perform on the flow's packets.
     """
+    pass
 
   def handle_port_mod(self):
     """Handle the reception of a OFPT_FIXME message.
@@ -1371,6 +1419,64 @@ class OpenflowProtocol(protocol.Protocol):
     """
 
 
+
+  def _serialize_action(self, a):
+    """Serialize a single actions.
+
+    Args:
+      a: The Action* object to serialize into data.
+
+    Returns:
+      The sequence of byte buffers representing the serialized action.
+    """
+    a_ser = a.serialize()
+    if a.type == action.OFPAT_VENDOR:
+      # If the actions is a OFPAT_VENDOR action, generate an
+      # ofp_action_vendor_header for the action.
+      header = struct.pack('!HHL', a.type, 8+len(a_ser), a.vendor_id)
+    else:
+      # Otherwise, generate an ofp_action_header for the action.
+      header = struct.pack('!HH', a.type, 4+len(a_ser))
+    return (header, a_ser)
+
+  def _deserialize_action(self):
+    """Deserialize a single action from the buffer.
+
+    Returns:
+      A new Action* object.
+    """
+    action_type, action_length = self._buffer.unpack('!HH')
+    if action_length < 8:
+      # TODO(romain): Log and close the connection.
+      raise ValueError('invalid action length', action_length)
+
+    # Delegate the OFPAT_VENDOR actions deserialization to the
+    # vendor handler.
+    if action_type == action.OFPAT_VENDOR:
+      vendor_id = self._buffer.unpack('!L')[0]
+      vendor_handler = self._vendor_handlers.get(vendor_id)
+      if vendor_handler is None:
+        # TODO(romain): Log and close the connection.
+        raise ValueError('OFPAT_VENDOR action with unknown vendor id',
+                         vendor_id)
+      a = vendor_handler.deserialize_vendor_action(action_length,
+                                                   self._buffer)
+      # TODO(romain): Test that the vendor handler deserialized
+      # exactly action_length bytes.
+
+    else:  # Standard action type.
+      action_class = action.ACTION_TYPES.get(action_type)
+      # TODO(romain): Implement support for VENDOR actions.
+      if action_class is None:
+        # TODO(romain): Log and close the connection.
+        raise ValueError('invalid action type', action_type)
+      if action_length != 4 + action_class.format_length:
+        # TODO(romain): Log and close the connection.
+        raise ValueError('invalid action length for type', action_type,
+                         action_length)
+      a = action_class.deserialize(self._buffer)
+
+    return a
 
   def _send_message(self, type, xid=0, data=()):
     """Send an OpenFlow message prepended with a generated header.
@@ -1584,8 +1690,8 @@ class OpenflowProtocol(protocol.Protocol):
           and the entire frame must be passed in data.
       in_port: The port from which the frame is to be sent. OFPP_NONE
           if none.
-      actions: The list of Action* objects specifying the actions to
-          perform on the frame.
+      actions: The sequence of Action* objects specifying the actions
+          to perform on the frame.
       data: The entire Ethernet frame, as a sequence of byte
           buffers. Should be of length 0 if buffer_id is -1, and
           should be of length >0 otherwise.
@@ -1608,18 +1714,71 @@ class OpenflowProtocol(protocol.Protocol):
 
     all_data = [struct.pack('!LHH', buffer_id, in_port, len(actions))]
     for a in actions:
-      a_ser = a.serialize()
-      if a.type == action.OFPAT_VENDOR:
-        # If the actions is a OFPAT_VENDOR action, generate the
-        # ofp_action_vendor_header for the action.
-        all_data.append(struct.pack('!HHL', a.type, 8+len(a_ser), a.vendor_id))
-      else:
-        # Otherwise, generate the ofp_action_header for the action.
-        all_data.append(struct.pack('!HH', a.type, 4+len(a_ser)))
-      # Then generate the action data.
-      all_data.append(a_ser)
+      all_data.extend(self._serialize_action(a))
     all_data.extend(data)
     self._send_message(OFPT_PACKET_OUT, data=all_data)
+
+  def send_flow_mod(self, match, cookie, command, idle_timeout, hard_timeout,
+                    priority, buffer_id, out_port, send_flow_rem, check_overlap,
+                    emerg, actions):
+    """Send a OFPT_FLOW_MOD message.
+
+    Args:
+      match: A Match object describing the fields of the flow.
+      cookie: An opaque 64-bit unsigned integer issued by the
+          controller. 0xffffffffffffffff is reserved and must not be
+          used.
+      command: The action to perform by the datapath, either
+          OFPFC_ADD (add a new flow),
+          OFPFC_MODIFY (modify all matching flows),
+          OFPFC_MODIFY_STRICT (modify flows strictly matching wildcards),
+          OFPFC_DELETE (delete all matching flows),
+          or OFPFC_DELETE_STRICT (delete flows strictly matching wildcards).
+      idle_timeout: The idle time before discarding in seconds, as a
+          16-bit unsigned integer.
+      hard_timeout: The maximum time before discarding in seconds, as
+          a 16-bit unsigned integer.
+      priority: The priority level of the flow entry, as a 16-bit
+          unsigned integer.
+      buffer_id: The buffer ID assigned by the datapath of a buffered
+          packet to apply the flow to, as a 32-bit unsigned
+          integer. If 0xffffffff, no buffered packet is to be applied
+          the flow actions.
+      out_port: For OFPFC_DELETE* commands, an output port that is
+          required to be included in matching flows. If OFPP_NONE, no
+          restriction applies in matching. For other commands, this is
+          ignored.
+      send_flow_rem: If True, send a OFPT_FLOW_REMOVED message when
+          the flow expires or is deleted.
+      check_overlap: If True, check for overlapping entries first,
+          i.e. if there are conflicting entries with the same
+          priority, the flow is not added and the modification fails.
+      emerg: if True, the switch must consider this flow entry as an
+          emergency entry, and only use it for forwarding when
+          disconnected from the controller.
+      actions: The sequence of Action* objects specifying the actions
+          to perform on the flow's packets.
+    """
+    if cookie == 0xffffffffffffffff:
+      raise ValueError('reserved cookie', cookie)
+
+    if command not in (OFPFC_ADD, OFPFC_MODIFY, OFPFC_MODIFY_STRICT,
+                       OFPFC_DELETE, OFPFC_DELETE_STRICT):
+      raise ValueError('invalid command', command)
+
+    # TODO(romain): Check that the port is valid for this message
+    # type. E.g. *_TABLE should be invalid?
+
+    flags = ((OFPFF_SEND_FLOW_REM if send_flow_rem else 0)
+             | (OFPFF_CHECK_OVERLAP if check_overlap else 0)
+             | (OFPFF_EMERG if emerg else 0))
+
+    all_data = [match.serialize(),
+                struct.pack('!QHHHHLHH', cookie, command, idle_timeout,
+                            hard_timeout, priority, buffer_id, out_port, flags)]
+    for a in actions:
+      all_data.extend(self._serialize_action(a))
+    self._send_message(OFPT_FLOW_MOD, data=all_data)
 
 
 class OpenflowProtocolRequestTracker(OpenflowProtocol):
