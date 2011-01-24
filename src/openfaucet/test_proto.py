@@ -8,6 +8,15 @@ from openfaucet import buffer
 from openfaucet import proto
 
 
+def _create_port_config(
+    port_down=False, no_stp=False, no_recv=False, no_recv_stp=False,
+    no_flood=False, no_fwd=False, no_packet_in=False):
+  return proto.PortConfig(
+      port_down=port_down, no_stp=no_stp, no_recv=no_recv,
+      no_recv_stp=no_recv_stp, no_flood=no_flood, no_fwd=no_fwd,
+      no_packet_in=no_packet_in)
+
+
 def _create_port_features(
     mode_10mb_hd=False, mode_10mb_fd=False, mode_100mb_hd=False,
     mode_100mb_fd=False, mode_1gb_hd=False, mode_1gb_fd=False,
@@ -19,6 +28,92 @@ def _create_port_features(
       mode_1gb_hd=mode_1gb_hd, mode_1gb_fd=mode_1gb_fd,
       mode_10gb_fd=mode_10gb_fd, copper=copper, fiber=fiber, autoneg=autoneg,
       pause=pause, pause_asym=pause_asym)
+
+
+class TestPortConfig(unittest2.TestCase):
+
+  def test_create(self):
+    pc = proto.PortConfig(port_down=False, no_stp=True, no_recv=False,
+                          no_recv_stp=True, no_flood=True, no_fwd=False,
+                          no_packet_in=False)
+
+  def test_serialize(self):
+    pc = proto.PortConfig(port_down=False, no_stp=True, no_recv=False,
+                          no_recv_stp=True, no_flood=True, no_fwd=False,
+                          no_packet_in=False)
+    self.assertEqual(0x1a, pc.serialize())
+
+  def test_serialize_every_flag(self):
+    for i in xrange(0, 7):
+      flag = 1 << i
+      args = [False]*6
+      args.insert(i, True)
+      pc = proto.PortConfig(*args)
+      self.assertEqual(flag, pc.serialize())
+
+  def test_serialize_deserialize(self):
+    pc = proto.PortConfig(port_down=False, no_stp=True, no_recv=False,
+                          no_recv_stp=True, no_flood=True, no_fwd=False,
+                          no_packet_in=False)
+    self.assertTupleEqual(pc, proto.PortConfig.deserialize(pc.serialize()))
+
+  def test_deserialize(self):
+    self.assertTupleEqual((False, True, False, True, True, False, False),
+                          proto.PortConfig.deserialize(0x1a))
+
+  def test_deserialize_every_invalid_bit(self):
+    for i in xrange(7, 32):
+      flags = (1 << i) | 0x0000001a
+      # The invalid bit is ignored.
+      self.assertTupleEqual((False, True, False, True, True, False, False),
+                            proto.PortConfig.deserialize(flags))
+
+  def test_get_diff_every_flag_true(self):
+    all_false = proto.PortConfig(*([False]*7))
+    for i in xrange(0, 7):
+      args = [False]*6
+      args.insert(i, True)
+      pc = proto.PortConfig(*args)
+      config, mask = pc.get_diff(all_false)
+      args = tuple(args)
+      self.assertEqual(True, config[i])
+      self.assertTupleEqual(args, mask)
+
+  def test_get_diff_every_flag_false(self):
+    all_true = proto.PortConfig(*([True]*7))
+    for i in xrange(0, 7):
+      args = [True]*6
+      args.insert(i, False)
+      pc = proto.PortConfig(*args)
+      config, mask = pc.get_diff(all_true)
+      self.assertEqual(False, config[i])
+      expected_mask = [False]*6
+      expected_mask.insert(i, True)
+      expected_mask = tuple(expected_mask)
+      self.assertTupleEqual(expected_mask, mask)
+
+  def test_patch_every_flag_true(self):
+    all_false = proto.PortConfig(*([False]*7))
+    for i in xrange(0, 7):
+      args = [False]*6
+      args.insert(i, True)
+      config = proto.PortConfig(*args)
+      mask = proto.PortConfig(*args)
+      args = tuple(args)
+      self.assertTupleEqual(args, all_false.patch(config, mask))
+
+  def test_patch_every_flag_false(self):
+    all_true = proto.PortConfig(*([True]*7))
+    for i in xrange(0, 7):
+      config_args = [False]*7
+      config = proto.PortConfig(*config_args)
+      mask_args = [False]*6
+      mask_args.insert(i, True)
+      mask = proto.PortConfig(*mask_args)
+      expected_args = [True]*6
+      expected_args.insert(i, False)
+      expected_args = tuple(expected_args)
+      self.assertTupleEqual(expected_args, all_true.patch(config, mask))
 
 
 class TestPortFeatures(unittest2.TestCase):
@@ -84,10 +179,9 @@ class TestPhyPort(unittest2.TestCase):
   def test_create(self):
     pp = proto.PhyPort(
         port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport',
-        config_port_down=False, config_no_stp=True, config_no_recv=False,
-        config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-        config_no_packet_in=False, state_link_down=False,
-        state_stp=proto.OFPPS_STP_FORWARD,
+        config=_create_port_config(no_stp=True, no_recv_stp=True,
+                                   no_flood=True),
+        state_link_down=False, state_stp=proto.OFPPS_STP_FORWARD,
         curr=_create_port_features(mode_1gb_fd=True, fiber=True),
         advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                          pause=True),
@@ -99,10 +193,9 @@ class TestPhyPort(unittest2.TestCase):
   def test_serialize(self):
     pp = proto.PhyPort(
         port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport',
-        config_port_down=False, config_no_stp=True, config_no_recv=False,
-        config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-        config_no_packet_in=False, state_link_down=True,
-        state_stp=proto.OFPPS_STP_FORWARD,
+        config=_create_port_config(no_stp=True, no_recv_stp=True,
+                                   no_flood=True),
+        state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
         curr=_create_port_features(mode_1gb_fd=True, fiber=True),
         advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                          pause=True),
@@ -120,39 +213,15 @@ class TestPhyPort(unittest2.TestCase):
                      '\x00\x00\x03\x20',
                      pp.serialize())
 
-  def test_serialize_every_config_flag(self):
-    for i in xrange(0, 7):
-      flag = 1 << i
-      args = [False]*6
-      args.insert(i, True)
-      args[0:0] = [0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport']
-      args.extend([True, proto.OFPPS_STP_FORWARD,
-                   _create_port_features(mode_1gb_fd=True, fiber=True),
-                   _create_port_features(mode_1gb_fd=True, fiber=True,
-                                         pause=True),
-                   _create_port_features(mode_1gb_fd=True, fiber=True,
-                                         pause=True, pause_asym=True),
-                   _create_port_features(mode_1gb_fd=True, fiber=True,
-                                         autoneg=True)])
-      pp = proto.PhyPort(*args)
-      self.assertEqual('\x00\x42' '\xab\xcd\xef\xa0\xb1\xc2'
-                       'testport\x00\x00\x00\x00\x00\x00\x00\x00'
-                       + struct.pack('!L', flag)
-                       + '\x00\x00\x02\x01'
-                       '\x00\x00\x01\x20'
-                       '\x00\x00\x05\x20'
-                       '\x00\x00\x0d\x20'
-                       '\x00\x00\x03\x20', pp.serialize())
-
   def test_serialize_every_state_stp(self):
     for i in (proto.OFPPS_STP_LISTEN, proto.OFPPS_STP_LEARN,
               proto.OFPPS_STP_FORWARD, proto.OFPPS_STP_BLOCK):
       state_ser = i | 1  # state_link_down=True
       pp = proto.PhyPort(
           port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport',
-          config_port_down=False, config_no_stp=True, config_no_recv=False,
-          config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-          config_no_packet_in=False, state_link_down=True, state_stp=i,
+          config=_create_port_config(no_stp=True, no_recv_stp=True,
+                                     no_flood=True),
+          state_link_down=True, state_stp=i,
           curr=_create_port_features(mode_1gb_fd=True, fiber=True),
           advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                            pause=True),
@@ -172,10 +241,9 @@ class TestPhyPort(unittest2.TestCase):
   def test_serialize_deserialize(self):
     pp = proto.PhyPort(
         port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport',
-        config_port_down=False, config_no_stp=True, config_no_recv=False,
-        config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-        config_no_packet_in=False, state_link_down=True,
-        state_stp=proto.OFPPS_STP_FORWARD,
+        config=_create_port_config(no_stp=True, no_recv_stp=True,
+                                   no_flood=True),
+        state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
         curr=_create_port_features(mode_1gb_fd=True, fiber=True),
         advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                          pause=True),
@@ -195,8 +263,10 @@ class TestPhyPort(unittest2.TestCase):
                     '\x00\x00\x0d\x20' '\x00\x00\x03\x20')
     self.buf.set_message_boundaries(48)
     self.assertTupleEqual(
-        (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport', False, True, False, True,
-         True, False, False, True, proto.OFPPS_STP_FORWARD,
+        (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport',
+         _create_port_config(no_stp=True, no_recv_stp=True,
+                             no_flood=True),
+         True, proto.OFPPS_STP_FORWARD,
          _create_port_features(mode_1gb_fd=True, fiber=True),
          _create_port_features(mode_1gb_fd=True, fiber=True, pause=True),
          _create_port_features(mode_1gb_fd=True, fiber=True, pause=True,
@@ -208,48 +278,6 @@ class TestPhyPort(unittest2.TestCase):
     with self.assertRaises(AssertionError):
       self.buf.skip_bytes(1)
 
-  def test_deserialize_every_config_flag(self):
-    for i in xrange(0, 7):
-      flag = 1 << i
-      self.buf.append('\x00\x42' '\xab\xcd\xef\xa0\xb1\xc2'
-                      'testport\x00\x00\x00\x00\x00\x00\x00\x00'
-                      + struct.pack('!L', flag) + '\x00\x00\x02\x01'
-                      '\x00\x00\x01\x20' '\x00\x00\x05\x20'
-                      '\x00\x00\x0d\x20' '\x00\x00\x03\x20')
-      self.buf.set_message_boundaries(48)
-      args = [False]*6
-      args.insert(i, True)
-      args[0:0] = [0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport']
-      args.extend([True, proto.OFPPS_STP_FORWARD,
-                   _create_port_features(mode_1gb_fd=True, fiber=True),
-                   _create_port_features(mode_1gb_fd=True, fiber=True,
-                                         pause=True),
-                   _create_port_features(mode_1gb_fd=True, fiber=True,
-                                         pause=True, pause_asym=True),
-                   _create_port_features(mode_1gb_fd=True, fiber=True,
-                                         autoneg=True)])
-      args = tuple(args)
-      self.assertTupleEqual(args, proto.PhyPort.deserialize(self.buf))
-
-  def test_deserialize_invalid_config_flag_0x9a(self):
-    self.buf.append('\x00\x42' '\xab\xcd\xef\xa0\xb1\xc2'
-                    'testport\x00\x00\x00\x00\x00\x00\x00\x00'
-                    '\x00\x00\x00\x9a' '\x00\x00\x02\x01'
-                    '\x00\x00\x01\x20' '\x00\x00\x05\x20'
-                    '\x00\x00\x0d\x20' '\x00\x00\x03\x20')
-    self.buf.set_message_boundaries(48)
-    # The undefined bits in the config bitset are ignored.
-    self.assertTupleEqual(
-        (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport', False, True, False, True,
-         True, False, False, True, proto.OFPPS_STP_FORWARD,
-         _create_port_features(mode_1gb_fd=True, fiber=True),
-         _create_port_features(mode_1gb_fd=True, fiber=True, pause=True),
-         _create_port_features(mode_1gb_fd=True, fiber=True, pause=True,
-                               pause_asym=True),
-         _create_port_features(mode_1gb_fd=True, fiber=True,
-                               autoneg=True)),
-      proto.PhyPort.deserialize(self.buf))
-
   def test_deserialize_every_state_stp(self):
     for i in (proto.OFPPS_STP_LISTEN, proto.OFPPS_STP_LEARN,
               proto.OFPPS_STP_FORWARD, proto.OFPPS_STP_BLOCK):
@@ -260,8 +288,10 @@ class TestPhyPort(unittest2.TestCase):
                        + '\x00\x00\x01\x20' '\x00\x00\x05\x20'
                        '\x00\x00\x0d\x20' '\x00\x00\x03\x20')
       self.buf.set_message_boundaries(48)
-      args = (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport', False, True, False,
-              True, True, False, False, True, i,
+      args = (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport',
+              _create_port_config(no_stp=True, no_recv_stp=True,
+                                  no_flood=True),
+              True, i,
               _create_port_features(mode_1gb_fd=True, fiber=True),
               _create_port_features(mode_1gb_fd=True, fiber=True, pause=True),
               _create_port_features(mode_1gb_fd=True, fiber=True, pause=True,
@@ -278,8 +308,10 @@ class TestPhyPort(unittest2.TestCase):
     self.buf.set_message_boundaries(48)
     # The invalid bit at 0x0400 in the state is ignored.
     self.assertTupleEqual(
-        (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport', False, True, False, True,
-         True, False, False, True, proto.OFPPS_STP_FORWARD,
+        (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport',
+         _create_port_config(no_stp=True, no_recv_stp=True,
+                             no_flood=True),
+         True, proto.OFPPS_STP_FORWARD,
          _create_port_features(mode_1gb_fd=True, fiber=True),
          _create_port_features(mode_1gb_fd=True, fiber=True, pause=True),
          _create_port_features(mode_1gb_fd=True, fiber=True, pause=True,
@@ -297,8 +329,10 @@ class TestPhyPort(unittest2.TestCase):
     self.buf.set_message_boundaries(48)
     # The invalid bit at 0x0080 in the state is ignored.
     self.assertTupleEqual(
-        (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport', False, True, False, True,
-         True, False, False, True, proto.OFPPS_STP_FORWARD,
+        (0x42, '\xab\xcd\xef\xa0\xb1\xc2', 'testport',
+         _create_port_config(no_stp=True, no_recv_stp=True,
+                             no_flood=True),
+         True, proto.OFPPS_STP_FORWARD,
          _create_port_features(mode_1gb_fd=True, fiber=True),
          _create_port_features(mode_1gb_fd=True, fiber=True, pause=True),
          _create_port_features(mode_1gb_fd=True, fiber=True, pause=True,
@@ -316,10 +350,8 @@ class TestSwitchFeatures(unittest2.TestCase):
   def test_create(self):
     pp1 = proto.PhyPort(
       port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport1',
-      config_port_down=False, config_no_stp=True, config_no_recv=False,
-      config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-      config_no_packet_in=False, state_link_down=True,
-      state_stp=proto.OFPPS_STP_FORWARD,
+      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
       curr=_create_port_features(mode_1gb_fd=True, fiber=True),
       advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                        pause=True),
@@ -329,10 +361,8 @@ class TestSwitchFeatures(unittest2.TestCase):
                                  autoneg=True))
     pp2 = proto.PhyPort(
       port_no=0x43, hw_addr='\xab\xcd\xef\xa0\xb1\xc3', name='testport2',
-      config_port_down=False, config_no_stp=True, config_no_recv=False,
-      config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-      config_no_packet_in=False, state_link_down=True,
-      state_stp=proto.OFPPS_STP_FORWARD,
+      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
       curr=_create_port_features(mode_1gb_fd=True, fiber=True),
       advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                        pause=True),
@@ -361,10 +391,8 @@ class TestSwitchFeatures(unittest2.TestCase):
   def test_serialize_one_port(self):
     pp1 = proto.PhyPort(
       port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport1',
-      config_port_down=False, config_no_stp=True, config_no_recv=False,
-      config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-      config_no_packet_in=False, state_link_down=True,
-      state_stp=proto.OFPPS_STP_FORWARD,
+      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
       curr=_create_port_features(mode_1gb_fd=True, fiber=True),
       advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                        pause=True),
@@ -387,10 +415,8 @@ class TestSwitchFeatures(unittest2.TestCase):
   def test_serialize_two_ports(self):
     pp1 = proto.PhyPort(
       port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport1',
-      config_port_down=False, config_no_stp=True, config_no_recv=False,
-      config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-      config_no_packet_in=False, state_link_down=True,
-      state_stp=proto.OFPPS_STP_FORWARD,
+      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
       curr=_create_port_features(mode_1gb_fd=True, fiber=True),
       advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                        pause=True),
@@ -400,10 +426,8 @@ class TestSwitchFeatures(unittest2.TestCase):
                                  autoneg=True))
     pp2 = proto.PhyPort(
       port_no=0x43, hw_addr='\xab\xcd\xef\xa0\xb1\xc3', name='testport2',
-      config_port_down=False, config_no_stp=True, config_no_recv=False,
-      config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-      config_no_packet_in=False, state_link_down=True,
-      state_stp=proto.OFPPS_STP_FORWARD,
+      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
       curr=_create_port_features(mode_1gb_fd=True, fiber=True),
       advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                        pause=True),
@@ -460,10 +484,8 @@ class TestSwitchFeatures(unittest2.TestCase):
   def test_deserialize_deserialize_two_ports(self):
     pp1 = proto.PhyPort(
       port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport1',
-      config_port_down=False, config_no_stp=True, config_no_recv=False,
-      config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-      config_no_packet_in=False, state_link_down=True,
-      state_stp=proto.OFPPS_STP_FORWARD,
+      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
       curr=_create_port_features(mode_1gb_fd=True, fiber=True),
       advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                        pause=True),
@@ -473,10 +495,8 @@ class TestSwitchFeatures(unittest2.TestCase):
                                  autoneg=True))
     pp2 = proto.PhyPort(
       port_no=0x43, hw_addr='\xab\xcd\xef\xa0\xb1\xc3', name='testport2',
-      config_port_down=False, config_no_stp=True, config_no_recv=False,
-      config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-      config_no_packet_in=False, state_link_down=True,
-      state_stp=proto.OFPPS_STP_FORWARD,
+      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
       curr=_create_port_features(mode_1gb_fd=True, fiber=True),
       advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                        pause=True),
@@ -496,10 +516,8 @@ class TestSwitchFeatures(unittest2.TestCase):
   def test_deserialize_two_ports(self):
     pp1 = proto.PhyPort(
       port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport1',
-      config_port_down=False, config_no_stp=True, config_no_recv=False,
-      config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-      config_no_packet_in=False, state_link_down=True,
-      state_stp=proto.OFPPS_STP_FORWARD,
+      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
       curr=_create_port_features(mode_1gb_fd=True, fiber=True),
       advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                        pause=True),
@@ -509,10 +527,8 @@ class TestSwitchFeatures(unittest2.TestCase):
                                  autoneg=True))
     pp2 = proto.PhyPort(
       port_no=0x43, hw_addr='\xab\xcd\xef\xa0\xb1\xc3', name='testport2',
-      config_port_down=False, config_no_stp=True, config_no_recv=False,
-      config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-      config_no_packet_in=False, state_link_down=True,
-      state_stp=proto.OFPPS_STP_FORWARD,
+      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
       curr=_create_port_features(mode_1gb_fd=True, fiber=True),
       advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                        pause=True),
@@ -897,6 +913,10 @@ class MockOpenflowProtocolSubclass(proto.OpenflowProtocol):
         priority, buffer_id, out_port, send_flow_rem, check_overlap, emerg,
         actions))
 
+  def handle_port_mod(self, port_no, hw_addr, config, mask, advertise):
+    self.calls_made.append(('handle_port_mod', port_no, hw_addr, config, mask,
+                            advertise))
+
 
 MockVendorAction = action.vendor_action('MockVendorAction', 0x4242,
                                         '!L', ('dummy',))
@@ -1025,10 +1045,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
     pp1 = proto.PhyPort(
       port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport1',
-      config_port_down=False, config_no_stp=True, config_no_recv=False,
-      config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-      config_no_packet_in=False, state_link_down=True,
-      state_stp=proto.OFPPS_STP_FORWARD,
+      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
       curr=_create_port_features(mode_1gb_fd=True, fiber=True),
       advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                        pause=True),
@@ -1051,10 +1069,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
     pp1 = proto.PhyPort(
       port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport1',
-      config_port_down=False, config_no_stp=True, config_no_recv=False,
-      config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-      config_no_packet_in=False, state_link_down=True,
-      state_stp=proto.OFPPS_STP_FORWARD,
+      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
       curr=_create_port_features(mode_1gb_fd=True, fiber=True),
       advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                        pause=True),
@@ -1241,10 +1257,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
     pp = proto.PhyPort(
         port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport',
-        config_port_down=False, config_no_stp=True, config_no_recv=False,
-        config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-        config_no_packet_in=False, state_link_down=False,
-        state_stp=proto.OFPPS_STP_FORWARD,
+        config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+        state_link_down=False, state_stp=proto.OFPPS_STP_FORWARD,
         curr=_create_port_features(mode_1gb_fd=True, fiber=True),
         advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                          pause=True),
@@ -1262,10 +1276,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
     pp = proto.PhyPort(
         port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport',
-        config_port_down=False, config_no_stp=True, config_no_recv=False,
-        config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-        config_no_packet_in=False, state_link_down=False,
-        state_stp=proto.OFPPS_STP_FORWARD,
+        config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+        state_link_down=False, state_stp=proto.OFPPS_STP_FORWARD,
         curr=_create_port_features(mode_1gb_fd=True, fiber=True),
         advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                          pause=True),
@@ -1282,10 +1294,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
     pp = proto.PhyPort(
         port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport',
-        config_port_down=False, config_no_stp=True, config_no_recv=False,
-        config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-        config_no_packet_in=False, state_link_down=False,
-        state_stp=proto.OFPPS_STP_FORWARD,
+        config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+        state_link_down=False, state_stp=proto.OFPPS_STP_FORWARD,
         curr=_create_port_features(mode_1gb_fd=True, fiber=True),
         advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                          pause=True),
@@ -1304,10 +1314,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
     pp = proto.PhyPort(
         port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport',
-        config_port_down=False, config_no_stp=True, config_no_recv=False,
-        config_no_recv_stp=True, config_no_flood=True, config_no_fwd=False,
-        config_no_packet_in=False, state_link_down=False,
-        state_stp=proto.OFPPS_STP_FORWARD,
+        config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+        state_link_down=False, state_stp=proto.OFPPS_STP_FORWARD,
         curr=_create_port_features(mode_1gb_fd=True, fiber=True),
         advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
                                          pause=True),
@@ -1600,6 +1608,92 @@ class TestOpenflowProtocol(unittest2.TestCase):
           '\x00\x05' '\x42\x31\x00\x00' '\x10\x00'
           '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01')
     self.assertListEqual([], self.proto.calls_made)
+
+  def test_send_port_mod(self):
+    self.proto.connectionMade()
+
+    config = _create_port_config(no_flood=True)
+    mask = _create_port_config(no_flood=True)
+
+    self.proto.send_port_mod(
+        0xabcd, '\x12\x34\x56\x78\xab\xcd',
+        _create_port_config(no_flood=True),
+        _create_port_config(no_recv=True, no_flood=True),
+        _create_port_features(mode_1gb_fd=True, fiber=True, pause=True))
+    self.assertEqual('\x01\x0f\x00\x20\x00\x00\x00\x00'
+                     '\xab\xcd\x12\x34\x56\x78\xab\xcd'
+                     '\x00\x00\x00\x10' '\x00\x00\x00\x14'
+                     '\x00\x00\x05\x20' '\x00\x00\x00\x00',
+                     self._get_next_sent_message())
+
+  def test_send_port_mod_invalid_port_no_0xff01(self):
+    self.proto.connectionMade()
+
+    config = _create_port_config(no_flood=True)
+    mask = _create_port_config(no_flood=True)
+
+    with self.assertRaises(ValueError):
+      self.proto.send_port_mod(
+          0xff01, '\x12\x34\x56\x78\xab\xcd',
+          _create_port_config(no_flood=True),
+          _create_port_config(no_recv=True, no_flood=True),
+          _create_port_features(mode_1gb_fd=True, fiber=True, pause=True))
+    self.assertIsNone(self._get_next_sent_message())
+
+  def test_send_port_mod_advertise_none(self):
+    self.proto.connectionMade()
+
+    config = _create_port_config(no_flood=True)
+    mask = _create_port_config(no_flood=True)
+
+    self.proto.send_port_mod(
+        0xabcd, '\x12\x34\x56\x78\xab\xcd',
+        _create_port_config(no_flood=True),
+        _create_port_config(no_recv=True, no_flood=True),
+        None)
+    self.assertEqual('\x01\x0f\x00\x20\x00\x00\x00\x00'
+                     '\xab\xcd\x12\x34\x56\x78\xab\xcd'
+                     '\x00\x00\x00\x10' '\x00\x00\x00\x14'
+                     '\x00\x00\x00\x00' '\x00\x00\x00\x00',
+                     self._get_next_sent_message())
+
+  def test_handle_port_mod(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived('\x01\x0f\x00\x20\x00\x00\x00\x00'
+                            '\xab\xcd\x12\x34\x56\x78\xab\xcd'
+                            '\x00\x00\x00\x10' '\x00\x00\x00\x14'
+                            '\x00\x00\x05\x20' '\x00\x00\x00\x00')
+    self.assertListEqual(
+        [('handle_port_mod', 0xabcd, '\x12\x34\x56\x78\xab\xcd',
+          _create_port_config(no_flood=True),
+          _create_port_config(no_recv=True, no_flood=True),
+          _create_port_features(mode_1gb_fd=True, fiber=True, pause=True))],
+        self.proto.calls_made)
+
+  def test_handle_port_mod_invalid_port_no_0xff01(self):
+    self.proto.connectionMade()
+
+    with self.assertRaises(ValueError):
+      self.proto.dataReceived('\x01\x0f\x00\x20\x00\x00\x00\x00'
+                              '\xff\x01\x12\x34\x56\x78\xab\xcd'
+                              '\x00\x00\x00\x10' '\x00\x00\x00\x14'
+                              '\x00\x00\x05\x20' '\x00\x00\x00\x00')
+    self.assertListEqual([], self.proto.calls_made)
+
+  def test_handle_port_mod_advertise_none(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived('\x01\x0f\x00\x20\x00\x00\x00\x00'
+                            '\xab\xcd\x12\x34\x56\x78\xab\xcd'
+                            '\x00\x00\x00\x10' '\x00\x00\x00\x14'
+                            '\x00\x00\x00\x00' '\x00\x00\x00\x00')
+    self.assertListEqual(
+        [('handle_port_mod', 0xabcd, '\x12\x34\x56\x78\xab\xcd',
+          _create_port_config(no_flood=True),
+          _create_port_config(no_recv=True, no_flood=True),
+          None)],
+        self.proto.calls_made)
 
   # TODO(romain): Test handling of bogus messages, with wrong message lengths.
 

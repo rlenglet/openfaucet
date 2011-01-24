@@ -265,6 +265,108 @@ OFPFF_CHECK_OVERLAP = 1 << 1
 OFPFF_EMERG = 1 << 2
 
 
+class PortConfig(collections.namedtuple('PortConfig', (
+    # Flags to indicate the behavior of the physical port.
+    'port_down', 'no_stp', 'no_recv', 'no_recv_stp', 'no_flood', 'no_fwd',
+    'no_packet_in'))):
+  """The description of the config of a physical port of an OpenFlow switch.
+
+  The configuration attributes of a physical port are boolean flags:
+      port_down: Port is administratively down.
+      no_stp: Disable 802.1D spanning tree on port.
+      no_recv: Drop all packets except 802.1D spanning tree packets.
+      no_recv_stp: Drop received 802.1D STP packets.
+      no_flood: Do not include this port when flooding.
+      no_fwd: Drop packets forwarded to port.
+      no_packet_in: Do not send packet-in messages for port.
+  """
+
+  __slots__ = ()
+
+  def get_diff(self, prev_config):
+    """Get the difference between another PortConfig and this one.
+
+    The returned config and mask can be passed in a call to patch() on
+    prev_config to obtain an exact copy of this PortConfig, or sent in
+    an OFPT_PORT_MOD message.
+
+    Args:
+      prev_config: The other PortConfig to compare with this one.
+
+    Returns:
+      A (config, mask) tuple, where config and mask are both
+      PortConfig objects, that encodes the difference between
+      prev_config and this PortConfig. The config and mask correspond
+      to the config and mask fields of OpenFlow's ofp_port_mod struct.
+      The returned config and mask are opaque to the user, and should
+      only be passed either to a call to patch() or in an
+      OFPT_PORT_MOD message.
+    """
+    mask = PortConfig(*[prev_config[i] ^ self[i] for i in xrange(0, 7)])
+    config = self
+    # If we wanted to set to false all flags that are not set in mask,
+    # we'd create a new PortConfig like
+    # config = PortConfig(*[self[i] if mask[i] else False for i in xrange(0, 7)])
+    return (config, mask)
+
+  def patch(self, config, mask):
+    """Get a copy of this PortConfig with attributes replaced based on a diff.
+
+    A diff (config, mask) can be obtained by calling get_diff() on a
+    PortConfig, or received in an OFPT_PORT_MOD message.
+
+    Args:
+      config: The PortConfig containing the new values of fields to
+          replace. Only the fields which are True in mask are
+          replaced, the others are ignored.
+      mask: The PortConfig indicating which fields are to be replaced
+          with values from config.
+
+    Returns:
+      A new PortConfig with fields replaced according to the diff.
+    """
+    return PortConfig(*[config[i] if mask[i] else self[i]
+                        for i in xrange(0, 7)])
+
+  def serialize(self):
+    """Serialize this object into a 32-bit unsigned integer.
+
+    The returned integer can be passed to deserialize() to recreate a
+    copy of this object.
+
+    Returns:
+      A 32-bit unsigned integer that is a serialized form of this
+      object.
+    """
+    return ((OFPPC_PORT_DOWN if self.port_down else 0)
+            | (OFPPC_NO_STP if self.no_stp else 0)
+            | (OFPPC_NO_RECV if self.no_recv else 0)
+            | (OFPPC_NO_RECV_STP if self.no_recv_stp else 0)
+            | (OFPPC_NO_FLOOD if self.no_flood else 0)
+            | (OFPPC_NO_FWD if self.no_fwd else 0)
+            | (OFPPC_NO_PACKET_IN if self.no_packet_in else 0))
+
+  @classmethod
+  def deserialize(cls, v):
+    """Returns a PortConfig object deserialized from an integer.
+
+    Args:
+      v: A 32-bit unsigned integer that is a serialized form of a
+          PortFeatures object.
+
+    Returns:
+      A new PortConfig object deserialized from the integer.
+    """
+    if v & ~((1 << 7)-1):
+      # Be liberal. Ignore those bits instead of raising an exception.
+      # TODO(romain): Log this.
+      # ('undefined bits set', v)
+      pass
+    # The boolean flags are in the same order as the bits, from LSB to MSB.
+    args = [bool(v & (1 << i)) for i in xrange(0, 7)]
+    return PortConfig(*args)
+
+
 class PortFeatures(collections.namedtuple('PortFeatures', (
     # Flags to indicate the link modes.
     'mode_10mb_hd', 'mode_10mb_fd', 'mode_100mb_hd', 'mode_100mb_fd',
@@ -275,7 +377,7 @@ class PortFeatures(collections.namedtuple('PortFeatures', (
     'autoneg', 'pause', 'pause_asym'))):
   """The description of the features of a physical port of an OpenFlow switch.
 
-  The attributes of a physical port are:
+  The feature attributes of a physical port are:
     boolean flags indicating link modes:
         mode_10mb_hd: 10 Mbps half-duplex rate support.
         mode_10mb_fd: 10 Mbps full-duplex rate support.
@@ -328,9 +430,6 @@ class PortFeatures(collections.namedtuple('PortFeatures', (
 
     Returns:
       A new PortFeatures object deserialized from the integer.
-
-    Raises:
-      ValueError if the integer has undefined bits set.
     """
     if v & ~((1 << 12)-1):
       # Be liberal. Ignore those bits instead of raising an exception.
@@ -343,27 +442,18 @@ class PortFeatures(collections.namedtuple('PortFeatures', (
 
 
 class PhyPort(collections.namedtuple('PhyPort', (
-    'port_no', 'hw_addr', 'name',
-    # Flags to indicate the behavior of the physical port.
-    'config_port_down', 'config_no_stp', 'config_no_recv', 'config_no_recv_stp',
-    'config_no_flood', 'config_no_fwd', 'config_no_packet_in',
+    'port_no', 'hw_addr', 'name', 'config',
     # Flags to indicate the current state of the physical port.
     'state_link_down', 'state_stp',
     'curr', 'advertised', 'supported', 'peer'))):
   """The description of a physical port of an OpenFlow switch.
 
   The attributes of a physical port are:
-    port_no: The port's unique number, as a 16-bit unsigned integer.
+    port_no: The port's unique number, as a 16-bit unsigned
+        integer. Must be between 1 and OFPP_MAX.
     hw_addr: The port's MAC address, as a binary string.
     name: The port's human-readable name, limited to 16 characters.
-    config_*: Boolean flags indicating the configuration of the port:
-        config_port_down: Port is administratively down.
-        config_no_stp: Disable 802.1D spanning tree on port.', '
-        config_no_recv: Drop all packets except 802.1D spanning tree packets.
-        config_no_recv_stp: Drop received 802.1D STP packets.
-        config_no_flood: Do not include this port when flooding.', '
-        config_no_fwd: Drop packets forwarded to port.
-        config_no_packet_in: Do not send packet-in messages for port.
+    config: A PortConfig object indicating the configuration of the port:
     state_*: Flags and values to indicate the current state of the port:
         state_link_down: A boolean value indicating that no physical link is
             present.
@@ -395,19 +485,16 @@ class PhyPort(collections.namedtuple('PhyPort', (
       A binary string that is a serialized form of this object into an
       OpenFlow ofp_phy_port.
     """
-    config_ser = ((OFPPC_PORT_DOWN if self.config_port_down else 0)
-                  | (OFPPC_NO_STP if self.config_no_stp else 0)
-                  | (OFPPC_NO_RECV if self.config_no_recv else 0)
-                  | (OFPPC_NO_RECV_STP if self.config_no_recv_stp else 0)
-                  | (OFPPC_NO_FLOOD if self.config_no_flood else 0)
-                  | (OFPPC_NO_FWD if self.config_no_fwd else 0)
-                  | (OFPPC_NO_PACKET_IN if self.config_no_packet_in else 0))
+    if self.port_no < 1 or self.port_no > OFPP_MAX:
+      raise ValueError('invalid physical port number', self.port_no)
+
     state_ser = ((OFPPS_LINK_DOWN if self.state_link_down else 0)
                  | (self.state_stp & OFPPS_STP_MASK))
     return struct.pack(
-        self.FORMAT, self.port_no, self.hw_addr, self.name, config_ser,
-        state_ser, self.curr.serialize(), self.advertised.serialize(),
-        self.supported.serialize(), self.peer.serialize())
+        self.FORMAT, self.port_no, self.hw_addr, self.name,
+        self.config.serialize(), state_ser, self.curr.serialize(),
+        self.advertised.serialize(), self.supported.serialize(),
+        self.peer.serialize())
 
   @classmethod
   def deserialize(cls, buf):
@@ -427,26 +514,23 @@ class PhyPort(collections.namedtuple('PhyPort', (
     (port_no, hw_addr, name, config_ser, state_ser, curr_ser, advertised_ser,
      supported_ser, peer_ser) = buf.unpack(cls.FORMAT)
 
-    if config_ser & ~((1 << 7)-1):
-      # Be liberal. Ignore those bits instead of raising an exception.
-      # TODO(romain): Log this.
-      # ('undefined config bits set', config_ser)
-      pass
     if state_ser & ~(OFPPS_LINK_DOWN | OFPPS_STP_MASK):
       # Be liberal. Ignore those bits instead of raising an exception.
       # TODO(romain): Log this.
       # ('undefined state bits set', state_ser)
       pass
 
-    args = [port_no, hw_addr, name.rstrip('\x00')]
-    # The boolean flags are in the same order as the bits, from LSB to MSB.
-    args.extend(bool(config_ser & (1 << i)) for i in xrange(0, 7))
-    args.extend([bool(state_ser & OFPPS_LINK_DOWN), state_ser & OFPPS_STP_MASK,
-                 PortFeatures.deserialize(curr_ser),
-                 PortFeatures.deserialize(advertised_ser),
-                 PortFeatures.deserialize(supported_ser),
-                 PortFeatures.deserialize(peer_ser)])
-    return PhyPort(*args)
+    if port_no < 1 or port_no > OFPP_MAX:
+      raise ValueError('invalid physical port number', port_no)
+
+    return PhyPort(port_no, hw_addr, name.rstrip('\x00'),
+                   PortConfig.deserialize(config_ser),
+                   bool(state_ser & OFPPS_LINK_DOWN),
+                   state_ser & OFPPS_STP_MASK,
+                   PortFeatures.deserialize(curr_ser),
+                   PortFeatures.deserialize(advertised_ser),
+                   PortFeatures.deserialize(supported_ser),
+                   PortFeatures.deserialize(peer_ser))
 
 
 class SwitchFeatures(collections.namedtuple('SwitchFeatures', (
@@ -1125,8 +1209,24 @@ class OpenflowProtocol(protocol.Protocol):
                          check_overlap, emerg, actions)
 
   def _handle_port_mod(self, msg_length, xid):
-    pass
+    if msg_length != 32:
+      # TODO(romain): Log and close the connection.
+      raise ValueError('OFPT_PORT_MOD message has invalid length')
 
+    port_no, hw_addr, config_ser, mask_ser, advertise_ser = \
+        self._buffer.unpack('!H6sLLL4x')
+
+    if port_no < 1 or port_no > OFPP_MAX:
+      raise ValueError('invalid physical port number', port_no)
+
+    # For cleanliness, mask the config with the mask.
+    config = PortConfig.deserialize(config_ser & mask_ser)
+    mask = PortConfig.deserialize(mask_ser)
+    if advertise_ser == 0:
+      advertise = None
+    else:
+      advertise = PortFeatures.deserialize(advertise_ser)
+    self.handle_port_mod(port_no, hw_addr, config, mask, advertise)
 
   def _handle_stats_request(self, msg_length, xid):
     pass
@@ -1376,11 +1476,31 @@ class OpenflowProtocol(protocol.Protocol):
     """
     pass
 
-  def handle_port_mod(self):
-    """Handle the reception of a OFPT_FIXME message.
+  def handle_port_mod(self, port_no, hw_addr, config, mask, advertise):
+    """Handle the reception of a OFPT_PORT_MOD message.
 
     This method does nothing and should be redefined in subclasses.
+
+    The config and mask arguments can be passed in a call to patch()
+    on a PortConfig object to obtain an up-to-date PortConfig.
+
+    Args:
+      port_no: The port's unique number, as a 16-bit unsigned
+          integer. Must be between 1 and OFPP_MAX.
+      hw_addr: The port's MAC address, as a binary string. The
+          hardware address is not configurable. This is used only to
+          sanity-check the request, so it must be the same as returned
+          in PhyPort object.
+      config: The PortConfig containing the new values of fields to
+          replace. Only the fields which are True in mask are
+          replaced, the others are ignored.
+      mask: The PortConfig indicating which fields are to be replaced
+          with values from config.
+      advertise: The PortFeatures indicating the features to be
+          advertised by the port. If None, the advertised features are
+          not replaced.
     """
+    pass
 
   def handle_stats_request(self):
     """Handle the reception of a OFPT_FIXME message.
@@ -1779,6 +1899,42 @@ class OpenflowProtocol(protocol.Protocol):
     for a in actions:
       all_data.extend(self._serialize_action(a))
     self._send_message(OFPT_FLOW_MOD, data=all_data)
+
+  def send_port_mod(self, port_no, hw_addr, config, mask, advertise):
+    """Send a OFPT_PORT_MOD message.
+
+    The config and mask arguments can be obtained by calling
+    get_diff() on a PortConfig object.
+
+    Args:
+      port_no: The port's unique number, as a 16-bit unsigned
+          integer. Must be between 1 and OFPP_MAX.
+      hw_addr: The port's MAC address, as a binary string. The
+          hardware address is not configurable. This is used only to
+          sanity-check the request, so it must be the same as returned
+          in PhyPort object.
+      config: The PortConfig containing the new values of fields to
+          replace. Only the fields which are True in mask are
+          replaced, the others are ignored.
+      mask: The PortConfig indicating which fields are to be replaced
+          with values from config.
+      advertise: The PortFeatures indicating the features to be
+          advertised by the port. If None or all fields are False, the
+          advertised features are not replaced.
+    """
+    if port_no < 1 or port_no > OFPP_MAX:
+      raise ValueError('invalid physical port number', port_no)
+
+    if advertise is None:
+      advertise_ser = 0
+    else:
+      advertise_ser = advertise.serialize()
+    # For cleanliness, mask the config with the mask.
+    mask_ser = mask.serialize()
+    config_ser = config.serialize() & mask_ser
+    self._send_message(OFPT_PORT_MOD, data=(
+        struct.pack('!H6sLLL4x', port_no, hw_addr, config_ser, mask_ser,
+                    advertise_ser),))
 
 
 class OpenflowProtocolRequestTracker(OpenflowProtocol):
