@@ -978,6 +978,25 @@ class TestOpenflowProtocol(unittest2.TestCase):
         vendor_handlers=(self.vendor_handler,))
     self.proto.transport = self.transport
 
+    self.phyport1 = proto.PhyPort(
+      port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport1',
+      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
+      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
+      curr=_create_port_features(mode_1gb_fd=True, fiber=True),
+      advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
+                                       pause=True),
+      supported=_create_port_features(mode_1gb_fd=True, fiber=True,
+                                      pause=True, pause_asym=True),
+      peer=_create_port_features(mode_1gb_fd=True, fiber=True,
+                                 autoneg=True))
+
+    self.match1 = proto.Match(
+        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
+        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
+        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
+        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
+        tp_src=0x38, tp_dst=0x49)
+
   def _get_next_sent_message(self):
     """Get the undecoded next message sent by the protocol.
 
@@ -1068,22 +1087,11 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_features_reply(self):
     self.proto.connectionMade()
 
-    pp1 = proto.PhyPort(
-      port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport1',
-      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
-      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
-      curr=_create_port_features(mode_1gb_fd=True, fiber=True),
-      advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                       pause=True),
-      supported=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                      pause=True, pause_asym=True),
-      peer=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                 autoneg=True))
     sf = proto.SwitchFeatures(
         datapath_id=0x123456, n_buffers=5, n_tables=3, cap_flow_stats=True,
         cap_table_stats=False, cap_port_stats=True, cap_stp=False,
         cap_ip_reasm=True, cap_queue_stats=False, cap_arp_match_ip=True,
-        actions=frozenset((0, 2, 3, 5, 8)), ports=(pp1,))
+        actions=frozenset((0, 2, 3, 5, 8)), ports=(self.phyport1,))
     self.proto.send_features_reply(4, sf)
     self.assertEqual('\x01\x06\x00\x50\x00\x00\x00\x04'
                      + ''.join(sf.serialize()),
@@ -1092,22 +1100,11 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_handle_features_reply(self):
     self.proto.connectionMade()
 
-    pp1 = proto.PhyPort(
-      port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport1',
-      config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
-      state_link_down=True, state_stp=proto.OFPPS_STP_FORWARD,
-      curr=_create_port_features(mode_1gb_fd=True, fiber=True),
-      advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                       pause=True),
-      supported=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                      pause=True, pause_asym=True),
-      peer=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                 autoneg=True))
     sf = proto.SwitchFeatures(
         datapath_id=0x123456, n_buffers=5, n_tables=3, cap_flow_stats=True,
         cap_table_stats=False, cap_port_stats=True, cap_stp=False,
         cap_ip_reasm=True, cap_queue_stats=False, cap_arp_match_ip=True,
-        actions=frozenset((0, 2, 3, 5, 8)), ports=(pp1,))
+        actions=frozenset((0, 2, 3, 5, 8)), ports=(self.phyport1,))
     self.proto.dataReceived('\x01\x06\x00\x50\x00\x00\x00\x04'
                             + ''.join(sf.serialize()))
     self.assertListEqual([('handle_features_reply', 4, sf)],
@@ -1210,16 +1207,12 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_flow_removed(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
-    self.proto.send_flow_removed(match, 0x12345678, 0x1000, proto.OFPRR_DELETE,
-                                 0x302010, 0x030201, 0x4231, 0x635241, 0x554433)
+    self.proto.send_flow_removed(
+        self.match1, 0x12345678, 0x1000, proto.OFPRR_DELETE, 0x302010, 0x030201,
+        0x4231, 0x635241, 0x554433)
     self.assertEqual('\x01\x0b\x00\x58\x00\x00\x00\x00'
-                     + match.serialize() + '\x00\x00\x00\x00\x12\x34\x56\x78'
+                     + self.match1.serialize()
+                     + '\x00\x00\x00\x00\x12\x34\x56\x78'
                      '\x10\x00' '\x02\x00' '\x00\x30\x20\x10' '\x00\x03\x02\x01'
                      '\x42\x31\x00\x00' '\x00\x00\x00\x00\x00\x63\x52\x41'
                      '\x00\x00\x00\x00\x00\x55\x44\x33',
@@ -1228,50 +1221,35 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_flow_removed_invalid_action_3(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
     with self.assertRaises(ValueError):
-      self.proto.send_flow_removed(match, 0x12345678, 0x1000, 3, 0x302010,
-                                   0x030201, 0x4231, 0x635241, 0x554433)
+      self.proto.send_flow_removed(
+          self.match1, 0x12345678, 0x1000, 3, 0x302010, 0x030201, 0x4231,
+          0x635241, 0x554433)
     self.assertIsNone(self._get_next_sent_message())
 
   def test_handle_flow_removed(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
     self.proto.dataReceived(
         '\x01\x0b\x00\x58\x00\x00\x00\x00'
-        + match.serialize() + '\x00\x00\x00\x00\x12\x34\x56\x78'
+        + self.match1.serialize()
+        + '\x00\x00\x00\x00\x12\x34\x56\x78'
         '\x10\x00' '\x02\x00' '\x00\x30\x20\x10' '\x00\x03\x02\x01'
         '\x42\x31\x00\x00' '\x00\x00\x00\x00\x00\x63\x52\x41'
         '\x00\x00\x00\x00\x00\x55\x44\x33')
     self.assertListEqual(
-        [('handle_flow_removed', match, 0x12345678, 0x1000, proto.OFPRR_DELETE,
-          0x302010, 0x030201, 0x4231, 0x635241, 0x554433)],
+        [('handle_flow_removed', self.match1, 0x12345678, 0x1000,
+          proto.OFPRR_DELETE, 0x302010, 0x030201, 0x4231, 0x635241, 0x554433)],
         self.proto.calls_made)
 
   def test_handle_flow_removed_invalid_action_3(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
     with self.assertRaises(ValueError):
       self.proto.dataReceived(
           '\x01\x0b\x00\x58\x00\x00\x00\x00'
-          + match.serialize() + '\x00\x00\x00\x00\x12\x34\x56\x78'
+          + self.match1.serialize()
+          + '\x00\x00\x00\x00\x12\x34\x56\x78'
           '\x10\x00' '\x03\x00' '\x00\x30\x20\x10' '\x00\x03\x02\x01'
           '\x42\x31\x00\x00' '\x00\x00\x00\x00\x00\x63\x52\x41'
           '\x00\x00\x00\x00\x00\x55\x44\x33')
@@ -1280,78 +1258,36 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_port_status(self):
     self.proto.connectionMade()
 
-    pp = proto.PhyPort(
-        port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport',
-        config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
-        state_link_down=False, state_stp=proto.OFPPS_STP_FORWARD,
-        curr=_create_port_features(mode_1gb_fd=True, fiber=True),
-        advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                         pause=True),
-        supported=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                        pause=True, pause_asym=True),
-        peer=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                   autoneg=True))
-    self.proto.send_port_status(proto.OFPPR_MODIFY, pp)
+    self.proto.send_port_status(proto.OFPPR_MODIFY, self.phyport1)
     self.assertEqual('\x01\x0c\x00\x40\x00\x00\x00\x00'
                      '\x02\x00\x00\x00\x00\x00\x00\x00'
-                     + pp.serialize(), self._get_next_sent_message())
+                     + self.phyport1.serialize(),
+                     self._get_next_sent_message())
 
   def test_send_port_status_invalid_action_3(self):
     self.proto.connectionMade()
 
-    pp = proto.PhyPort(
-        port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport',
-        config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
-        state_link_down=False, state_stp=proto.OFPPS_STP_FORWARD,
-        curr=_create_port_features(mode_1gb_fd=True, fiber=True),
-        advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                         pause=True),
-        supported=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                        pause=True, pause_asym=True),
-        peer=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                   autoneg=True))
     with self.assertRaises(ValueError):
-      self.proto.send_port_status(3, pp)
+      self.proto.send_port_status(3, self.phyport1)
     self.assertIsNone(self._get_next_sent_message())
 
   def test_handle_port_status(self):
     self.proto.connectionMade()
 
-    pp = proto.PhyPort(
-        port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport',
-        config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
-        state_link_down=False, state_stp=proto.OFPPS_STP_FORWARD,
-        curr=_create_port_features(mode_1gb_fd=True, fiber=True),
-        advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                         pause=True),
-        supported=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                        pause=True, pause_asym=True),
-        peer=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                   autoneg=True))
     self.proto.dataReceived('\x01\x0c\x00\x40\x00\x00\x00\x00'
                             '\x02\x00\x00\x00\x00\x00\x00\x00'
-                            + pp.serialize())
-    self.assertListEqual([('handle_port_status', proto.OFPPR_MODIFY, pp)],
+                            + self.phyport1.serialize())
+    self.assertListEqual([('handle_port_status', proto.OFPPR_MODIFY,
+                           self.phyport1)],
                          self.proto.calls_made)
 
   def test_handle_port_status_invalid_action_3(self):
     self.proto.connectionMade()
 
-    pp = proto.PhyPort(
-        port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport',
-        config=_create_port_config(no_stp=True, no_recv_stp=True, no_flood=True),
-        state_link_down=False, state_stp=proto.OFPPS_STP_FORWARD,
-        curr=_create_port_features(mode_1gb_fd=True, fiber=True),
-        advertised=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                         pause=True),
-        supported=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                        pause=True, pause_asym=True),
-        peer=_create_port_features(mode_1gb_fd=True, fiber=True,
-                                   autoneg=True))
     with self.assertRaises(ValueError):
       self.proto.dataReceived('\x01\x0c\x00\x40\x00\x00\x00\x00'
                               '\x03\x00\x00\x00\x00\x00\x00\x00'
-                              + pp.serialize())
+                              + self.phyport1.serialize())
     self.assertListEqual([], self.proto.calls_made)
 
   def test_send_packet_out_buffered_no_actions(self):
@@ -1501,19 +1437,13 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_flow_mod(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
     self.proto.send_flow_mod(
-        match, 0x12345678, proto.OFPFC_MODIFY, 0x4231, 0, 0x1000, 0x01010101,
-        0xabcd, True, False, False, (
+        self.match1, 0x12345678, proto.OFPFC_MODIFY, 0x4231, 0, 0x1000,
+        0x01010101, 0xabcd, True, False, False, (
             action.ActionOutput(port=0x1234, max_len=0x9abc),
             action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
     self.assertEqual('\x01\x0e\x00\x60\x00\x00\x00\x00'
-                     + match.serialize()
+                     + self.match1.serialize()
                      + '\x00\x00\x00\x00\x12\x34\x56\x78'
                      '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
                      '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01'
@@ -1526,45 +1456,27 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_flow_mod_invalid_cookie_minus1(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
     with self.assertRaises(ValueError):
       self.proto.send_flow_mod(
-          match, 0xffffffffffffffff, proto.OFPFC_MODIFY, 0x4231, 0, 0x1000,
-          0x01010101, 0xabcd, True, False, False, ())
+          self.match1, 0xffffffffffffffff, proto.OFPFC_MODIFY, 0x4231, 0,
+          0x1000, 0x01010101, 0xabcd, True, False, False, ())
     self.assertIsNone(self._get_next_sent_message())
 
   def test_send_flow_mod_invalid_command_5(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
     with self.assertRaises(ValueError):
       self.proto.send_flow_mod(
-          match, 0x12345678, 5, 0x4231, 0, 0x1000,
+          self.match1, 0x12345678, 5, 0x4231, 0, 0x1000,
           0x01010101, 0xabcd, True, False, False, ())
     self.assertIsNone(self._get_next_sent_message())
 
   def test_handle_flow_mod_two_actions(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
     self.proto.dataReceived(
         '\x01\x0e\x00\x60\x00\x00\x00\x00'
-        + match.serialize()
+        + self.match1.serialize()
         + '\x00\x00\x00\x00\x12\x34\x56\x78'
         '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
         '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01'
@@ -1573,8 +1485,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
         '\x00\x05\x00\x10'
             '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00')
     self.assertListEqual(
-        [('handle_flow_mod', match, 0x12345678, proto.OFPFC_MODIFY, 0x4231, 0,
-          0x1000, 0x01010101, 0xabcd, True, False, False, (
+        [('handle_flow_mod', self.match1, 0x12345678, proto.OFPFC_MODIFY,
+          0x4231, 0, 0x1000, 0x01010101, 0xabcd, True, False, False, (
               action.ActionOutput(port=0x1234, max_len=0x9abc),
               action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))],
         self.proto.calls_made)
@@ -1582,36 +1494,24 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_handle_flow_mod_no_actions(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
     self.proto.dataReceived(
         '\x01\x0e\x00\x48\x00\x00\x00\x00'
-        + match.serialize()
+        + self.match1.serialize()
         + '\x00\x00\x00\x00\x12\x34\x56\x78'
         '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
         '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01')
     self.assertListEqual(
-        [('handle_flow_mod', match, 0x12345678, proto.OFPFC_MODIFY, 0x4231, 0,
-          0x1000, 0x01010101, 0xabcd, True, False, False, ())],
+        [('handle_flow_mod', self.match1, 0x12345678, proto.OFPFC_MODIFY,
+          0x4231, 0, 0x1000, 0x01010101, 0xabcd, True, False, False, ())],
         self.proto.calls_made)
 
   def test_handle_flow_mod_invalid_cookie_minus1(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
     with self.assertRaises(ValueError):
       self.proto.dataReceived(
           '\x01\x0e\x00\x48\x00\x00\x00\x00'
-          + match.serialize()
+          + self.match1.serialize()
           + '\xff\xff\xff\xff\xff\xff\xff\xff'
           '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
           '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01')
@@ -1620,16 +1520,10 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_handle_flow_mod_invalid_command_5(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
     with self.assertRaises(ValueError):
       self.proto.dataReceived(
           '\x01\x0e\x00\x48\x00\x00\x00\x00'
-          + match.serialize()
+          + self.match1.serialize()
           + '\x00\x00\x00\x00\x12\x34\x56\x78'
           '\x00\x05' '\x42\x31\x00\x00' '\x10\x00'
           '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01')
@@ -1637,9 +1531,6 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
   def test_send_port_mod(self):
     self.proto.connectionMade()
-
-    config = _create_port_config(no_flood=True)
-    mask = _create_port_config(no_flood=True)
 
     self.proto.send_port_mod(
         0xabcd, '\x12\x34\x56\x78\xab\xcd',
@@ -1655,9 +1546,6 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_port_mod_invalid_port_no_0xff01(self):
     self.proto.connectionMade()
 
-    config = _create_port_config(no_flood=True)
-    mask = _create_port_config(no_flood=True)
-
     with self.assertRaises(ValueError):
       self.proto.send_port_mod(
           0xff01, '\x12\x34\x56\x78\xab\xcd',
@@ -1668,9 +1556,6 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
   def test_send_port_mod_advertise_none(self):
     self.proto.connectionMade()
-
-    config = _create_port_config(no_flood=True)
-    mask = _create_port_config(no_flood=True)
 
     self.proto.send_port_mod(
         0xabcd, '\x12\x34\x56\x78\xab\xcd',
@@ -1736,50 +1621,36 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_stats_request_flow(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
-
     self.assertEqual(0, self.proto.send_stats_request_flow(
-        match, 0x0a, 0xabcd))
+        self.match1, 0x0a, 0xabcd))
     self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x00'
                      '\x00\x01' '\x00\x00'
-                     + match.serialize()
+                     + self.match1.serialize()
                      + '\x0a\x00' '\xab\xcd',
                      self._get_next_sent_message())
     self.assertEqual(1, self.proto.send_stats_request_flow(
-        match, 0x0a, 0xabcd))
+        self.match1, 0x0a, 0xabcd))
     self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x01'
                      '\x00\x01' '\x00\x00'
-                     + match.serialize()
+                     + self.match1.serialize()
                      + '\x0a\x00' '\xab\xcd',
                      self._get_next_sent_message())
 
   def test_send_stats_request_aggregate(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
-
     self.assertEqual(0, self.proto.send_stats_request_aggregate(
-        match, 0x0a, 0xabcd))
+        self.match1, 0x0a, 0xabcd))
     self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x00'
                      '\x00\x02' '\x00\x00'
-                     + match.serialize()
+                     + self.match1.serialize()
                      + '\x0a\x00' '\xab\xcd',
                      self._get_next_sent_message())
     self.assertEqual(1, self.proto.send_stats_request_aggregate(
-        match, 0x0a, 0xabcd))
+        self.match1, 0x0a, 0xabcd))
     self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x01'
                      '\x00\x02' '\x00\x00'
-                     + match.serialize()
+                     + self.match1.serialize()
                      + '\x0a\x00' '\xab\xcd',
                      self._get_next_sent_message())
 
@@ -1852,36 +1723,22 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_handle_stats_request_flow(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
-
     self.proto.dataReceived('\x01\x10\x00\x38\x00\x00\x00\x04'
                             '\x00\x01' '\x00\x00'
-                            + match.serialize()
+                            + self.match1.serialize()
                             + '\x0a\x00' '\xab\xcd')
-    self.assertListEqual([('handle_stats_request_flow', 4, match, 0x0a,
+    self.assertListEqual([('handle_stats_request_flow', 4, self.match1, 0x0a,
                            0xabcd)],
                          self.proto.calls_made)
 
   def test_handle_stats_request_aggregate(self):
     self.proto.connectionMade()
 
-    match = proto.Match(
-        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
-        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
-        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
-        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
-        tp_src=0x38, tp_dst=0x49)
-
     self.proto.dataReceived('\x01\x10\x00\x38\x00\x00\x00\x04'
                             '\x00\x02' '\x00\x00'
-                            + match.serialize()
+                            + self.match1.serialize()
                             + '\x0a\x00' '\xab\xcd')
-    self.assertListEqual([('handle_stats_request_aggregate', 4, match,
+    self.assertListEqual([('handle_stats_request_aggregate', 4, self.match1,
                            0x0a, 0xabcd)],
                          self.proto.calls_made)
 
