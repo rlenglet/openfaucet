@@ -917,9 +917,30 @@ class MockOpenflowProtocolSubclass(proto.OpenflowProtocol):
     self.calls_made.append(('handle_port_mod', port_no, hw_addr, config, mask,
                             advertise))
 
+  def handle_stats_request_desc(self, xid):
+    self.calls_made.append(('handle_stats_request_desc', xid))
+
+  def handle_stats_request_flow(self, xid, match, table_id, out_port):
+    self.calls_made.append(('handle_stats_request_flow', xid, match, table_id,
+                            out_port))
+
+  def handle_stats_request_aggregate(self, xid, match, table_id, out_port):
+    self.calls_made.append(('handle_stats_request_aggregate', xid, match,
+                            table_id, out_port))
+
+  def handle_stats_request_table(self, xid):
+    self.calls_made.append(('handle_stats_request_table', xid))
+
+  def handle_stats_request_port(self, xid, port_no):
+    self.calls_made.append(('handle_stats_request_port', xid, port_no))
+
+  def handle_stats_request_queue(self, xid, port_no, queue_id):
+    self.calls_made.append(('handle_stats_request_queue', xid, port_no,
+                            queue_id))
+
 
 MockVendorAction = action.vendor_action('MockVendorAction', 0x4242,
-                                        '!L', ('dummy',))
+                                        '!L4x', ('dummy',))
 
 
 class MockVendorHandler(object):
@@ -928,20 +949,24 @@ class MockVendorHandler(object):
 
   def __init__(self):
     # A list of (ofproto, msg_length, xid, bytes) tuples.
-    self.received_callbacks = []
+    self.calls_made = []
 
   vendor_id = 0x4242
 
-  def handle_vendor_message(self, ofproto, msg_length, xid, buffer):
+  def handle_vendor_message(self, conn, msg_length, xid, buffer):
     bytes = buffer.read_bytes(msg_length - 12)  # Consume the remaining bytes.
-    self.received_callbacks.append(('handle_vendor_message', ofproto,
-                                    msg_length, xid, bytes))
+    self.calls_made.append(('handle_vendor_message', conn, msg_length, xid,
+                            bytes))
 
-  def deserialize_vendor_action(self, length, buffer):
+  def deserialize_vendor_action(self, action_length, buffer):
     a = MockVendorAction.deserialize(buffer)
-    self.received_callbacks.append(('deserialize_vendor_action', type, length,
-                                    buffer, a))
+    self.calls_made.append(('deserialize_vendor_action', action_length, a))
     return a
+
+  def handle_vendor_stats_request(self, conn, msg_length, xid, buffer):
+    bytes = buffer.read_bytes(msg_length - 16)  # Consume the remaining bytes.
+    self.calls_made.append(('handle_vendor_stats_request', conn, msg_length,
+                            xid, bytes))
 
 
 class TestOpenflowProtocol(unittest2.TestCase):
@@ -1385,13 +1410,12 @@ class TestOpenflowProtocol(unittest2.TestCase):
     self.proto.send_packet_out(
         0xffffffff, 0xabcd, (MockVendorAction(dummy=0x15263748),),
         ('helloworld',))
-    self.assertEqual('\x01\x0d\x00\x26\x00\x00\x00\x00'
+    self.assertEqual('\x01\x0d\x00\x2a\x00\x00\x00\x00'
                      '\xff\xff\xff\xff\xab\xcd\x00\x01'
-                     '\x00\x0c\x00\x0c' '\x00\x00\x42\x42'
-                         '\x15\x26\x37\x48'
+                     '\x00\x0c\x00\x10' '\x00\x00\x42\x42'
+                         '\x15\x26\x37\x48' '\x00\x00\x00\x00'
                      'helloworld',
                      self._get_next_sent_message())
-    # TODO(romain): Test that the vendor handler received the right callback.
 
   def test_send_packet_out_unbuffered_no_data(self):
     self.proto.connectionMade()
@@ -1462,15 +1486,17 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_handle_packet_out_unbuffered_vendor_action(self):
     self.proto.connectionMade()
 
-    self.proto.dataReceived('\x01\x0d\x00\x26\x00\x00\x00\x00'
+    self.proto.dataReceived('\x01\x0d\x00\x2a\x00\x00\x00\x00'
                             '\xff\xff\xff\xff\xab\xcd\x00\x01'
-                            '\x00\x0c\x00\x0c' '\x00\x00\x42\x42'
-                                '\x15\x26\x37\x48'
+                            '\x00\x0c\x00\x10' '\x00\x00\x42\x42'
+                                '\x15\x26\x37\x48' '\x00\x00\x00\x00'
                             'helloworld')
     self.assertListEqual([('handle_packet_out', 0xffffffff, 0xabcd,
                            (MockVendorAction(dummy=0x15263748),), 'helloworld')],
                           self.proto.calls_made)
-    # TODO(romain): Test that the vendor handler received the right callback.
+    self.assertListEqual([('deserialize_vendor_action', 8+8,
+                           MockVendorAction(dummy=0x15263748))],
+                         self.vendor_handler.calls_made)
 
   def test_send_flow_mod(self):
     self.proto.connectionMade()
@@ -1694,6 +1720,208 @@ class TestOpenflowProtocol(unittest2.TestCase):
           _create_port_config(no_recv=True, no_flood=True),
           None)],
         self.proto.calls_made)
+
+  def test_send_stats_request_desc(self):
+    self.proto.connectionMade()
+
+    self.assertEqual(0, self.proto.send_stats_request_desc())
+    self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x00'
+                     '\x00\x00' '\x00\x00',
+                     self._get_next_sent_message())
+    self.assertEqual(1, self.proto.send_stats_request_desc())
+    self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x01'
+                     '\x00\x00' '\x00\x00',
+                     self._get_next_sent_message())
+
+  def test_send_stats_request_flow(self):
+    self.proto.connectionMade()
+
+    match = proto.Match(
+        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
+        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
+        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
+        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
+        tp_src=0x38, tp_dst=0x49)
+
+    self.assertEqual(0, self.proto.send_stats_request_flow(
+        match, 0x0a, 0xabcd))
+    self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x00'
+                     '\x00\x01' '\x00\x00'
+                     + match.serialize()
+                     + '\x0a\x00' '\xab\xcd',
+                     self._get_next_sent_message())
+    self.assertEqual(1, self.proto.send_stats_request_flow(
+        match, 0x0a, 0xabcd))
+    self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x01'
+                     '\x00\x01' '\x00\x00'
+                     + match.serialize()
+                     + '\x0a\x00' '\xab\xcd',
+                     self._get_next_sent_message())
+
+  def test_send_stats_request_aggregate(self):
+    self.proto.connectionMade()
+
+    match = proto.Match(
+        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
+        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
+        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
+        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
+        tp_src=0x38, tp_dst=0x49)
+
+    self.assertEqual(0, self.proto.send_stats_request_aggregate(
+        match, 0x0a, 0xabcd))
+    self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x00'
+                     '\x00\x02' '\x00\x00'
+                     + match.serialize()
+                     + '\x0a\x00' '\xab\xcd',
+                     self._get_next_sent_message())
+    self.assertEqual(1, self.proto.send_stats_request_aggregate(
+        match, 0x0a, 0xabcd))
+    self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x01'
+                     '\x00\x02' '\x00\x00'
+                     + match.serialize()
+                     + '\x0a\x00' '\xab\xcd',
+                     self._get_next_sent_message())
+
+  def test_send_stats_request_table(self):
+    self.proto.connectionMade()
+
+    self.assertEqual(0, self.proto.send_stats_request_table())
+    self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x00'
+                     '\x00\x03' '\x00\x00',
+                     self._get_next_sent_message())
+    self.assertEqual(1, self.proto.send_stats_request_table())
+    self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x01'
+                     '\x00\x03' '\x00\x00',
+                     self._get_next_sent_message())
+
+  def test_send_stats_request_port(self):
+    self.proto.connectionMade()
+
+    self.assertEqual(0, self.proto.send_stats_request_port(0xabcd))
+    self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x00'
+                     '\x00\x04' '\x00\x00'
+                     '\xab\xcd\x00\x00\x00\x00\x00\x00',
+                     self._get_next_sent_message())
+    self.assertEqual(1, self.proto.send_stats_request_port(0xabcd))
+    self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x01'
+                     '\x00\x04' '\x00\x00'
+                     '\xab\xcd\x00\x00\x00\x00\x00\x00',
+                     self._get_next_sent_message())
+
+  def test_send_stats_request_queue(self):
+    self.proto.connectionMade()
+
+    self.assertEqual(0, self.proto.send_stats_request_queue(0xabcd,
+                                                            0x12345678))
+    self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x00'
+                     '\x00\x05' '\x00\x00'
+                     '\xab\xcd\x00\x00' '\x12\x34\x56\x78',
+                     self._get_next_sent_message())
+    self.assertEqual(1, self.proto.send_stats_request_queue(0xabcd,
+                                                            0x12345678))
+    self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x01'
+                     '\x00\x05' '\x00\x00'
+                     '\xab\xcd\x00\x00' '\x12\x34\x56\x78',
+                     self._get_next_sent_message())
+
+  def test_send_stats_request_vendor(self):
+    self.proto.connectionMade()
+
+    self.assertEqual(0, self.proto.send_stats_request_vendor(
+        0x4242, data=('helloyou',)))
+    self.assertEqual('\x01\x10\x00\x18\x00\x00\x00\x00'
+                     '\xff\xff' '\x00\x00'
+                     '\x00\x00\x42\x42' 'helloyou',
+                     self._get_next_sent_message())
+    self.assertEqual(1, self.proto.send_stats_request_vendor(
+        0x4242, data=('helloyou',)))
+    self.assertEqual('\x01\x10\x00\x18\x00\x00\x00\x01'
+                     '\xff\xff' '\x00\x00'
+                     '\x00\x00\x42\x42' 'helloyou',
+                     self._get_next_sent_message())
+
+  def test_handle_stats_request_desc(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived('\x01\x10\x00\x0c\x00\x00\x00\x04'
+                            '\x00\x00' '\x00\x00')
+    self.assertListEqual([('handle_stats_request_desc', 4)],
+                         self.proto.calls_made)
+
+  def test_handle_stats_request_flow(self):
+    self.proto.connectionMade()
+
+    match = proto.Match(
+        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
+        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
+        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
+        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
+        tp_src=0x38, tp_dst=0x49)
+
+    self.proto.dataReceived('\x01\x10\x00\x38\x00\x00\x00\x04'
+                            '\x00\x01' '\x00\x00'
+                            + match.serialize()
+                            + '\x0a\x00' '\xab\xcd')
+    self.assertListEqual([('handle_stats_request_flow', 4, match, 0x0a,
+                           0xabcd)],
+                         self.proto.calls_made)
+
+  def test_handle_stats_request_aggregate(self):
+    self.proto.connectionMade()
+
+    match = proto.Match(
+        in_port=0x13, dl_src='\x13\x24\x35\x46\x57\x68',
+        dl_dst='\x12\x23\x34\x45\x56\x67', dl_vlan=0x11, dl_vlan_pcp=0x22,
+        dl_type=0x3344, nw_tos=0x80, nw_proto=0xcc,
+        nw_src=('\xaa\xbb\xcc\xdd', 32), nw_dst=('\x21\x32\x43\x54', 32),
+        tp_src=0x38, tp_dst=0x49)
+
+    self.proto.dataReceived('\x01\x10\x00\x38\x00\x00\x00\x04'
+                            '\x00\x02' '\x00\x00'
+                            + match.serialize()
+                            + '\x0a\x00' '\xab\xcd')
+    self.assertListEqual([('handle_stats_request_aggregate', 4, match,
+                           0x0a, 0xabcd)],
+                         self.proto.calls_made)
+
+  def test_handle_stats_request_table(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived('\x01\x10\x00\x0c\x00\x00\x00\x04'
+                            '\x00\x03' '\x00\x00')
+    self.assertListEqual([('handle_stats_request_table', 4)],
+                         self.proto.calls_made)
+
+  def test_handle_stats_request_port(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived('\x01\x10\x00\x14\x00\x00\x00\x04'
+                            '\x00\x04' '\x00\x00'
+                            '\xab\xcd\x00\x00\x00\x00\x00\x00')
+    self.assertListEqual([('handle_stats_request_port', 4, 0xabcd)],
+                         self.proto.calls_made)
+
+  def test_handle_stats_request_queue(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived('\x01\x10\x00\x14\x00\x00\x00\x04'
+                            '\x00\x05' '\x00\x00'
+                            '\xab\xcd\x00\x00' '\x12\x34\x56\x78')
+    self.assertListEqual([('handle_stats_request_queue', 4, 0xabcd,
+                           0x12345678)],
+                         self.proto.calls_made)
+
+  def test_handle_stats_request_vendor(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived('\x01\x10\x00\x18\x00\x00\x00\x04'
+                            '\xff\xff' '\x00\x00'
+                            '\x00\x00\x42\x42' 'helloyou')
+    self.assertListEqual([], self.proto.calls_made)
+    self.assertListEqual([('handle_vendor_stats_request', self.proto, 24, 4,
+                           'helloyou')],
+                         self.vendor_handler.calls_made)
 
   # TODO(romain): Test handling of bogus messages, with wrong message lengths.
 
