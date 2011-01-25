@@ -1557,6 +1557,8 @@ class OpenflowProtocol(protocol.Protocol):
     else:
       # Otherwise, generate an ofp_action_header for the action.
       header = struct.pack('!HH', a.type, 4+len(a_ser))
+    if (len(header) + len(a_ser)) % 8 != 0:
+      raise ValueError('action length not a multiple of 8', a)
     return (header, a_ser)
 
   def _deserialize_action(self):
@@ -1673,7 +1675,7 @@ class OpenflowProtocol(protocol.Protocol):
     all_data = [vendor_header_data]
     all_data.extend(data)
     self._send_message(OFPT_VENDOR, xid=xid, data=all_data)
-    # FIXME: Support vendor messages that require a new, unique
+    # TODO(romain): Support vendor messages that require a new, unique
     # xid. In that case, generate one and return it. Otherwise, return
     # None.
 
