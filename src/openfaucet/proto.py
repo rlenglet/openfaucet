@@ -14,6 +14,7 @@ from twisted.internet import protocol
 
 from openfaucet import action
 from openfaucet import buffer
+from openfaucet import ofmatch
 
 
 # The format of the header on all OpenFlow packets.
@@ -198,27 +199,6 @@ OFPC_FRAG_MASK = 3
 # Reasons for OFPT_PACKET_IN messages.
 OFPR_NO_MATCH = 0
 OFPR_ACTION = 1
-
-# Flow match wildcard flags.
-OFPFW_IN_PORT = 1 << 0
-OFPFW_DL_VLAN = 1 << 1
-OFPFW_DL_SRC = 1 << 2
-OFPFW_DL_DST = 1 << 3
-OFPFW_DL_TYPE = 1 << 4
-OFPFW_NW_PROTO = 1 << 5
-OFPFW_TP_SRC = 1 << 6
-OFPFW_TP_DST = 1 << 7
-OFPFW_NW_SRC_SHIFT = 8
-OFPFW_NW_SRC_BITS = 6
-OFPFW_NW_SRC_MASK = ((1 << OFPFW_NW_SRC_BITS) - 1) << OFPFW_NW_SRC_SHIFT
-OFPFW_NW_SRC_ALL = 32 << OFPFW_NW_SRC_SHIFT
-OFPFW_NW_DST_SHIFT = 14
-OFPFW_NW_DST_BITS = 6
-OFPFW_NW_DST_MASK = ((1 << OFPFW_NW_DST_BITS) - 1) << OFPFW_NW_DST_SHIFT
-OFPFW_NW_DST_ALL = 32 << OFPFW_NW_DST_SHIFT
-OFPFW_DL_VLAN_PCP = 1 << 20
-OFPFW_NW_TOS = 1 << 21
-OFPFW_ALL = ((1 << 22) - 1)
 
 # Reasons for OFPT_FLOW_REMOVED messages.
 OFPRR_IDLE_TIMEOUT = 0
@@ -485,7 +465,7 @@ class PhyPort(collections.namedtuple('PhyPort', (
   FORMAT_LENGTH = struct.calcsize(FORMAT)
 
   def serialize(self):
-    """Serialize this object into an OpenFlow ofp_pyy_port.
+    """Serialize this object into an OpenFlow ofp_phy_port.
 
     The returned string can be passed to deserialize() to recreate a
     copy of this object.
@@ -711,169 +691,6 @@ class SwitchConfig(collections.namedtuple('SwitchConfig', (
       # raising an exception?
       raise ValueError('undefined config bits set', config_frag)
     return SwitchConfig(config_frag=config_frag, miss_send_len=miss_send_len)
-
-
-class Match(collections.namedtuple('Match', (
-    'in_port', 'dl_src', 'dl_dst', 'dl_vlan', 'dl_vlan_pcp', 'dl_type',
-    'nw_tos', 'nw_proto', 'nw_src', 'nw_dst', 'tp_src', 'tp_dst'))):
-  """The description of an OpenFlow flow entry.
-
-  Any attribute set to None is considered wildcarded.
-
-  The attributes of a flow entry are:
-    in_port: The input port, as a 16-bit unsigned integer.
-    dl_src: The MAC source address, as a binary string.
-    dl_dst: The MAC destination address, as a binary string.
-    dl_vlan: The input VLAN id, as a 16-bit unsigned integer.
-    dl_vlan_pcp: The input VLAN priority, as a 8-bit unsigned integer.
-    dl_type: The Ethernet frame type, as a 16-bit unsigned integer.
-    nw_tos: The IP ToS (only the DSCP field's 6 bits), as an 8-bit
-        unsigned integer.
-    nw_proto: The IP protocol, or the lower 8 bits of the ARP opcode, as an
-        8-bit unsigned integer.
-    nw_src: The IP source address, as a tuple (address,
-        prefix_length), where address is the address as a binary
-        string, and prefix_length is the number of bits to match in
-        the address. prefix_length must be > 0.
-    nw_dst: The IP destination address, as a tuple (address,
-        prefix_length), where address is the address as a binary
-        string, and prefix_length is the number of bits to match in
-        the address. prefix_length must be > 0.
-    tp_src: The TCP/UDP source port, as a 16-bit unsigned integer.
-    tp_dst: The TCP/UDP destination port, as a 16-bit unsigned integer.
-  """
-
-  __slots__ = ()
-
-  FORMAT = '!LH6s6sHBxHBB2x4s4sHH'
-
-  FORMAT_LENGTH = struct.calcsize(FORMAT)
-
-  @classmethod
-  def create_wildcarded(cls, in_port=None, dl_src=None, dl_dst=None,
-                        dl_vlan=None, dl_vlan_pcp=None, dl_type=None,
-                        nw_tos=None, nw_proto=None, nw_src=None, nw_dst=None,
-                        tp_src=None, tp_dst=None):
-    """Create a new Match with flow attributes wildcarded unless specified.
-
-    Returns:
-      A new Match object which attributes are set to the given values,
-      or None (i.e. wildcarded) if not specified.
-    """
-    return Match(in_port=in_port, dl_src=dl_src, dl_dst=dl_dst,
-                 dl_vlan=dl_vlan, dl_vlan_pcp=dl_vlan_pcp, dl_type=dl_type,
-                 nw_tos=nw_tos, nw_proto=nw_proto, nw_src=nw_src,
-                 nw_dst=nw_dst, tp_src=tp_src, tp_dst=tp_dst)
-
-  @property
-  def wildcards(self):
-    """Compute the wildcard fields.
-
-    Any attribute set to None is considered to be wildcarded.
-
-    Returns:
-      A 32-bit integer containing the wildcard flags.
-    """
-    wildcard_bits = ((OFPFW_IN_PORT if self.in_port is None else 0)
-                     | (OFPFW_DL_VLAN if self.dl_vlan is None else 0)
-                     | (OFPFW_DL_SRC if self.dl_src is None else 0)
-                     | (OFPFW_DL_DST if self.dl_dst is None else 0)
-                     | (OFPFW_DL_TYPE if self.dl_type is None else 0)
-                     | (OFPFW_NW_PROTO if self.nw_proto is None else 0)
-                     | (OFPFW_TP_SRC if self.tp_src is None else 0)
-                     | (OFPFW_TP_DST if self.tp_dst is None else 0)
-                     | (OFPFW_DL_VLAN_PCP if self.dl_vlan_pcp is None else 0)
-                     | (OFPFW_NW_TOS if self.nw_tos is None else 0))
-
-    if self.nw_src is None:
-      wildcard_bits |= OFPFW_NW_SRC_ALL
-    else:
-      _, prefix_length = self.nw_src
-      if prefix_length < 1 or prefix_length > 32:
-        raise ValueError('invalid nw_src prefix_length', prefix_length)
-      wildcard_bits |= (32 - prefix_length) << OFPFW_NW_SRC_SHIFT
-
-    if self.nw_dst is None:
-      wildcard_bits |= OFPFW_NW_DST_ALL
-    else:
-      _, prefix_length = self.nw_dst
-      if prefix_length < 1 or prefix_length > 32:
-        raise ValueError('invalid nw_dst prefix_length', prefix_length)
-      wildcard_bits |= (32 - prefix_length) << OFPFW_NW_DST_SHIFT
-
-    return wildcard_bits
-
-  def serialize(self):
-    """Serialize this object into an OpenFlow ofp_match.
-
-    The returned string can be passed to deserialize() to recreate a
-    copy of this object.
-
-    Returns:
-      A binary string that is a serialized form of this object into an
-      OpenFlow ofp_match.
-    """
-    return struct.pack(
-        self.FORMAT, self.wildcards,
-        self.in_port if self.in_port is not None else 0,
-        self.dl_src if self.dl_src is not None else '',
-        self.dl_dst if self.dl_dst is not None else '',
-        self.dl_vlan if self.dl_vlan is not None else 0,
-        self.dl_vlan_pcp if self.dl_vlan_pcp is not None else 0,
-        self.dl_type if self.dl_type is not None else 0,
-        self.nw_tos & 0xfc if self.nw_tos is not None else 0,
-        self.nw_proto if self.nw_proto is not None else 0,
-        self.nw_src[0] if self.nw_src is not None else '',
-        self.nw_dst[0] if self.nw_dst is not None else '',
-        self.tp_src if self.tp_src is not None else 0,
-        self.tp_dst if self.tp_dst is not None else 0)
-
-  @classmethod
-  def deserialize(cls, buf):
-    """Returns a Match object deserialized from a sequence of bytes.
-
-    Args:
-      buf: A ReceiveBuffer object that contains the bytes that are the
-          serialized form of the Match object.
-
-    Returns:
-      A new Match object deserialized from the buffer.
-
-    Raises:
-      ValueError if the buffer has an invalid number of available
-      bytes, or if some elements cannot be deserialized.
-    """
-    (wildcards, in_port, dl_src, dl_dst, dl_vlan, dl_vlan_pcp, dl_type, nw_tos,
-     nw_proto, nw_src, nw_dst, tp_src, tp_dst) = buf.unpack(cls.FORMAT)
-
-    # Be liberal. Ignore undefined wildcards bits that are set.
-
-    # In OpenFlow 1.0.0, the "nw_tos" field doesn't contain the whole
-    # IP TOS field, only the 6 bits of the DSCP field in mask
-    # 0xfc. The 2 LSBs don't have any meaning and must be ignored.
-    if nw_tos & 0x03:
-      # Be liberal. Zero out those bits instead of raising an exception.
-      # TODO(romain): Log this.
-      # ('unused lower bits in nw_tos are set', nw_tos)
-      nw_tos &= 0xfc
-
-    nw_src_prefix_length = 32 - (
-        (wildcards & OFPFW_NW_SRC_MASK) >> OFPFW_NW_SRC_SHIFT)
-    nw_dst_prefix_length = 32 - (
-        (wildcards & OFPFW_NW_DST_MASK) >> OFPFW_NW_DST_SHIFT)
-    return Match(
-        None if wildcards & OFPFW_IN_PORT else in_port,
-        None if wildcards & OFPFW_DL_SRC else dl_src,
-        None if wildcards & OFPFW_DL_DST else dl_dst,
-        None if wildcards & OFPFW_DL_VLAN else dl_vlan,
-        None if wildcards & OFPFW_DL_VLAN_PCP else dl_vlan_pcp,
-        None if wildcards & OFPFW_DL_TYPE else dl_type,
-        None if wildcards & OFPFW_NW_TOS else nw_tos,
-        None if wildcards & OFPFW_NW_PROTO else nw_proto,
-        (nw_src, nw_src_prefix_length) if nw_src_prefix_length > 0 else None,
-        (nw_dst, nw_dst_prefix_length) if nw_dst_prefix_length > 0 else None,
-        None if wildcards & OFPFW_TP_SRC else tp_src,
-        None if wildcards & OFPFW_TP_DST else tp_dst)
 
 
 class OpenflowProtocol(protocol.Protocol):
@@ -1147,7 +964,11 @@ class OpenflowProtocol(protocol.Protocol):
     if msg_length != 88:
       # TODO(romain): Log and close the connection.
       raise ValueError('OFPT_FLOW_REMOVED message has invalid length')
-    match = Match.deserialize(self._buffer)
+    # This is almost the same as an ofp_flow_stats structure, but has
+    # one field added (reason), and several fields removed
+    # (hard_timeout, table_id), so just deserialize those fields by
+    # hand instead of creating a FlowStats object.
+    match = ofmatch.Match.deserialize(self._buffer)
     (cookie, priority, reason, duration_sec, duration_nsec, idle_timeout,
      packet_count, byte_count) = self._buffer.unpack('!QHBxLLH2xQQ')
     if reason not in (OFPRR_IDLE_TIMEOUT, OFPRR_HARD_TIMEOUT, OFPRR_DELETE):
@@ -1187,7 +1008,7 @@ class OpenflowProtocol(protocol.Protocol):
       # TODO(romain): Log and close the connection.
       raise ValueError('OFPT_FLOW_MOD message has invalid length')
 
-    match = Match.deserialize(self._buffer)
+    match = ofmatch.Match.deserialize(self._buffer)
     (cookie, command, idle_timeout, hard_timeout, priority, buffer_id,
      out_port, flags) = self._buffer.unpack('!QHHHHLHH')
 
@@ -1265,7 +1086,7 @@ class OpenflowProtocol(protocol.Protocol):
         # TODO(romain): Log and close the connection.
         raise ValueError('OFPT_STATS_REQUEST message has invalid length'
                          ' for OFPST_FLOW stats')
-      match = Match.deserialize(self._buffer)
+      match = ofmatch.Match.deserialize(self._buffer)
       table_id, out_port = self._buffer.unpack('!BxH')
       self.handle_stats_request_flow(xid, match, table_id, out_port)
     elif type == OFPST_AGGREGATE:
@@ -1273,7 +1094,7 @@ class OpenflowProtocol(protocol.Protocol):
         # TODO(romain): Log and close the connection.
         raise ValueError('OFPT_STATS_REQUEST message has invalid length'
                          ' for OFPST_AGGREGATE stats')
-      match = Match.deserialize(self._buffer)
+      match = ofmatch.Match.deserialize(self._buffer)
       table_id, out_port = self._buffer.unpack('!BxH')
       self.handle_stats_request_aggregate(xid, match, table_id, out_port)
     elif type == OFPST_TABLE:
@@ -1950,6 +1771,10 @@ class OpenflowProtocol(protocol.Protocol):
     """
     if reason not in (OFPRR_IDLE_TIMEOUT, OFPRR_HARD_TIMEOUT, OFPRR_DELETE):
       raise ValueError('invalid reason', reason)
+    # This is almost the same as an ofp_flow_stats structure, but has
+    # one field added (reason), and several fields removed
+    # (hard_timeout, table_id), so just serialize those fields by hand
+    # instead of getting a FlowStats object.
     all_data = (match.serialize(),
                 struct.pack('!QHBxLLH2xQQ', cookie, priority, reason,
                             duration_sec, duration_nsec, idle_timeout,
