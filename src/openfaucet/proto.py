@@ -15,6 +15,7 @@ from twisted.internet import protocol
 from openfaucet import action
 from openfaucet import buffer
 from openfaucet import ofmatch
+from openfaucet import ofstats
 
 
 # The format of the header on all OpenFlow packets.
@@ -252,6 +253,9 @@ OFPST_TABLE = 3
 OFPST_PORT = 4
 OFPST_QUEUE = 5
 OFPST_VENDOR = 0xffff
+
+# OFPT_STATS_REPLY flags.
+OFPSF_REPLY_MORE = 1 << 0  # More replies to follow.
 
 
 class PortConfig(collections.namedtuple('PortConfig', (
@@ -999,7 +1003,8 @@ class OpenflowProtocol(protocol.Protocol):
       # TODO(romain): Log and close the connection.
       raise ValueError('OFPT_PACKET_OUT message has invalid actions length')
 
-    actions = tuple(self._deserialize_action() for i in xrange(actions_len))
+    actions = tuple(self.deserialize_action(self._buffer)
+                    for i in xrange(actions_len))
     data = self._buffer.read_bytes(self._buffer.message_bytes_left)
     self.handle_packet_out(buffer_id, in_port, actions, data)
 
@@ -1032,7 +1037,7 @@ class OpenflowProtocol(protocol.Protocol):
     emerg = flags & OFPFF_EMERG
     actions = []
     while self._buffer.message_bytes_left > 0:
-      actions.append(self._deserialize_action())
+      actions.append(self.deserialize_action(self._buffer))
     actions = tuple(actions)
     self.handle_flow_mod(match, cookie, command, idle_timeout, hard_timeout,
                          priority, buffer_id, out_port, send_flow_rem,
@@ -1132,25 +1137,104 @@ class OpenflowProtocol(protocol.Protocol):
                                                  self._buffer)
 
   def _handle_stats_reply(self, msg_length, xid):
-    pass
+    if msg_length < 12:
+      # TODO(romain): Log and close the connection.
+      raise ValueError('OFPT_STATS_REPLY message too short')
 
+    type, flags = self._buffer.unpack('!HH')
+    if type not in (OFPST_DESC, OFPST_FLOW, OFPST_AGGREGATE, OFPST_TABLE,
+                    OFPST_PORT, OFPST_QUEUE, OFPST_VENDOR):
+      # TODO(romain): Log and close the connection.
+      raise ValueError('invalid stats type', type)
+    if flags & ~OFPSF_REPLY_MORE:
+      # Be liberal. Ignore those bits instead of raising an exception.
+      # TODO(romain): Log this.
+      # ('undefined flag bits set', flags)
+      pass
+    reply_more = bool(flags & OFPSF_REPLY_MORE)
+
+    # Decode the request body depending on the stats type.
+    if type == OFPST_DESC:
+      if reply_more:
+        raise ValueError('OFPSF_REPLY_MORE bit set for OFPST_DESC stats')
+      if msg_length != (12 + 1056):
+        # TODO(romain): Log and close the connection.
+        raise ValueError('OFPT_STATS_REPLY message has invalid length'
+                         ' for OFPST_DESC stats')
+      desc_stats = ofstats.DescriptionStats.deserialize(self._buffer)
+      self.handle_stats_reply_desc(xid, desc_stats)
+    elif type == OFPST_FLOW:
+      flow_stats = []
+      while self._buffer.message_bytes_left > 0:
+        flow_stats.append(ofstats.FlowStats.deserialize(
+            self._buffer, self.deserialize_action))
+      self.handle_stats_reply_flow(xid, tuple(flow_stats), reply_more)
+    elif type == OFPST_AGGREGATE:
+      if reply_more:
+        raise ValueError('OFPSF_REPLY_MORE bit set for OFPST_AGGREGATE stats')
+      if msg_length != (12 + 24):
+        # TODO(romain): Log and close the connection.
+        raise ValueError('OFPT_STATS_REPLY message has invalid length'
+                         ' for OFPST_AGGREGATE stats')
+      packet_count, byte_count, flow_count = self._buffer.unpack('!QQL4x')
+      self.handle_stats_reply_aggregate(xid, packet_count, byte_count,
+                                        flow_count)
+    elif type == OFPST_TABLE:
+      if (msg_length - 12) % 64 != 0:
+        # TODO(romain): Log and close the connection.
+        raise ValueError('OFPT_STATS_REPLY message has invalid length'
+                         ' for OFPST_TABLE stats')
+      table_stats = []
+      while self._buffer.message_bytes_left > 0:
+        table_stats.append(ofstats.TableStats.deserialize(self._buffer))
+      self.handle_stats_reply_table(xid, tuple(table_stats), reply_more)
+    elif type == OFPST_PORT:
+      if (msg_length - 12) % 104 != 0:
+        # TODO(romain): Log and close the connection.
+        raise ValueError('OFPT_STATS_REPLY message has invalid length'
+                         ' for OFPST_PORT stats')
+      port_stats = []
+      while self._buffer.message_bytes_left > 0:
+        port_stats.append(ofstats.PortStats.deserialize(self._buffer))
+      self.handle_stats_reply_port(xid, tuple(port_stats), reply_more)
+    elif type == OFPST_QUEUE:
+      if (msg_length - 12) % 32 != 0:
+        # TODO(romain): Log and close the connection.
+        raise ValueError('OFPT_STATS_REPLY message has invalid length'
+                         ' for OFPST_QUEUE stats')
+      queue_stats = []
+      while self._buffer.message_bytes_left > 0:
+        queue_stats.append(ofstats.QueueStats.deserialize(self._buffer))
+      self.handle_stats_reply_queue(xid, tuple(queue_stats), reply_more)
+    elif type == OFPST_VENDOR:
+      if msg_length < (12 + 4):
+        # TODO(romain): Log and close the connection.
+        raise ValueError('OFPT_STATS_REPLY message too short'
+                         ' for OFPST_VENDOR stats')
+      vendor_id = self._buffer.unpack('!L')[0]
+      vendor_handler = self._vendor_handlers.get(vendor_id)
+      if vendor_handler is None:
+        # TODO(romain): Log and close the connection.
+        raise ValueError('OFPT_STATS_REQUEST message with unknown vendor id',
+                         vendor_id)
+      vendor_handler.handle_vendor_stats_reply(self, msg_length, xid,
+                                               self._buffer, reply_more)
 
   def _handle_barrier_request(self, msg_length, xid):
-    pass
-
+    # TODO(romain): Implement this method.
+    FIXME
 
   def _handle_barrier_reply(self, msg_length, xid):
-    pass
-
+    # TODO(romain): Implement this method.
+    FIXME
 
   def _handle_queue_get_config_request(self, msg_length, xid):
-    pass
-
+    # TODO(romain): Implement this method.
+    FIXME
 
   def _handle_queue_get_config_reply(self, msg_length, xid):
-    pass
-
-
+    # TODO(romain): Implement this method.
+    FIXME
 
   def handle_hello(self):
     """Handle the reception of a OFPT_HELLO message.
@@ -1496,46 +1580,154 @@ class OpenflowProtocol(protocol.Protocol):
     """
     pass
 
-  def handle_stats_reply(self):
-    """Handle the reception of a OFPT_FIXME message.
+  def handle_stats_reply_desc(self, xid, desc_stats):
+    """Handle the reception of a OFPT_STATS_REPLY / OFPST_DESC message.
+
+    The OFPST_DESC stats contain a description of the OpenFlow switch.
 
     This method does nothing and should be redefined in subclasses.
+
+    Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      desc_stats: A DescriptionStats that contains the switch description
+          stats.
     """
+    pass
+
+  def handle_stats_reply_flow(self, xid, flow_stats, reply_more):
+    """Handle the reception of a OFPT_STATS_REPLY / OFPST_FLOW message.
+
+    The OFPST_FLOW stats contain individual flow statistics.
+
+    This method does nothing and should be redefined in subclasses.
+
+    Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      flow_stats: A tuple of FlowStats objects containing each the
+          stats for an individual flow.
+      reply_more: If True, more OFPT_STATS_REPLY will be sent after
+          this one to completely reply the request. If False, this is
+          the last reply to the request.
+    """
+    pass
+
+  def handle_stats_reply_aggregate(self, xid, packet_count, byte_count,
+                                   flow_count):
+    """Handle the reception of a OFPT_STATS_REPLY / OFPST_AGGREGATE message.
+
+    The OFPST_AGGREGATE stats contain aggregate flow statistics.
+
+    This method does nothing and should be redefined in subclasses.
+
+    Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      packet_count: The number of packets in aggregated flows, as a
+          64-bit unsigned integer.
+      byte_count: The number of bytes in aggregated flows, as a 64-bit
+          unsigned integer.
+      flow_count: The number of aggregated flows, as a 32-bit unsigned
+          integer.
+    """
+    pass
+
+  def handle_stats_reply_table(self, xid, table_stats, reply_more):
+    """Handle the reception of a OFPT_STATS_REPLY / OFPST_TABLE message.
+
+    The OFPST_TABLE stats contain flow table statistics.
+
+    This method does nothing and should be redefined in subclasses.
+
+    Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      table_stats: A tuple of TableStats objects containing each the
+          stats for an individual table.
+      reply_more: If True, more OFPT_STATS_REPLY will be sent after
+          this one to completely reply the request. If False, this is
+          the last reply to the request.
+    """
+    pass
+
+  def handle_stats_reply_port(self, xid, port_stats, reply_more):
+    """Handle the reception of a OFPT_STATS_REPLY / OFPST_PORT message.
+
+    The OFPST_PORT stats contain statistics for individual ports.
+
+    This method does nothing and should be redefined in subclasses.
+
+    Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      port_stats: A tuple of PortStats objects containing each the
+          stats for an individual port.
+      reply_more: If True, more OFPT_STATS_REPLY will be sent after
+          this one to completely reply the request. If False, this is
+          the last reply to the request.
+    """
+    pass
+
+  def handle_stats_reply_queue(self, xid, queue_stats, reply_more):
+    """Handle the reception of a OFPT_STATS_REPLY / OFPST_QUEUE message.
+
+    The OFPST_QUEUE stats contain queue statistics for individual queues.
+
+    This method does nothing and should be redefined in subclasses.
+
+    Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      port_stats: A tuple of QueueStats objects containing each the
+          stats for an individual queue.
+      reply_more: If True, more OFPT_STATS_REPLY will be sent after
+          this one to completely reply the request. If False, this is
+          the last reply to the request.
+    """
+    pass
 
   def handle_barrier_request(self):
     """Handle the reception of a OFPT_FIXME message.
 
     This method does nothing and should be redefined in subclasses.
     """
+    # TODO(romain): Implement this method.
+    FIXME
 
   def handle_barrier_reply(self):
     """Handle the reception of a OFPT_FIXME message.
 
     This method does nothing and should be redefined in subclasses.
     """
+    # TODO(romain): Implement this method.
+    FIXME
 
   def handle_queue_get_config_request(self):
     """Handle the reception of a OFPT_FIXME message.
 
     This method does nothing and should be redefined in subclasses.
     """
+    # TODO(romain): Implement this method.
+    FIXME
 
   def handle_queue_get_config_reply(self):
     """Handle the reception of a OFPT_FIXME message.
 
     This method does nothing and should be redefined in subclasses.
     """
+    # TODO(romain): Implement this method.
+    FIXME
 
-
-
-  def _serialize_action(self, a):
-    """Serialize a single actions.
+  def serialize_action(self, a):
+    """Serialize a single action.
 
     Args:
       a: The Action* object to serialize into data.
 
     Returns:
-      The sequence of byte buffers representing the serialized action.
+      The sequence of byte buffers representing the serialized action,
+      including the ofp_action_header.
     """
     a_ser = a.serialize()
     if a.type == action.OFPAT_VENDOR:
@@ -1549,13 +1741,17 @@ class OpenflowProtocol(protocol.Protocol):
       raise ValueError('action length not a multiple of 8', a)
     return (header, a_ser)
 
-  def _deserialize_action(self):
-    """Deserialize a single action from the buffer.
+  def deserialize_action(self, buf):
+    """Deserialize a single action from a buffer.
+
+    Args:
+      buf: A ReceiveBuffer object that contains the bytes that are the
+          serialized form of the action.
 
     Returns:
-      A new Action* object.
+      A new Action* object deserialized from the buffer
     """
-    action_type, action_length = self._buffer.unpack('!HH')
+    action_type, action_length = buf.unpack('!HH')
     if action_length < 8:
       # TODO(romain): Log and close the connection.
       raise ValueError('invalid action length', action_length)
@@ -1563,14 +1759,13 @@ class OpenflowProtocol(protocol.Protocol):
     # Delegate the OFPAT_VENDOR actions deserialization to the
     # vendor handler.
     if action_type == action.OFPAT_VENDOR:
-      vendor_id = self._buffer.unpack('!L')[0]
+      vendor_id = buf.unpack('!L')[0]
       vendor_handler = self._vendor_handlers.get(vendor_id)
       if vendor_handler is None:
         # TODO(romain): Log and close the connection.
         raise ValueError('OFPAT_VENDOR action with unknown vendor id',
                          vendor_id)
-      a = vendor_handler.deserialize_vendor_action(action_length,
-                                                   self._buffer)
+      a = vendor_handler.deserialize_vendor_action(action_length, buf)
       # TODO(romain): Test that the vendor handler deserialized
       # exactly action_length bytes.
 
@@ -1584,7 +1779,7 @@ class OpenflowProtocol(protocol.Protocol):
         # TODO(romain): Log and close the connection.
         raise ValueError('invalid action length for type', action_type,
                          action_length)
-      a = action_class.deserialize(self._buffer)
+      a = action_class.deserialize(buf)
 
     return a
 
@@ -1828,7 +2023,7 @@ class OpenflowProtocol(protocol.Protocol):
 
     all_data = [struct.pack('!LHH', buffer_id, in_port, len(actions))]
     for a in actions:
-      all_data.extend(self._serialize_action(a))
+      all_data.extend(self.serialize_action(a))
     all_data.extend(data)
     self._send_message(OFPT_PACKET_OUT, data=all_data)
 
@@ -1891,7 +2086,7 @@ class OpenflowProtocol(protocol.Protocol):
                 struct.pack('!QHHHHLHH', cookie, command, idle_timeout,
                             hard_timeout, priority, buffer_id, out_port, flags)]
     for a in actions:
-      all_data.extend(self._serialize_action(a))
+      all_data.extend(self.serialize_action(a))
     self._send_message(OFPT_FLOW_MOD, data=all_data)
 
   def send_port_mod(self, port_no, hw_addr, config, mask, advertise):
@@ -1931,7 +2126,7 @@ class OpenflowProtocol(protocol.Protocol):
                     advertise_ser),))
 
   def _send_stats_request(self, type, data=()):
-    """Send a OFPT_STATS_REQUEST message to query for switch stats.
+    """Send a OFPT_STATS_REQUEST message to query for stats.
 
     Args:
       type: The type of stats requested, either OFPST_DESC,
@@ -2010,7 +2205,7 @@ class OpenflowProtocol(protocol.Protocol):
         struct.pack('!BxH', table_id, out_port)))
 
   def send_stats_request_table(self):
-    """Send a OFPT_STATS_REQUEST message to query for switch stats.
+    """Send a OFPT_STATS_REQUEST message to query for table stats.
 
     The OFPST_TABLE stats contain flow table statistics.
 
@@ -2041,7 +2236,7 @@ class OpenflowProtocol(protocol.Protocol):
   def send_stats_request_queue(self, port_no, queue_id):
     """Send a OFPT_STATS_REQUEST message to query for queue stats.
 
-    The OFPST_QUEUE stats contain queue statistics for a port.
+    The OFPST_QUEUE stats contain queue statistics for a queue.
 
     Args:
       port_no: The port's unique number, as a 16-bit unsigned
@@ -2074,6 +2269,155 @@ class OpenflowProtocol(protocol.Protocol):
     all_data = [struct.pack('!L', vendor_id)]
     all_data.extend(data)
     return self._send_stats_request(OFPST_VENDOR, data=all_data)
+
+  def _send_stats_reply(self, xid, type, reply_more=False, data=()):
+    """Send a OFPT_STATS_REPLY message to query for switch stats.
+
+    Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      type: The type of stats replied, either OFPST_DESC,
+          OFPST_FLOW, OFPST_AGGREGATE, OFPST_TABLE, OFPST_PORT,
+          OFPST_QUEUE, or OFPST_VENDOR.
+      reply_more: If True, more OFPT_STATS_REPLY will be sent after
+          this one to completely reply the request. If False, this is
+          the last reply to the request.
+      data: The data in the message sent after the header, as a
+          sequence of byte buffers. Defaults to an empty sequence.
+    """
+    if type not in (OFPST_DESC, OFPST_FLOW, OFPST_AGGREGATE, OFPST_TABLE,
+                    OFPST_PORT, OFPST_QUEUE, OFPST_VENDOR):
+      raise ValueError('invalid stats type', type)
+    # TODO(romain): Raise an exception if not reply_mode and data is empty.
+    flags = (OFPSF_REPLY_MORE if reply_more else 0)
+    all_data = [struct.pack('!HH', type, flags)]
+    all_data.extend(data)
+    self._send_message(OFPT_STATS_REPLY, xid=xid, data=all_data)
+
+  def send_stats_reply_desc(self, xid, desc_stats):
+    """Send a OFPT_STATS_REPLY message to reply switch stats.
+
+    The OFPST_DESC stats contain a description of the OpenFlow switch.
+
+    Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      desc_stats: A DescriptionStats that contains the switch description
+          stats.
+    """
+    self._send_stats_reply(xid, OFPST_DESC, data=(desc_stats.serialize(),))
+
+  def send_stats_reply_flow(self, xid, flow_stats, reply_more=False):
+    """Send a OFPT_STATS_REPLY message to reply individual flow stats.
+
+    The OFPST_FLOW stats contain individual flow statistics.
+
+    Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      flow_stats: A sequence of FlowStats objects containing each the
+          stats for an individual flow.
+      reply_more: If True, more OFPT_STATS_REPLY will be sent after
+          this one to completely reply the request. If False, this is
+          the last reply to the request.
+    """
+    all_data = []
+    for fs in flow_stats:
+      all_data.extend(fs.serialize(self.serialize_action))
+    self._send_stats_reply(xid, OFPST_FLOW, reply_more=reply_more,
+                           data=all_data)
+
+  def send_stats_reply_aggregate(self, xid, packet_count, byte_count,
+                                 flow_count):
+    """Send a OFPT_STATS_REPLY message to reply aggregate flow stats.
+
+    The OFPST_AGGREGATE stats contain aggregate flow statistics.
+
+    Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      packet_count: The number of packets in aggregated flows, as a
+          64-bit unsigned integer.
+      byte_count: The number of bytes in aggregated flows, as a 64-bit
+          unsigned integer.
+      flow_count: The number of aggregated flows, as a 32-bit unsigned
+          integer.
+    """
+    self._send_stats_reply(xid, OFPST_AGGREGATE, data=(
+        struct.pack('!QQL4x', packet_count, byte_count, flow_count),))
+
+  def send_stats_reply_table(self, xid, table_stats, reply_more=False):
+    """Send a OFPT_STATS_REPLY message to reply table stats.
+
+    The OFPST_TABLE stats contain flow table statistics.
+
+    Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      table_stats: A sequence of TableStats objects containing each the
+          stats for an individual table.
+      reply_more: If True, more OFPT_STATS_REPLY will be sent after
+          this one to completely reply the request. If False, this is
+          the last reply to the request.
+    """
+    self._send_stats_reply(
+        xid, OFPST_TABLE, reply_more=reply_more,
+        data=[ts.serialize() for ts in table_stats])
+
+  def send_stats_reply_port(self, xid, port_stats, reply_more=False):
+    """Send a OFPT_STATS_REPLY message to reply port stats.
+
+    The OFPST_PORT stats contain statistics for individual ports.
+
+    Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      port_stats: A sequence of PortStats objects containing each the
+          stats for an individual port.
+      reply_more: If True, more OFPT_STATS_REPLY will be sent after
+          this one to completely reply the request. If False, this is
+          the last reply to the request.
+    """
+    self._send_stats_reply(
+        xid, OFPST_PORT, reply_more=reply_more,
+        data=[ps.serialize() for ps in port_stats])
+
+  def send_stats_reply_queue(self, xid, queue_stats, reply_more=False):
+    """Send a OFPT_STATS_REPLY message to reply queue stats.
+
+    The OFPST_QUEUE stats contain queue statistics for individual queues.
+
+    Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      port_stats: A sequence of QueueStats objects containing each the
+          stats for an individual queue.
+      reply_more: If True, more OFPT_STATS_REPLY will be sent after
+          this one to completely reply the request. If False, this is
+          the last reply to the request.
+    """
+    self._send_stats_reply(
+        xid, OFPST_QUEUE, reply_more=reply_more,
+        data=[qs.serialize() for qs in queue_stats])
+
+  def send_stats_reply_vendor(self, xid, vendor_id, data=(), reply_more=False):
+    """Send a OFPT_STATS_REPLY message to reply vendor stats.
+
+    The OFPST_VENDOR stats contain vendor-specific stats.
+
+    Args:
+      vendor_id: The OpenFlow vendor ID, as a 32-bit unsigned integer.
+      data: The data in the message sent after the header, as a
+          sequence of byte buffers. Defaults to an empty sequence.
+
+    Returns:
+      The transaction id associated with the sent request, as a 32-bit
+      unsigned integer.
+    """
+    all_data = [struct.pack('!L', vendor_id)]
+    all_data.extend(data)
+    return self._send_stats_reply(xid, OFPST_VENDOR, reply_more=reply_more,
+                                  data=all_data)
 
 
 class OpenflowProtocolRequestTracker(OpenflowProtocol):

@@ -6,6 +6,7 @@ import unittest2
 from openfaucet import action
 from openfaucet import buffer
 from openfaucet import ofmatch
+from openfaucet import ofstats
 from openfaucet import proto
 
 
@@ -745,6 +746,30 @@ class MockOpenflowProtocolSubclass(proto.OpenflowProtocol):
     self.calls_made.append(('handle_stats_request_queue', xid, port_no,
                             queue_id))
 
+  def handle_stats_reply_desc(self, xid, desc_stats):
+    self.calls_made.append(('handle_stats_reply_desc', xid, desc_stats))
+
+  def handle_stats_reply_flow(self, xid, flow_stats, reply_more):
+    self.calls_made.append(('handle_stats_reply_flow', xid, flow_stats,
+                            reply_more))
+
+  def handle_stats_reply_aggregate(self, xid, packet_count, byte_count,
+                                   flow_count):
+    self.calls_made.append(('handle_stats_reply_aggregate', xid, packet_count,
+                            byte_count, flow_count))
+
+  def handle_stats_reply_table(self, xid, table_stats, reply_more):
+    self.calls_made.append(('handle_stats_reply_table', xid, table_stats,
+                            reply_more))
+
+  def handle_stats_reply_port(self, xid, port_stats, reply_more):
+    self.calls_made.append(('handle_stats_reply_port', xid, port_stats,
+                            reply_more))
+
+  def handle_stats_reply_queue(self, xid, queue_stats, reply_more):
+    self.calls_made.append(('handle_stats_reply_queue', xid, queue_stats,
+                            reply_more))
+
 
 MockVendorAction = action.vendor_action('MockVendorAction', 0x4242,
                                         '!L4x', ('dummy',))
@@ -774,6 +799,12 @@ class MockVendorHandler(object):
     bytes = buffer.read_bytes(msg_length - 16)  # Consume the remaining bytes.
     self.calls_made.append(('handle_vendor_stats_request', conn, msg_length,
                             xid, bytes))
+
+  def handle_vendor_stats_reply(self, conn, msg_length, xid, buffer,
+                                reply_more):
+    bytes = buffer.read_bytes(msg_length - 16)  # Consume the remaining bytes.
+    self.calls_made.append(('handle_vendor_stats_reply', conn, msg_length,
+                            xid, bytes, reply_more))
 
 
 class TestOpenflowProtocol(unittest2.TestCase):
@@ -1585,6 +1616,242 @@ class TestOpenflowProtocol(unittest2.TestCase):
     self.assertListEqual([], self.proto.calls_made)
     self.assertListEqual([('handle_vendor_stats_request', self.proto, 24, 4,
                            'helloyou')],
+                         self.vendor_handler.calls_made)
+
+  def test_send_stats_reply_desc(self):
+    self.proto.connectionMade()
+
+    desc_stats = ofstats.DescriptionStats(
+        mfr_desc='Dummy Manufacturer Inc.',
+        hw_desc='DummySwitch',
+        sw_desc='DummyOS',
+        serial_num='0000000042',
+        dp_desc='unittest switch')
+    self.proto.send_stats_reply_desc(4, desc_stats)
+    self.assertEqual('\x01\x11\x04\x2c\x00\x00\x00\x04'
+                     '\x00\x00' '\x00\x00'
+                     + desc_stats.serialize(),
+                     self._get_next_sent_message())
+
+  def test_send_stats_reply_flow_two_flows(self):
+    self.proto.connectionMade()
+
+    flow_stats1 = ofstats.FlowStats(
+        0xac, self.match1, 0x10203040, 0x11223344, 0x1002, 0x0136, 0x0247,
+        0xffeeddccbbaa9988, 0x42, 0x0153, (
+            action.ActionOutput(port=0x1234, max_len=0x9abc),
+            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
+    flow_stats2 = ofstats.FlowStats(
+        0xad, self.match1, 0x10203040, 0x11223344, 0x1003, 0x0136, 0x0247,
+        0xffeeddccbbaa9988, 0x42, 0x0153, ())
+    self.proto.send_stats_reply_flow(4, (flow_stats1, flow_stats2))
+    self.assertEqual(
+        '\x01\x11\x00\xd4\x00\x00\x00\x04'
+        '\x00\x01' '\x00\x00'
+        + ''.join(flow_stats1.serialize(self.proto.serialize_action))
+        + ''.join(flow_stats2.serialize(self.proto.serialize_action)),
+        self._get_next_sent_message())
+
+  def test_send_stats_reply_aggregate(self):
+    self.proto.connectionMade()
+
+    self.proto.send_stats_reply_aggregate(4, 0x1234, 0x1324, 0x0123)
+    self.assertEqual('\x01\x11\x00\x24\x00\x00\x00\x04'
+                     '\x00\x02' '\x00\x00'
+                     '\x00\x00\x00\x00\x00\x00\x12\x34'
+                     '\x00\x00\x00\x00\x00\x00\x13\x24'
+                     '\x00\x00\x01\x23' '\x00\x00\x00\x00',
+                     self._get_next_sent_message())
+
+  def test_send_stats_reply_table_two_tables_reply_more(self):
+    self.proto.connectionMade()
+
+    wildcards1 = ofmatch.Wildcards(
+        in_port=False, dl_src=False, dl_dst=False, dl_vlan=False,
+        dl_vlan_pcp=False, dl_type=False, nw_tos=False, nw_proto=False,
+        nw_src=0, nw_dst=0, tp_src=False, tp_dst=False)
+    table_stats1 = ofstats.TableStats(
+        0xab, 'no_wildcards', wildcards1, 0x100000, 0x1234, 0x5678,
+        0x9abcd)
+    wildcards2 = ofmatch.Wildcards(
+        in_port=True, dl_src=True, dl_dst=True, dl_vlan=True, dl_vlan_pcp=True,
+        dl_type=True, nw_tos=False, nw_proto=False, nw_src=0, nw_dst=0,
+        tp_src=False, tp_dst=False)
+    table_stats2 = ofstats.TableStats(
+        0xac, 'eth_wildcards', wildcards2, 0x100000, 0x1234, 0x5678,
+        0x9abcd)
+    self.proto.send_stats_reply_table(4, (table_stats1, table_stats2),
+                                      reply_more=True)
+    self.assertEqual('\x01\x11\x00\x8c\x00\x00\x00\x04'
+                     '\x00\x03' '\x00\x01'
+                     + table_stats1.serialize()
+                     + table_stats2.serialize(),
+                     self._get_next_sent_message())
+
+  def test_send_stats_reply_port_two_ports(self):
+    self.proto.connectionMade()
+
+    port_stats1 = ofstats.PortStats(
+        port_no=0xab01, rx_packets=0x1234, tx_packets=0x5678, rx_bytes=0x1324,
+        tx_bytes=0x5768, rx_dropped=0x1a2b, tx_dropped=0x3c4d, rx_errors=0xab12,
+        tx_errors=0xcd34, rx_frame_err=0x1432, rx_over_err=0x2543,
+        rx_crc_err=0x3654, collisions=0x4765)
+    port_stats2 = ofstats.PortStats(
+        port_no=0xab02, rx_packets=0x1234, tx_packets=0x5678, rx_bytes=0x1324,
+        tx_bytes=0x5768, rx_dropped=0x1a2b, tx_dropped=0x3c4d, rx_errors=0xab12,
+        tx_errors=0xcd34, rx_frame_err=0x1432, rx_over_err=0x2543,
+        rx_crc_err=0x3654, collisions=0x4765)
+    self.proto.send_stats_reply_port(4, (port_stats1, port_stats2))
+    self.assertEqual('\x01\x11\x00\xdc\x00\x00\x00\x04'
+                     '\x00\x04' '\x00\x00'
+                     + port_stats1.serialize()
+                     + port_stats2.serialize(),
+                     self._get_next_sent_message())
+
+  def test_send_stats_reply_queue_two_queues(self):
+    self.proto.connectionMade()
+
+    queue_stats1 = ofstats.QueueStats(
+        port_no=0xab01, queue_id=0x11111111, tx_bytes=0x5768, tx_packets=0x5678,
+        tx_errors=0xcd34)
+    queue_stats2 = ofstats.QueueStats(
+        port_no=0xab01, queue_id=0x22222222, tx_bytes=0x5768, tx_packets=0x5678,
+        tx_errors=0xcd34)
+    self.proto.send_stats_reply_queue(4, (queue_stats1, queue_stats2))
+    self.assertEqual('\x01\x11\x00\x4c\x00\x00\x00\x04'
+                     '\x00\x05' '\x00\x00'
+                     + queue_stats1.serialize()
+                     + queue_stats2.serialize(),
+                     self._get_next_sent_message())
+
+  def test_send_stats_reply_vendor(self):
+    self.proto.connectionMade()
+
+    self.proto.send_stats_reply_vendor(4, 0x4242, ('helloyou',))
+    self.assertEqual('\x01\x11\x00\x18\x00\x00\x00\x04'
+                     '\xff\xff' '\x00\x00'
+                     '\x00\x00\x42\x42' 'helloyou',
+                     self._get_next_sent_message())
+
+  def test_handle_stats_reply_desc(self):
+    self.proto.connectionMade()
+
+    desc_stats = ofstats.DescriptionStats(
+        mfr_desc='Dummy Manufacturer Inc.',
+        hw_desc='DummySwitch',
+        sw_desc='DummyOS',
+        serial_num='0000000042',
+        dp_desc='unittest switch')
+    self.proto.dataReceived('\x01\x11\x04\x2c\x00\x00\x00\x04'
+                            '\x00\x00' '\x00\x00'
+                            + desc_stats.serialize())
+    self.assertListEqual([('handle_stats_reply_desc', 4, desc_stats)],
+                         self.proto.calls_made)
+
+  def test_handle_stats_reply_flow_two_flows(self):
+    self.proto.connectionMade()
+
+    flow_stats1 = ofstats.FlowStats(
+        0xac, self.match1, 0x10203040, 0x11223344, 0x1002, 0x0136, 0x0247,
+        0xffeeddccbbaa9988, 0x42, 0x0153, (
+            action.ActionOutput(port=0x1234, max_len=0x9abc),
+            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
+    flow_stats2 = ofstats.FlowStats(
+        0xad, self.match1, 0x10203040, 0x11223344, 0x1003, 0x0136, 0x0247,
+        0xffeeddccbbaa9988, 0x42, 0x0153, ())
+    self.proto.dataReceived(
+        '\x01\x11\x00\xd4\x00\x00\x00\x04'
+        '\x00\x01' '\x00\x00'
+        + ''.join(flow_stats1.serialize(self.proto.serialize_action))
+        + ''.join(flow_stats2.serialize(self.proto.serialize_action)))
+    self.assertListEqual([('handle_stats_reply_flow', 4,
+                           (flow_stats1, flow_stats2), False)],
+                         self.proto.calls_made)
+
+  def test_handle_stats_reply_aggregate(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived('\x01\x11\x00\x24\x00\x00\x00\x04'
+                            '\x00\x02' '\x00\x00'
+                            '\x00\x00\x00\x00\x00\x00\x12\x34'
+                            '\x00\x00\x00\x00\x00\x00\x13\x24'
+                            '\x00\x00\x01\x23' '\x00\x00\x00\x00')
+    self.assertListEqual([('handle_stats_reply_aggregate', 4, 0x1234, 0x1324,
+                           0x0123)],
+                         self.proto.calls_made)
+
+  def test_handle_stats_reply_table_two_tables_reply_more(self):
+    self.proto.connectionMade()
+
+    wildcards1 = ofmatch.Wildcards(
+        in_port=False, dl_src=False, dl_dst=False, dl_vlan=False,
+        dl_vlan_pcp=False, dl_type=False, nw_tos=False, nw_proto=False,
+        nw_src=0, nw_dst=0, tp_src=False, tp_dst=False)
+    table_stats1 = ofstats.TableStats(
+        0xab, 'no_wildcards', wildcards1, 0x100000, 0x1234, 0x5678,
+        0x9abcd)
+    wildcards2 = ofmatch.Wildcards(
+        in_port=True, dl_src=True, dl_dst=True, dl_vlan=True, dl_vlan_pcp=True,
+        dl_type=True, nw_tos=False, nw_proto=False, nw_src=0, nw_dst=0,
+        tp_src=False, tp_dst=False)
+    table_stats2 = ofstats.TableStats(
+        0xac, 'eth_wildcards', wildcards2, 0x100000, 0x1234, 0x5678,
+        0x9abcd)
+    self.proto.dataReceived('\x01\x11\x00\x8c\x00\x00\x00\x04'
+                            '\x00\x03' '\x00\x01'
+                            + table_stats1.serialize()
+                            + table_stats2.serialize())
+    self.assertListEqual([('handle_stats_reply_table', 4,
+                           (table_stats1, table_stats2), True)],
+                         self.proto.calls_made)
+
+  def test_handle_stats_reply_port_two_ports(self):
+    self.proto.connectionMade()
+
+    port_stats1 = ofstats.PortStats(
+        port_no=0xab01, rx_packets=0x1234, tx_packets=0x5678, rx_bytes=0x1324,
+        tx_bytes=0x5768, rx_dropped=0x1a2b, tx_dropped=0x3c4d, rx_errors=0xab12,
+        tx_errors=0xcd34, rx_frame_err=0x1432, rx_over_err=0x2543,
+        rx_crc_err=0x3654, collisions=0x4765)
+    port_stats2 = ofstats.PortStats(
+        port_no=0xab02, rx_packets=0x1234, tx_packets=0x5678, rx_bytes=0x1324,
+        tx_bytes=0x5768, rx_dropped=0x1a2b, tx_dropped=0x3c4d, rx_errors=0xab12,
+        tx_errors=0xcd34, rx_frame_err=0x1432, rx_over_err=0x2543,
+        rx_crc_err=0x3654, collisions=0x4765)
+    self.proto.dataReceived('\x01\x11\x00\xdc\x00\x00\x00\x04'
+                            '\x00\x04' '\x00\x00'
+                            + port_stats1.serialize()
+                            + port_stats2.serialize())
+    self.assertListEqual([('handle_stats_reply_port', 4,
+                           (port_stats1, port_stats2), False)],
+                         self.proto.calls_made)
+
+  def test_handle_stats_reply_queue_two_queues(self):
+    self.proto.connectionMade()
+
+    queue_stats1 = ofstats.QueueStats(
+        port_no=0xab01, queue_id=0x11111111, tx_bytes=0x5768, tx_packets=0x5678,
+        tx_errors=0xcd34)
+    queue_stats2 = ofstats.QueueStats(
+        port_no=0xab01, queue_id=0x22222222, tx_bytes=0x5768, tx_packets=0x5678,
+        tx_errors=0xcd34)
+    self.proto.dataReceived('\x01\x11\x00\x4c\x00\x00\x00\x04'
+                            '\x00\x05' '\x00\x00'
+                            + queue_stats1.serialize()
+                            + queue_stats2.serialize())
+    self.assertListEqual([('handle_stats_reply_queue', 4,
+                           (queue_stats1, queue_stats2), False)],
+                         self.proto.calls_made)
+
+  def test_handle_stats_reply_vendor_reply_more(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived('\x01\x11\x00\x18\x00\x00\x00\x04'
+                            '\xff\xff' '\x00\x01'
+                            '\x00\x00\x42\x42' 'helloyou')
+    self.assertListEqual([], self.proto.calls_made)
+    self.assertListEqual([('handle_vendor_stats_reply', self.proto, 24, 4,
+                           'helloyou', True)],
                          self.vendor_handler.calls_made)
 
   # TODO(romain): Test handling of bogus messages, with wrong message lengths.
