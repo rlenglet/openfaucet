@@ -770,6 +770,12 @@ class MockOpenflowProtocolSubclass(ofproto.OpenflowProtocol):
     self.calls_made.append(('handle_stats_reply_queue', xid, queue_stats,
                             reply_more))
 
+  def handle_barrier_request(self, xid):
+    self.calls_made.append(('handle_barrier_request', xid))
+
+  def handle_barrier_reply(self, xid):
+    self.calls_made.append(('handle_barrier_reply', xid))
+
 
 MockVendorAction = ofaction.vendor_action('MockVendorAction', 0x4242,
                                           '!L4x', ('dummy',))
@@ -1854,6 +1860,38 @@ class TestOpenflowProtocol(unittest2.TestCase):
     self.assertListEqual([('handle_vendor_stats_reply', self.proto, 24, 4,
                            'helloyou', True)],
                          self.vendor_handler.calls_made)
+
+  def test_send_barrier_request(self):
+    self.proto.connectionMade()
+
+    self.assertEqual(0, self.proto.send_barrier_request())
+    self.assertEqual('\x01\x12\x00\x08\x00\x00\x00\x00',
+                     self._get_next_sent_message())
+    self.assertEqual(1, self.proto.send_barrier_request())
+    self.assertEqual('\x01\x12\x00\x08\x00\x00\x00\x01',
+                     self._get_next_sent_message())
+
+  def test_handle_barrier_request(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived('\x01\x12\x00\x08\x00\x00\x00\x04')
+    self.assertListEqual([('handle_barrier_request', 4)],
+                         self.proto.calls_made)
+
+  def test_send_barrier_reply(self):
+    self.proto.connectionMade()
+
+    self.proto.send_barrier_reply(4)
+    self.assertEqual('\x01\x13\x00\x08\x00\x00\x00\x04',
+                     self._get_next_sent_message())
+
+  def test_handle_barrier_reply(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived('\x01\x13\x00\x08\x00\x00\x00\x04')
+    self.assertListEqual([('handle_barrier_reply', 4)],
+                         self.proto.calls_made)
+
 
   # TODO(romain): Test handling of bogus messages, with wrong message lengths.
 

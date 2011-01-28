@@ -1215,12 +1215,16 @@ class OpenflowProtocol(protocol.Protocol):
                                                self._buffer, reply_more)
 
   def _handle_barrier_request(self, msg_length, xid):
-    # TODO(romain): Implement this method.
-    FIXME
+    if msg_length != OFP_HEADER_LENGTH:
+      # TODO(romain): Log and close the connection.
+      raise ValueError('OFPT_BARRIER_REQUEST message has invalid length')
+    self.handle_barrier_request(xid)
 
   def _handle_barrier_reply(self, msg_length, xid):
-    # TODO(romain): Implement this method.
-    FIXME
+    if msg_length != OFP_HEADER_LENGTH:
+      # TODO(romain): Log and close the connection.
+      raise ValueError('OFPT_BARRIER_REPLY message has invalid length')
+    self.handle_barrier_reply(xid)
 
   def _handle_queue_get_config_request(self, msg_length, xid):
     # TODO(romain): Implement this method.
@@ -1673,7 +1677,7 @@ class OpenflowProtocol(protocol.Protocol):
     Args:
       xid: The transaction id associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
-      port_stats: A tuple of QueueStats objects containing each the
+      queue_stats: A tuple of QueueStats objects containing each the
           stats for an individual queue.
       reply_more: If True, more OFPT_STATS_REPLY will be sent after
           this one to completely reply the request. If False, this is
@@ -1681,21 +1685,27 @@ class OpenflowProtocol(protocol.Protocol):
     """
     pass
 
-  def handle_barrier_request(self):
-    """Handle the reception of a OFPT_FIXME message.
+  def handle_barrier_request(self, xid):
+    """Handle the reception of a OFPT_BARRIER_REQUEST message.
 
     This method does nothing and should be redefined in subclasses.
-    """
-    # TODO(romain): Implement this method.
-    FIXME
 
-  def handle_barrier_reply(self):
-    """Handle the reception of a OFPT_FIXME message.
+    Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
+    """
+    pass
+
+  def handle_barrier_reply(self, xid):
+    """Handle the reception of a OFPT_BARRIER_REPLY message.
 
     This method does nothing and should be redefined in subclasses.
+
+    Args:
+      xid: The transaction id associated with the OFPT_BARRIER_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
     """
-    # TODO(romain): Implement this method.
-    FIXME
+    pass
 
   def handle_queue_get_config_request(self):
     """Handle the reception of a OFPT_FIXME message.
@@ -2384,7 +2394,7 @@ class OpenflowProtocol(protocol.Protocol):
     Args:
       xid: The transaction id associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
-      port_stats: A sequence of QueueStats objects containing each the
+      queue_stats: A sequence of QueueStats objects containing each the
           stats for an individual queue.
       reply_more: If True, more OFPT_STATS_REPLY will be sent after
           this one to completely reply the request. If False, this is
@@ -2400,9 +2410,14 @@ class OpenflowProtocol(protocol.Protocol):
     The OFPST_VENDOR stats contain vendor-specific stats.
 
     Args:
+      xid: The transaction id associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
       vendor_id: The OpenFlow vendor ID, as a 32-bit unsigned integer.
       data: The data in the message sent after the header, as a
           sequence of byte buffers. Defaults to an empty sequence.
+      reply_more: If True, more OFPT_STATS_REPLY will be sent after
+          this one to completely reply the request. If False, this is
+          the last reply to the request.
 
     Returns:
       The transaction id associated with the sent request, as a 32-bit
@@ -2412,6 +2427,26 @@ class OpenflowProtocol(protocol.Protocol):
     all_data.extend(data)
     return self._send_stats_reply(xid, OFPST_VENDOR, reply_more=reply_more,
                                   data=all_data)
+
+  def send_barrier_request(self):
+    """Send a OFPT_BARRIER_REQUEST message.
+
+    Returns:
+      The transaction id associated with the sent request, as a 32-bit
+      unsigned integer.
+    """
+    xid = self._get_next_xid()
+    self._send_message(OFPT_BARRIER_REQUEST, xid=xid)
+    return xid
+
+  def send_barrier_reply(self, xid):
+    """Send a OFPT_BARRIER_REPLY message.
+
+    Args:
+      xid: The transaction id associated with the OFPT_BARRIER_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+    """
+    self._send_message(OFPT_BARRIER_REPLY, xid=xid)
 
 
 class OpenflowProtocolRequestTracker(OpenflowProtocol):
