@@ -258,6 +258,10 @@ OFPST_VENDOR = 0xffff
 # OFPT_STATS_REPLY flags.
 OFPSF_REPLY_MORE = 1 << 0  # More replies to follow.
 
+# Properties of packet queues.
+OFPQT_NONE = 0  # No property defined for queue.
+OFPQT_MIN_RATE = 1  # Minimum datarate guaranteed.
+
 
 class PortConfig(collections.namedtuple('PortConfig', (
     # Flags to indicate the behavior of the physical port.
@@ -266,13 +270,13 @@ class PortConfig(collections.namedtuple('PortConfig', (
   """The description of the config of a physical port of an OpenFlow switch.
 
   The configuration attributes of a physical port are boolean flags:
-      port_down: Port is administratively down.
-      no_stp: Disable 802.1D spanning tree on port.
-      no_recv: Drop all packets except 802.1D spanning tree packets.
-      no_recv_stp: Drop received 802.1D STP packets.
-      no_flood: Do not include this port when flooding.
-      no_fwd: Drop packets forwarded to port.
-      no_packet_in: Do not send packet-in messages for port.
+    port_down: Port is administratively down.
+    no_stp: Disable 802.1D spanning tree on port.
+    no_recv: Drop all packets except 802.1D spanning tree packets.
+    no_recv_stp: Drop received 802.1D STP packets.
+    no_flood: Do not include this port when flooding.
+    no_fwd: Drop packets forwarded to port.
+    no_packet_in: Do not send packet-in messages for port.
   """
 
   __slots__ = ()
@@ -692,6 +696,80 @@ class SwitchConfig(collections.namedtuple('SwitchConfig', (
     return SwitchConfig(config_frag=config_frag, miss_send_len=miss_send_len)
 
 
+class PacketQueue(collections.namedtuple('PacketQueue', (
+    'queue_id', 'min_rate'))):
+  """The description of an OpenFlow packet queue.
+
+  The attributes of a queue description are:
+    queue_id: The queue's ID, as 32-bit unsigned integer.
+    min_rate: If specified for this queue, the minimum data rate
+        guaranteed, as a 16-bit unsigned integer. This value is given
+        in 1/10 of a percent. If >1000, the queuing is disabled. If
+        None, this property is not available for this queue.
+  """
+
+  __slots__ = ()
+
+  FORMAT = '!LH2x'
+
+  FORMAT_LENGTH = struct.calcsize(FORMAT)
+
+  def serialize(self):
+    """Serialize this object into an OpenFlow ofp_packet_queue.
+
+    The returned string can be passed to deserialize() to recreate a
+    copy of this object.
+
+    Returns:
+      A sequence of binary strings that is a serialized form of this
+      object into an OpenFlow ofp_packet_queue and (if min_rate is not
+      None) an OpenFlow ofp_queue_prop_min_rate.
+    """
+    all_data = []
+    # There are only 2 simple types of properties currently defined in
+    # the standard, one being OFPQT_NONE, so encode / decode them
+    # directly here.
+    if self.min_rate is not None:
+      all_data.append(struct.pack('!HH4xH6x', OFPQT_MIN_RATE, 16,
+                                  self.min_rate))
+    length = self.FORMAT_LENGTH + sum(len(s) for s in all_data)
+    all_data.insert(0, struct.pack(self.FORMAT, self.queue_id, length))
+    return all_data
+
+  @classmethod
+  def deserialize(cls, buf):
+    """Returns a PacketQueue object deserialized from a sequence of bytes.
+
+    Args:
+      buf: A ReceiveBuffer object that contains the bytes that are the
+          serialized form of the PacketQueue object.
+
+    Returns:
+      A new PacketQueue object deserialized from the buffer.
+
+    Raises:
+      ValueError if the buffer has an invalid number of available
+      bytes.
+    """
+    queue_id, length = buf.unpack(cls.FORMAT)
+    if length < cls.FORMAT_LENGTH:
+      raise ValueError('ofp_packet_queue has invalid length')
+    until_bytes_left = buf.message_bytes_left + cls.FORMAT_LENGTH - length
+    min_rate = None
+    while buf.message_bytes_left > until_bytes_left:
+      property, prop_length = buf.unpack('!HH4x')
+      if property not in (OFPQT_NONE, OFPQT_MIN_RATE):
+        raise ValueError('ofp_queue_prop_header has invalid property',
+                         property)
+      if prop_length < 8:
+        raise ValueError('ofp_queue_prop_header has invalid length')
+      if property == OFPQT_MIN_RATE:
+        if prop_length != 16:
+          raise ValueError('OFPQT_MIN_RATE property has invalid length')
+        min_rate = buf.unpack('!H6x')[0]
+    return PacketQueue(queue_id=queue_id, min_rate=min_rate)
+
+
 class OpenflowProtocol(protocol.Protocol):
   """An implementation of the OpenFlow 1.0 protocol.
 
@@ -1048,7 +1126,7 @@ class OpenflowProtocol(protocol.Protocol):
     port_no, hw_addr, config_ser, mask_ser, advertise_ser = \
         self._buffer.unpack('!H6sLLL4x')
 
-    if port_no < 1 or port_no > OFPP_MAX:
+    if port_no < 1 or port_no >= OFPP_MAX:
       raise ValueError('invalid physical port number', port_no)
 
     # For cleanliness, mask the config with the mask.
@@ -1230,12 +1308,24 @@ class OpenflowProtocol(protocol.Protocol):
     self.handle_barrier_reply(xid)
 
   def _handle_queue_get_config_request(self, msg_length, xid):
-    # TODO(romain): Implement this method.
-    FIXME
+    if msg_length != 12:
+      # TODO(romain): Log and close the connection.
+      raise ValueError(
+          'OFPT_QUEUE_GET_CONFIG_REQUEST message has invalid length')
+    port_no = self._buffer.unpack('!H2x')[0]
+    self.handle_queue_get_config_request(xid, port_no)
 
   def _handle_queue_get_config_reply(self, msg_length, xid):
-    # TODO(romain): Implement this method.
-    FIXME
+    if msg_length < 16:
+      # TODO(romain): Log and close the connection.
+      raise ValueError('OFPT_QUEUE_GET_CONFIG_REPLY message too short')
+    port_no = self._buffer.unpack('!H6x')[0]
+    if port_no >= OFPP_MAX:
+      raise ValueError('invalid port number', port_no)
+    queues = []
+    while self._buffer.message_bytes_left > 0:
+      queues.append(PacketQueue.deserialize(self._buffer))
+    self.handle_queue_get_config_reply(xid, port_no, tuple(queues))
 
   def handle_hello(self):
     """Handle the reception of a OFPT_HELLO message.
@@ -1710,21 +1800,33 @@ class OpenflowProtocol(protocol.Protocol):
     """
     pass
 
-  def handle_queue_get_config_request(self):
-    """Handle the reception of a OFPT_FIXME message.
+  def handle_queue_get_config_request(self, xid, port_no):
+    """Handle the reception of a OFPT_QUEUE_GET_CONFIG_REQUEST message.
 
     This method does nothing and should be redefined in subclasses.
-    """
-    # TODO(romain): Implement this method.
-    FIXME
 
-  def handle_queue_get_config_reply(self):
-    """Handle the reception of a OFPT_FIXME message.
+    Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
+      port_no: The port's unique number, as a 16-bit unsigned
+          integer. This is a valid physical port, i.e. < OFPP_MAX.
+    """
+    pass
+
+  def handle_queue_get_config_reply(self, xid, port_no, queues):
+    """Handle the reception of a OFPT_QUEUE_GET_CONFIG_REPLY message.
 
     This method does nothing and should be redefined in subclasses.
+
+    Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
+      port_no: The port's unique number, as a 16-bit unsigned
+          integer. Must be a valid physical port, i.e. < OFPP_MAX.
+      queues: A sequence of PacketQueue objects describing the port's
+          queues.
     """
-    # TODO(romain): Implement this method.
-    FIXME
+    pass
 
   def serialize_action(self, a):
     """Serialize a single action.
@@ -2450,6 +2552,43 @@ class OpenflowProtocol(protocol.Protocol):
           message this is a reply to, as a 32-bit unsigned integer.
     """
     self._send_message(OFPT_BARRIER_REPLY, xid=xid)
+
+  def send_queue_get_config_request(self, port_no):
+    """Send a OFPT_QUEUE_GET_CONFIG_REQUEST message.
+
+    Args:
+      port_no: The port's unique number, as a 16-bit unsigned
+          integer. Must be a valid physical port, i.e. < OFPP_MAX.
+
+    Returns:
+      The transaction id associated with the sent request, as a 32-bit
+      unsigned integer.
+    """
+    if port_no >= OFPP_MAX:
+      raise ValueError('invalid port number', port_no)
+    xid = self._get_next_xid()
+    self._send_message(OFPT_QUEUE_GET_CONFIG_REQUEST, xid=xid,
+                       data=struct.pack('!H2x', port_no))
+    return xid
+
+  def send_queue_get_config_reply(self, xid, port_no, queues):
+    """Send a OFPT_QUEUE_GET_CONFIG_REPLY message.
+
+    Args:
+      xid: The transaction id associated with the
+          OFPT_QUEUE_GET_CONFIG_REQUEST message this is a reply to, as
+          a 32-bit unsigned integer.
+      port_no: The port's unique number, as a 16-bit unsigned
+          integer. Must be a valid physical port, i.e. < OFPP_MAX.
+      queues: A sequence of PacketQueue objects describing the port's
+          queues.
+    """
+    if port_no >= OFPP_MAX:
+      raise ValueError('invalid port number', port_no)
+    all_data = [struct.pack('!H6x', port_no)]
+    for q in queues:
+      all_data.extend(q.serialize())
+    self._send_message(OFPT_QUEUE_GET_CONFIG_REPLY, xid=xid, data=all_data)
 
 
 class OpenflowProtocolRequestTracker(OpenflowProtocol):

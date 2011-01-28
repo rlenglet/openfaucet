@@ -647,6 +647,48 @@ class TestSwitchConfig(unittest2.TestCase):
       ofproto.SwitchConfig.deserialize(self.buf)
 
 
+class TestPacketQueue(unittest2.TestCase):
+
+  def setUp(self):
+    self.buf = buffer.ReceiveBuffer()
+
+  def test_create(self):
+    pc = ofproto.PacketQueue(0x12345678, 0x1002)
+
+  def test_serialize_min_rate(self):
+    pc = ofproto.PacketQueue(0x12345678, 0x1002)
+    self.assertEqual('\x12\x34\x56\x78' '\x00\x18\x00\x00'
+                     '\x00\x01\x00\x10' '\x00\x00\x00\x00'
+                         '\x10\x02' '\x00\x00\x00\x00\x00\x00',
+                     ''.join(pc.serialize()))
+
+  def test_serialize_no_min_rate(self):
+    pc = ofproto.PacketQueue(0x12345678, None)
+    self.assertEqual('\x12\x34\x56\x78' '\x00\x08\x00\x00',
+                     ''.join(pc.serialize()))
+
+  def test_deserialize_min_rate(self):
+    self.buf.append('\x12\x34\x56\x78' '\x00\x18\x00\x00'
+                    '\x00\x01\x00\x10' '\x00\x00\x00\x00'
+                        '\x10\x02' '\x00\x00\x00\x00\x00\x00')
+    self.buf.set_message_boundaries(24)
+    self.assertTupleEqual((0x12345678, 0x1002),
+                          ofproto.PacketQueue.deserialize(self.buf))
+
+  def test_deserialize_no_prop(self):
+    self.buf.append('\x12\x34\x56\x78' '\x00\x08\x00\x00')
+    self.buf.set_message_boundaries(8)
+    self.assertTupleEqual((0x12345678, None),
+                          ofproto.PacketQueue.deserialize(self.buf))
+
+  def test_deserialize_none(self):
+    self.buf.append('\x12\x34\x56\x78' '\x00\x10\x00\x00'
+                    '\x00\x00\x00\x08' '\x00\x00\x00\x00')  # OFPQT_NONE
+    self.buf.set_message_boundaries(16)
+    self.assertTupleEqual((0x12345678, None),
+                          ofproto.PacketQueue.deserialize(self.buf))
+
+
 class MockTransport(object):
   """A basic mock of Twisted's ITransport interface.
   """
@@ -775,6 +817,13 @@ class MockOpenflowProtocolSubclass(ofproto.OpenflowProtocol):
 
   def handle_barrier_reply(self, xid):
     self.calls_made.append(('handle_barrier_reply', xid))
+
+  def handle_queue_get_config_request(self, xid, port_no):
+    self.calls_made.append(('handle_queue_get_config_request', xid, port_no))
+
+  def handle_queue_get_config_reply(self, xid, port_no, queues):
+    self.calls_made.append(('handle_queue_get_config_reply', xid, port_no,
+                            queues))
 
 
 MockVendorAction = ofaction.vendor_action('MockVendorAction', 0x4242,
@@ -1220,7 +1269,7 @@ class TestOpenflowProtocol(unittest2.TestCase):
           ('helloworld',))
     self.assertIsNone(self._get_next_sent_message())
 
-  def test_send_packet_out_invalid_port0xff01(self):
+  def test_send_packet_out_invalid_port_no_0xff01(self):
     self.proto.connectionMade()
 
     with self.assertRaises(ValueError):
@@ -1892,6 +1941,64 @@ class TestOpenflowProtocol(unittest2.TestCase):
     self.assertListEqual([('handle_barrier_reply', 4)],
                          self.proto.calls_made)
 
+  def test_send_queue_get_config_request(self):
+    self.proto.connectionMade()
+
+    self.assertEqual(0, self.proto.send_queue_get_config_request(0xabcd))
+    self.assertEqual('\x01\x14\x00\x0c\x00\x00\x00\x00'
+                     '\xab\xcd\x00\x00',
+                     self._get_next_sent_message())
+    self.assertEqual(1, self.proto.send_queue_get_config_request(0xabcd))
+    self.assertEqual('\x01\x14\x00\x0c\x00\x00\x00\x01'
+                     '\xab\xcd\x00\x00',
+                     self._get_next_sent_message())
+
+  def test_handle_queue_get_config_request(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived('\x01\x14\x00\x0c\x00\x00\x00\x04'
+                            '\xab\xcd\x00\x00')
+    self.assertListEqual([('handle_queue_get_config_request', 4, 0xabcd)],
+                         self.proto.calls_made)
+
+  def test_send_queue_get_config_reply_two_queues(self):
+    self.proto.connectionMade()
+
+    queue1 = ofproto.PacketQueue(0x1234, None)
+    queue2 = ofproto.PacketQueue(0x5678, 0x1002)
+    self.proto.send_queue_get_config_reply(4, 0xabcd, (queue1, queue2))
+    self.assertEqual('\x01\x15\x00\x30\x00\x00\x00\x04'
+                     '\xab\xcd\x00\x00\x00\x00\x00\x00'
+                     + ''.join(queue1.serialize())
+                     + ''.join(queue2.serialize()),
+                     self._get_next_sent_message())
+
+  def test_send_queue_get_config_reply_invalid_port_no_0xff01(self):
+    self.proto.connectionMade()
+
+    with self.assertRaises(ValueError):
+      self.proto.send_queue_get_config_reply(4, 0xff01, ())
+
+  def test_handle_queue_get_config_reply_two_queues(self):
+    self.proto.connectionMade()
+
+    queue1 = ofproto.PacketQueue(0x1234, None)
+    queue2 = ofproto.PacketQueue(0x5678, 0x1002)
+    self.proto.dataReceived('\x01\x15\x00\x30\x00\x00\x00\x04'
+                            '\xab\xcd\x00\x00\x00\x00\x00\x00'
+                            + ''.join(queue1.serialize())
+                            + ''.join(queue2.serialize()))
+    self.assertListEqual([('handle_queue_get_config_reply', 4, 0xabcd,
+                           (queue1, queue2))],
+                         self.proto.calls_made)
+
+  def test_handle_queue_get_config_reply_invalid_port_no_0xff01(self):
+    self.proto.connectionMade()
+
+    with self.assertRaises(ValueError):
+      self.proto.dataReceived('\x01\x15\x00\x10\x00\x00\x00\x04'
+                              '\xff\x01\x00\x00\x00\x00\x00\x00')
+    self.assertListEqual([], self.proto.calls_made)
 
   # TODO(romain): Test handling of bogus messages, with wrong message lengths.
 
