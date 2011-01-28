@@ -10,6 +10,7 @@
 import binascii
 import collections
 import struct
+import threading
 from twisted.internet import protocol
 
 from openfaucet import buffer
@@ -714,6 +715,7 @@ class OpenflowProtocol(protocol.Protocol):
     # vendor_id attribute or property.
     self._vendor_handlers = dict((v.vendor_id, v) for v in vendor_handlers)
     self._error_data_bytes = error_data_bytes
+    self._xid_lock = threading.Lock()
 
   def connectionMade(self):
     """Initialize the resources to manage the newly opened OpenFlow connection.
@@ -728,10 +730,11 @@ class OpenflowProtocol(protocol.Protocol):
     Returns:
       The next transaction id as a 32-bit unsigned integer.
     """
-    xid = self._next_xid
-    # Simply increment, and wrap to 32-bit.
-    self._next_xid = (self._next_xid + 1) & 0xffffffff
-    return xid
+    with self._xid_lock:
+      xid = self._next_xid
+      # Simply increment, and wrap to 32-bit.
+      self._next_xid = (self._next_xid + 1) & 0xffffffff
+      return xid
 
   def connectionLost(reason):
     """Release any resources used to manage the connection that was just lost.
