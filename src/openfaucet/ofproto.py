@@ -12,8 +12,8 @@ import collections
 import struct
 from twisted.internet import protocol
 
-from openfaucet import action
 from openfaucet import buffer
+from openfaucet import ofaction
 from openfaucet import ofmatch
 from openfaucet import ofstats
 
@@ -1730,7 +1730,7 @@ class OpenflowProtocol(protocol.Protocol):
       including the ofp_action_header.
     """
     a_ser = a.serialize()
-    if a.type == action.OFPAT_VENDOR:
+    if a.type == ofaction.OFPAT_VENDOR:
       # If the actions is a OFPAT_VENDOR action, generate an
       # ofp_action_vendor_header for the action.
       header = struct.pack('!HHL', a.type, 8+len(a_ser), a.vendor_id)
@@ -1758,7 +1758,7 @@ class OpenflowProtocol(protocol.Protocol):
 
     # Delegate the OFPAT_VENDOR actions deserialization to the
     # vendor handler.
-    if action_type == action.OFPAT_VENDOR:
+    if action_type == ofaction.OFPAT_VENDOR:
       vendor_id = buf.unpack('!L')[0]
       vendor_handler = self._vendor_handlers.get(vendor_id)
       if vendor_handler is None:
@@ -1770,7 +1770,7 @@ class OpenflowProtocol(protocol.Protocol):
       # exactly action_length bytes.
 
     else:  # Standard action type.
-      action_class = action.ACTION_TYPES.get(action_type)
+      action_class = ofaction.ACTION_TYPES.get(action_type)
       # TODO(romain): Implement support for VENDOR actions.
       if action_class is None:
         # TODO(romain): Log and close the connection.

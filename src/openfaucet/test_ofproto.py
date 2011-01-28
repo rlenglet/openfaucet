@@ -3,8 +3,8 @@
 import struct
 import unittest2
 
-from openfaucet import action
 from openfaucet import buffer
+from openfaucet import ofaction
 from openfaucet import ofmatch
 from openfaucet import ofproto
 from openfaucet import ofstats
@@ -771,8 +771,8 @@ class MockOpenflowProtocolSubclass(ofproto.OpenflowProtocol):
                             reply_more))
 
 
-MockVendorAction = action.vendor_action('MockVendorAction', 0x4242,
-                                        '!L4x', ('dummy',))
+MockVendorAction = ofaction.vendor_action('MockVendorAction', 0x4242,
+                                          '!L4x', ('dummy',))
 
 
 class MockVendorHandler(object):
@@ -1151,8 +1151,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
     self.proto.send_packet_out(
         0x01010101, 0xabcd, (
-            action.ActionOutput(port=0x1234, max_len=0x9abc),
-            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+            ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+            ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
         ())
     self.assertEqual('\x01\x0d\x00\x28\x00\x00\x00\x00'
                      '\x01\x01\x01\x01\xab\xcd\x00\x02'
@@ -1167,8 +1167,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
     self.proto.send_packet_out(
         0xffffffff, 0xabcd, (
-            action.ActionOutput(port=0x1234, max_len=0x9abc),
-            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+            ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+            ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
         ('helloworld',))
     self.assertEqual('\x01\x0d\x00\x32\x00\x00\x00\x00'
                      '\xff\xff\xff\xff\xab\xcd\x00\x02'
@@ -1198,8 +1198,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
     with self.assertRaises(ValueError):
       self.proto.send_packet_out(
           0xffffffff, 0xabcd, (
-              action.ActionOutput(port=0x1234, max_len=0x9abc),
-              action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+              ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+              ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
           ())
     self.assertIsNone(self._get_next_sent_message())
 
@@ -1209,8 +1209,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
     with self.assertRaises(ValueError):
       self.proto.send_packet_out(
           0x01010101, 0xabcd, (
-              action.ActionOutput(port=0x1234, max_len=0x9abc),
-              action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+              ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+              ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
           ('helloworld',))
     self.assertIsNone(self._get_next_sent_message())
 
@@ -1220,8 +1220,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
     with self.assertRaises(ValueError):
       self.proto.send_packet_out(
           0x01010101, 0xff01, (
-              action.ActionOutput(port=0x1234, max_len=0x9abc),
-              action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+              ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+              ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
           ())
     self.assertIsNone(self._get_next_sent_message())
 
@@ -1237,8 +1237,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
             '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00')
     self.assertListEqual([(
         'handle_packet_out', 0x01010101, 0xabcd, (
-            action.ActionOutput(port=0x1234, max_len=0x9abc),
-            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+            ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+            ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
         '')], self.proto.calls_made)
 
   def test_handle_packet_out_unbuffered_two_actions(self):
@@ -1254,8 +1254,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
         'helloworld')
     self.assertListEqual([(
         'handle_packet_out', 0xffffffff, 0xabcd, (
-            action.ActionOutput(port=0x1234, max_len=0x9abc),
-            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
+            ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+            ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')),
         'helloworld')], self.proto.calls_made)
 
   def test_handle_packet_out_unbuffered_vendor_action(self):
@@ -1279,8 +1279,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
     self.proto.send_flow_mod(
         self.match1, 0x12345678, ofproto.OFPFC_MODIFY, 0x4231, 0, 0x1000,
         0x01010101, 0xabcd, True, False, False, (
-            action.ActionOutput(port=0x1234, max_len=0x9abc),
-            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
+            ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+            ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
     self.assertEqual('\x01\x0e\x00\x60\x00\x00\x00\x00'
                      + self.match1.serialize()
                      + '\x00\x00\x00\x00\x12\x34\x56\x78'
@@ -1326,8 +1326,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
     self.assertListEqual(
         [('handle_flow_mod', self.match1, 0x12345678, ofproto.OFPFC_MODIFY,
           0x4231, 0, 0x1000, 0x01010101, 0xabcd, True, False, False, (
-              action.ActionOutput(port=0x1234, max_len=0x9abc),
-              action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))],
+              ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+              ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))],
         self.proto.calls_made)
 
   def test_handle_flow_mod_no_actions(self):
@@ -1640,8 +1640,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
     flow_stats1 = ofstats.FlowStats(
         0xac, self.match1, 0x10203040, 0x11223344, 0x1002, 0x0136, 0x0247,
         0xffeeddccbbaa9988, 0x42, 0x0153, (
-            action.ActionOutput(port=0x1234, max_len=0x9abc),
-            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
+            ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+            ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
     flow_stats2 = ofstats.FlowStats(
         0xad, self.match1, 0x10203040, 0x11223344, 0x1003, 0x0136, 0x0247,
         0xffeeddccbbaa9988, 0x42, 0x0153, ())
@@ -1755,8 +1755,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
     flow_stats1 = ofstats.FlowStats(
         0xac, self.match1, 0x10203040, 0x11223344, 0x1002, 0x0136, 0x0247,
         0xffeeddccbbaa9988, 0x42, 0x0153, (
-            action.ActionOutput(port=0x1234, max_len=0x9abc),
-            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
+            ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+            ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
     flow_stats2 = ofstats.FlowStats(
         0xad, self.match1, 0x10203040, 0x11223344, 0x1003, 0x0136, 0x0247,
         0xffeeddccbbaa9988, 0x42, 0x0153, ())

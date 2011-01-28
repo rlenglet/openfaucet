@@ -3,8 +3,8 @@
 import struct
 import unittest2
 
-from openfaucet import action
 from openfaucet import buffer
+from openfaucet import ofaction
 from openfaucet import ofmatch
 from openfaucet import ofstats
 
@@ -57,8 +57,8 @@ class TestFlowStats(unittest2.TestCase):
     self.flow_stats = ofstats.FlowStats(
         0xac, self.match, 0x10203040, 0x11223344, 0x1002, 0x0136, 0x0247,
         0xffeeddccbbaa9988, 0x42, 0x0153, (
-            action.ActionOutput(port=0x1234, max_len=0x9abc),
-            action.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
+            ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+            ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
 
   def _serialize_action(self, a):
     a_ser = a.serialize()
@@ -67,7 +67,7 @@ class TestFlowStats(unittest2.TestCase):
 
   def _deserialize_action(self, buf):
     action_type, action_length = buf.unpack('!HH')
-    action_class = action.ACTION_TYPES.get(action_type)
+    action_class = ofaction.ACTION_TYPES.get(action_type)
     return action_class.deserialize(buf)
 
   def test_serialize(self):
