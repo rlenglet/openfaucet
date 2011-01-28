@@ -478,9 +478,6 @@ class PhyPort(collections.namedtuple('PhyPort', (
       A binary string that is a serialized form of this object into an
       OpenFlow ofp_phy_port.
     """
-    if self.port_no < 1 or self.port_no > OFPP_MAX:
-      raise ValueError('invalid physical port number', self.port_no)
-
     state_ser = ((OFPPS_LINK_DOWN if self.state_link_down else 0)
                  | (self.state_stp & OFPPS_STP_MASK))
     return struct.pack(
@@ -512,9 +509,6 @@ class PhyPort(collections.namedtuple('PhyPort', (
       # TODO(romain): Log this.
       # ('undefined state bits set', state_ser)
       pass
-
-    if port_no < 1 or port_no > OFPP_MAX:
-      raise ValueError('invalid physical port number', port_no)
 
     return PhyPort(port_no, hw_addr, name.rstrip('\x00'),
                    PortConfig.deserialize(config_ser),
