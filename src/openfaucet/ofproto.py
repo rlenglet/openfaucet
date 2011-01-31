@@ -9,8 +9,10 @@
 
 import binascii
 import collections
+import random
 import struct
 import threading
+from twisted.internet import error
 from twisted.internet import protocol
 
 from openfaucet import buffer
@@ -220,7 +222,7 @@ class OpenflowProtocol(protocol.Protocol):
   message encoding / decoding.
   """
 
-  __slots__ = ('_buffer', '_next_xid', '_vendor_handlers', '_error_data_bytes')
+  __slots__ = ('_buffer', '_vendor_handlers', '_error_data_bytes')
 
   def __init__(self, vendor_handlers=(), error_data_bytes=64):
     """Initialize this OpenFlow protocol handler.
@@ -236,26 +238,12 @@ class OpenflowProtocol(protocol.Protocol):
     # vendor_id attribute or property.
     self._vendor_handlers = dict((v.vendor_id, v) for v in vendor_handlers)
     self._error_data_bytes = error_data_bytes
-    self._xid_lock = threading.Lock()
 
   def connectionMade(self):
     """Initialize the resources to manage the newly opened OpenFlow connection.
     """
     self._buffer = buffer.ReceiveBuffer()
-    self._next_xid = 0
     # TODO(romain): Notify that the connection has been made?
-
-  def _get_next_xid(self):
-    """Get the next transaction id to send in a request message
-
-    Returns:
-      The next transaction id as a 32-bit unsigned integer.
-    """
-    with self._xid_lock:
-      xid = self._next_xid
-      # Simply increment, and wrap to 32-bit.
-      self._next_xid = (self._next_xid + 1) & 0xffffffff
-      return xid
 
   def connectionLost(reason):
     """Release any resources used to manage the connection that was just lost.
@@ -833,7 +821,8 @@ class OpenflowProtocol(protocol.Protocol):
     Args:
       xid: The transaction id associated with the request, as a 32-bit
           unsigned integer.
-      switch_features: A SwitchFeatures object containing the switch features.
+      switch_features: A SwitchFeatures object containing the switch
+          features.
     """
     pass
 
@@ -856,7 +845,8 @@ class OpenflowProtocol(protocol.Protocol):
     Args:
       xid: The transaction id associated with the request, as a 32-bit
           unsigned integer.
-      switch_config: A SwitchConfig object containing the switch configuration.
+      switch_config: A SwitchConfig object containing the switch
+          configuration.
     """
     pass
 
@@ -1371,19 +1361,15 @@ class OpenflowProtocol(protocol.Protocol):
     all_data.extend(data)
     self._send_message(OFPT_ERROR, data=all_data)
 
-  def send_echo_request(self, data):
+  def send_echo_request(self, xid, data):
     """Send a OFPT_ECHO_REQUEST message.
 
     Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
       data: A sequence of arbitrary byte buffers to send as payload.
-
-    Returns:
-      The transaction id associated with the sent request, as a 32-bit
-      unsigned integer.
     """
-    xid = self._get_next_xid()
     self._send_message(OFPT_ECHO_REQUEST, xid=xid, data=data)
-    return xid
 
   def send_echo_reply(self, xid, data):
     """Send a OFPT_ECHO_REPLY message.
@@ -1414,16 +1400,14 @@ class OpenflowProtocol(protocol.Protocol):
     # xid. In that case, generate one and return it. Otherwise, return
     # None.
 
-  def send_features_request(self):
+  def send_features_request(self, xid):
     """Send a OFPT_FEATURES_REQUEST message.
 
-    Returns:
-      The transaction id associated with the sent request, as a 32-bit
-      unsigned integer.
+    Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
     """
-    xid = self._get_next_xid()
     self._send_message(OFPT_FEATURES_REQUEST, xid=xid)
-    return xid
 
   def send_features_reply(self, xid, switch_features):
     """Send a OFPT_FEATURES_REPLY message.
@@ -1436,16 +1420,14 @@ class OpenflowProtocol(protocol.Protocol):
     self._send_message(OFPT_FEATURES_REPLY, xid=xid,
                        data=switch_features.serialize())
 
-  def send_get_config_request(self):
+  def send_get_config_request(self, xid):
     """Send a OFPT_GET_CONFIG_REQUEST message.
 
-    Returns:
-      The transaction id associated with the sent request, as a 32-bit
-      unsigned integer.
+    Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
     """
-    xid = self._get_next_xid()
     self._send_message(OFPT_GET_CONFIG_REQUEST, xid=xid)
-    return xid
 
   def send_get_config_reply(self, xid, switch_config):
     """Send a OFPT_GET_CONFIG_REPLY message.
@@ -1677,150 +1659,136 @@ class OpenflowProtocol(protocol.Protocol):
         struct.pack('!H6sLLL4x', port_no, hw_addr, config_ser, mask_ser,
                     advertise_ser),))
 
-  def _send_stats_request(self, type, data=()):
+  def _send_stats_request(self, xid, type, data=()):
     """Send a OFPT_STATS_REQUEST message to query for stats.
 
     Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
       type: The type of stats requested, either OFPST_DESC,
           OFPST_FLOW, OFPST_AGGREGATE, OFPST_TABLE, OFPST_PORT,
           OFPST_QUEUE, or OFPST_VENDOR.
       data: The data in the message sent after the header, as a
           sequence of byte buffers. Defaults to an empty sequence.
-
-    Returns:
-      The transaction id associated with the sent request, as a 32-bit
-      unsigned integer.
     """
     if type not in (OFPST_DESC, OFPST_FLOW, OFPST_AGGREGATE, OFPST_TABLE,
                     OFPST_PORT, OFPST_QUEUE, OFPST_VENDOR):
       raise ValueError('invalid stats type', type)
 
-    xid = self._get_next_xid()
     # Send a ofp_stats_request structure.
     flags = 0  # No flags are currently defined.
     all_data = [struct.pack('!HH', type, flags)]
     all_data.extend(data)
     self._send_message(OFPT_STATS_REQUEST, xid=xid, data=all_data)
-    return xid
 
-  def send_stats_request_desc(self):
+  def send_stats_request_desc(self, xid):
     """Send a OFPT_STATS_REQUEST message to query for switch stats.
 
     The OFPST_DESC stats contain a description of the OpenFlow switch.
 
-    Returns:
-      The transaction id associated with the sent request, as a 32-bit
-      unsigned integer.
+    Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
     """
-    return self._send_stats_request(OFPST_DESC)
+    self._send_stats_request(xid, OFPST_DESC)
 
-  def send_stats_request_flow(self, match, table_id, out_port):
+  def send_stats_request_flow(self, xid, match, table_id, out_port):
     """Send a OFPT_STATS_REQUEST message to query for individual flow stats.
 
     The OFPST_FLOW stats contain individual flow statistics.
 
     Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
       match: A Match object describing the fields of the flows to match.
       table_id: The ID of the table to read, as an 8-bit unsigned
           integer. 0xff for all tables or 0xfe for emergency.
       out_port: Require matching flows to include this as an output
           port. A value of OFPP_NONE indicates no restriction.
-
-    Returns:
-      The transaction id associated with the sent request, as a 32-bit
-      unsigned integer.
     """
     # Send a ofp_flow_stats_request structure.
-    return self._send_stats_request(OFPST_FLOW, data=(
+    self._send_stats_request(xid, OFPST_FLOW, data=(
         match.serialize(),
         struct.pack('!BxH', table_id, out_port)))
 
-  def send_stats_request_aggregate(self, match, table_id, out_port):
+  def send_stats_request_aggregate(self, xid, match, table_id, out_port):
     """Send a OFPT_STATS_REQUEST message to query for aggregate flow stats.
 
     The OFPST_AGGREGATE stats contain aggregate flow statistics.
 
     Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
       match: A Match object describing the fields of the flows to match.
       table_id: The ID of the table to read, as an 8-bit unsigned
           integer. 0xff for all tables or 0xfe for emergency.
       out_port: Require matching flows to include this as an output
           port. A value of OFPP_NONE indicates no restriction.
-
-    Returns:
-      The transaction id associated with the sent request, as a 32-bit
-      unsigned integer.
     """
     # Send a ofp_aggregate_stats_request structure.
-    return self._send_stats_request(OFPST_AGGREGATE, data=(
+    self._send_stats_request(xid, OFPST_AGGREGATE, data=(
         match.serialize(),
         struct.pack('!BxH', table_id, out_port)))
 
-  def send_stats_request_table(self):
+  def send_stats_request_table(self, xid):
     """Send a OFPT_STATS_REQUEST message to query for table stats.
 
     The OFPST_TABLE stats contain flow table statistics.
 
-    Returns:
-      The transaction id associated with the sent request, as a 32-bit
-      unsigned integer.
+    Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
     """
-    return self._send_stats_request(OFPST_TABLE)
+    self._send_stats_request(xid, OFPST_TABLE)
 
-  def send_stats_request_port(self, port_no):
+  def send_stats_request_port(self, xid, port_no):
     """Send a OFPT_STATS_REQUEST message to query for port stats.
 
     The OFPST_PORT stats contain statistics for a all ports (if
     port_no is OFPP_NONE) or for a single port.
 
     Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
       port_no: The port's unique number, as a 16-bit unsigned
           integer. If OFPP_NONE, stats for all ports are replied.
-
-    Returns:
-      The transaction id associated with the sent request, as a 32-bit
-      unsigned integer.
     """
     # Send a ofp_port_stats_request structure.
-    return self._send_stats_request(OFPST_PORT, data=(
+    self._send_stats_request(xid, OFPST_PORT, data=(
         struct.pack('!H6x', port_no),))
 
-  def send_stats_request_queue(self, port_no, queue_id):
+  def send_stats_request_queue(self, xid, port_no, queue_id):
     """Send a OFPT_STATS_REQUEST message to query for queue stats.
 
     The OFPST_QUEUE stats contain queue statistics for a queue.
 
     Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
       port_no: The port's unique number, as a 16-bit unsigned
           integer. If OFPP_ALL, stats for all ports are replied.
       queue_id: The queue's ID. If OFPQ_ALL, stats for all queues are
           replied.
-
-    Returns:
-      The transaction id associated with the sent request, as a 32-bit
-      unsigned integer.
     """
     # Send a ofp_queue_stats_request structure.
-    return self._send_stats_request(OFPST_QUEUE, data=(
+    self._send_stats_request(xid, OFPST_QUEUE, data=(
         struct.pack('!H2xL', port_no, queue_id),))
 
-  def send_stats_request_vendor(self, vendor_id, data=()):
+  def send_stats_request_vendor(self, xid, vendor_id, data=()):
     """Send a OFPT_STATS_REQUEST message to query for vendor stats.
 
     The OFPST_VENDOR stats contain vendor-specific stats.
 
     Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
       vendor_id: The OpenFlow vendor ID, as a 32-bit unsigned integer.
       data: The data in the message sent after the header, as a
           sequence of byte buffers. Defaults to an empty sequence.
-
-    Returns:
-      The transaction id associated with the sent request, as a 32-bit
-      unsigned integer.
     """
     all_data = [struct.pack('!L', vendor_id)]
     all_data.extend(data)
-    return self._send_stats_request(OFPST_VENDOR, data=all_data)
+    self._send_stats_request(xid, OFPST_VENDOR, data=all_data)
 
   def _send_stats_reply(self, xid, type, reply_more=False, data=()):
     """Send a OFPT_STATS_REPLY message to query for switch stats.
@@ -1976,16 +1944,14 @@ class OpenflowProtocol(protocol.Protocol):
     return self._send_stats_reply(xid, OFPST_VENDOR, reply_more=reply_more,
                                   data=all_data)
 
-  def send_barrier_request(self):
+  def send_barrier_request(self, xid):
     """Send a OFPT_BARRIER_REQUEST message.
 
-    Returns:
-      The transaction id associated with the sent request, as a 32-bit
-      unsigned integer.
+    Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
     """
-    xid = self._get_next_xid()
     self._send_message(OFPT_BARRIER_REQUEST, xid=xid)
-    return xid
 
   def send_barrier_reply(self, xid):
     """Send a OFPT_BARRIER_REPLY message.
@@ -1996,23 +1962,19 @@ class OpenflowProtocol(protocol.Protocol):
     """
     self._send_message(OFPT_BARRIER_REPLY, xid=xid)
 
-  def send_queue_get_config_request(self, port_no):
+  def send_queue_get_config_request(self, xid, port_no):
     """Send a OFPT_QUEUE_GET_CONFIG_REQUEST message.
 
     Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
       port_no: The port's unique number, as a 16-bit unsigned
           integer. Must be a valid physical port, i.e. < OFPP_MAX.
-
-    Returns:
-      The transaction id associated with the sent request, as a 32-bit
-      unsigned integer.
     """
     if port_no >= OFPP_MAX:
       raise ValueError('invalid port number', port_no)
-    xid = self._get_next_xid()
     self._send_message(OFPT_QUEUE_GET_CONFIG_REQUEST, xid=xid,
                        data=struct.pack('!H2x', port_no))
-    return xid
 
   def send_queue_get_config_reply(self, xid, port_no, queues):
     """Send a OFPT_QUEUE_GET_CONFIG_REPLY message.
@@ -2034,28 +1996,189 @@ class OpenflowProtocol(protocol.Protocol):
     self._send_message(OFPT_QUEUE_GET_CONFIG_REPLY, xid=xid, data=all_data)
 
 
-class OpenflowProtocolRequestTracker(OpenflowProtocol):
-  """An implementation of the OpenFlow 1.0 protocol.
+class Callback(collections.namedtuple('Callback', (
+    'callable', 'args', 'kwargs'))):
+  """A callable and its arguments.
+
+  The callable arguments are:
+    args: The (possibly empty) sequence of positional arguments.
+    kwargs: The dict of keyword arguments. If None, no keyword
+        arguments are passed, equivalent to an empty dict.
+  """
+
+  def call(self, first_args=()):
+    """Call this callable with the initial args and additional args.
+
+    Args:
+      first_args: The sequence of the first positional args to pass
+          the callable, before this Callback's args and
+          kwargs. Defaults to an empty sequence.
+    """
+    if not self.args:
+      args = first_args
+    elif not first_args:
+      args = self.args
+    else:
+      args = first_args + self.args
+
+    if self.kwargs is None:
+      self.callable(*args)
+    else:
+      self.callable(*args, **kwargs)
+
+
+TerminationCallbacks = collections.namedtuple('TerminationCallbacks', (
+    'success_callback', 'timeout_callback', 'timeout_delayed_call'))
+
+
+class OpenflowProtocolOperations(OpenflowProtocol):
+  """An implementation of the OpenFlow 1.0 protocol that abstracts operations.
 
   This class extends OpenflowProtocol to keep track of pending
-  requests and to perform periodical echo requests.
+  operations (request / reply pairs) and to periodically initiate echo
+  operations.
   """
+
+  __slots__ = OpenflowProtocol.__slots__ + (
+      '_reactor', '_next_xid', '_default_op_timeout',
+      '_echo_op_period', '_pending_ops', '_pending_ops_lock')
+
+  def __init__(self, reactor, vendor_handlers=(), error_data_bytes=64,
+               default_op_timeout=3.0, echo_op_period=5.0):
+    """Initialize this OpenFlow protocol handler.
+
+    Args:
+      reactor: An object implementing Twisted's IReactorTime
+          interface, used to do delayed calls.
+      vendor_handlers: A sequence of vendor handler objects. Defaults
+          to an empty sequence.
+      error_data_bytes: The maximum number of bytes of erroneous
+          requests to send back in error messages. Must be >= 64.
+      default_op_timeout: The default period, in seconds, before an
+          operation times out. This value is used as the timeout for
+          echo operations. Defaults to 3.0 (seconds).
+      echo_op_period: The period, in seconds, between two echo
+          operations. Defaults to 5 (seconds).
+    """
+    OpenflowProtocol.__init__(self, vendor_handlers=vendor_handlers,
+                              error_data_bytes=error_data_bytes)
+    self._reactor = reactor
+    self._default_op_timeout = default_op_timeout
+    self._echo_op_period = echo_op_period
+    # Maintain a dictionary mapping XIDs and TerminationCallbacks objects.
+    self._pending_ops = {}
+    self._pending_ops_lock = threading.Lock()
 
   def connectionMade(self):
     """Initialize the resources to manage the newly opened OpenFlow connection.
 
-    Send a OFPT_HELLO message to the other end and start sending echo requests.
+    Send a OFPT_HELLO message to the other end and start initiating
+    periodic echo operations.
     """
     OpenflowProtocol.connectionMade(self)
+    self._next_xid = 0
     self.send_hello()
-    # TODO(romain): Start sending echo requests.
+    self._echo()
+
+  # ----------------------------------------------------------------------
+  # Generic request handling API. Those methods should be called by
+  # subclasses to manage requests.
+  # ----------------------------------------------------------------------
+
+  def _get_next_xid(self):
+    """Get the next transaction id to send in a request message
+
+    Returns:
+      The next transaction id, to be associated with the sent request,
+      as a 32-bit unsigned integer.
+    """
+    xid = self._next_xid
+    # Simply increment, and wrap to 32-bit.
+    self._next_xid = (self._next_xid + 1) & 0xffffffff
+    return xid
+
+  def _initiate_operation(self, success_callback, timeout_callback,
+                          timeout=None):
+    """Register an operation which request is about to be sent.
+
+    Args:
+      success_callback: The Callback to call when the operation's
+          reply is received, and its extra args. The positional and
+          keyword arguments in the Callback are passed in addition to
+          the positional args that are specific to the type of
+          request. The handling of this callable must be done in each
+          reply-specific handler.
+      timeout_callback: The Callback to call if the operation times
+          out.
+      timeout: The period, in seconds, before the operation times
+          out. If None, defaults to the default_op_timeout passed to
+          the constructor.
+
+    Returns:
+      The next transaction id, to be associated with the sent request,
+      as a 32-bit unsigned integer.
+    """
+    xid = None
+    with self._pending_ops_lock:
+      first_xid = xid = self._get_next_xid()
+      while self._pending_ops.has_key(xid):
+        xid = self._get_next_xid()
+        if first_xid == xid:  # tried all values
+          raise ValueError('no unused XID')
+      if timeout is None:
+        timeout = self._default_op_timeout
+      timeout_delayed_call = self._reactor.callLater(
+          timeout, self._timeout_operation, xid)
+      self._pending_ops[xid] = TerminationCallbacks(
+          success_callback, timeout_callback, timeout_delayed_call)
+    return xid
+
+  def _terminate_operation(self, xid, reply_more=False):
+    """Handle an operation's successful termination.
+
+    This method should be called in every handle_*_reply() method.
+
+    Args:
+      xid: The transaction id of the operation.
+      reply_more: If True, more replies are expected to terminate this
+          operation, so keep the status of the operation as
+          pending. Defaults to False.
+
+    Returns:
+      The Callback to call. None if the operation already timed out.
+    """
+    with self._pending_ops_lock:
+      callbacks = self._pending_ops.get(xid, None)
+      if callbacks is not None:
+        if not reply_more:
+          del self._pending_ops[xid]
+          try:
+            callbacks.timeout_delayed_call.cancel()
+          except error.AlreadyCalled:
+            return None
+        return callbacks.success_callback
+
+  def _timeout_operation(self, xid):
+    """Handle an operation's timeout.
+
+    Args:
+      xid: The transaction id of the timed out operation.
+    """
+    callbacks = None
+    with self._pending_ops_lock:
+      callbacks = self._pending_ops.pop(xid, None)
+    if callbacks is not None:
+      callbacks.timeout_callback.call()
+
+  # ----------------------------------------------------------------------
+  # OFPT_ECHO_* request handling.
+  # ----------------------------------------------------------------------
 
   def handle_echo_request(self, xid, data):
     """Handle the reception of a OFPT_ECHO_REQUEST message.
 
-    This method replies to the request by sending back an
-    OFPT_ECHO_REPLY message with the same xid and data. This method
-    may be redefined in subclasses.
+    Reply to the request by sending back an OFPT_ECHO_REPLY message
+    with the same xid and data.
 
     Args:
       xid: The transaction id associated with the request, as a 32-bit
@@ -2063,3 +2186,52 @@ class OpenflowProtocolRequestTracker(OpenflowProtocol):
       data: The data attached in the echo request, as a byte buffer.
     """
     self.send_echo_reply(xid, (data,))
+
+  def handle_echo_reply(self, xid, data):
+    """Handle the reception of a OFPT_ECHO_REPLY message.
+
+    Args:
+      xid: The transaction id associated with the request, as a 32-bit
+          unsigned integer.
+      data: The data attached in the echo reply, as a byte buffer.
+    """
+    success_callable = self._terminate_operation(xid)
+    if success_callable is not None:
+      success_callable.call(first_args=(data,))
+
+  def _echo(self):
+    """Initiate an echo operation.
+
+    The request's payload is 32 bits of pseudo-random data.
+    """
+    sent_data = struct.pack('!L', random.getrandbits(32))
+    xid = self._initiate_operation(
+        Callback(self._handle_echo_termination, (sent_data,), None),
+        Callback(self._handle_echo_timeout, (), None),
+        timeout=None)  # default timeout
+    self.send_echo_request(xid, sent_data)
+
+  def _handle_echo_termination(self, data, sent_data):
+    """Handle the completion of an echo operation.
+
+    Check that the received data is the data sent in the
+    request. Schedule the next operation.
+
+    Args:
+      data: The data attached in the echo reply, as a byte buffer.
+      sent_data: The data that was sent in the echo request, as a byte buffer.
+    """
+    if data != sent_data:
+      # TODO(romain): Log and close the connection, like in
+      # handle_echo_timeout().
+      raise ValueError('OFPT_ECHO_REPLY message has invalid data')
+    # Schedule the next request.
+    self._reactor.callLater(self._echo_op_period, self._echo)
+
+  def _handle_echo_timeout(self):
+    """Handle the timeout of an echo request by closing the connection.
+
+    This method may be redefined in subclasses.
+    """
+    # TODO(romain): Log and close the connection.
+    self.transport.loseConnection()

@@ -10,6 +10,8 @@ from openfaucet import ofmatch
 from openfaucet import ofproto
 from openfaucet import ofstats
 
+from openfaucet import mock_twisted
+
 
 def _create_port_config(
     port_down=False, no_stp=False, no_recv=False, no_recv_stp=False,
@@ -37,14 +39,23 @@ class MockTransport(object):
   """A basic mock of Twisted's ITransport interface.
   """
 
-  __slots__ = ('buffer',)
+  __slots__ = ('open', 'buffer')
 
   def __init__(self):
+    self.open = True
     self.buffer = buffer.ReceiveBuffer()
 
+  def write(self, data):
+    self.writeSequence((data,))
+
   def writeSequence(self, data):
+    if not self.open:
+      raise ValueError('connection closed')
     for buf in data:
       self.buffer.append(buf)
+
+  def loseConnection(self):
+    self.open = False
 
 
 class MockOpenflowProtocolSubclass(ofproto.OpenflowProtocol):
@@ -274,11 +285,11 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_echo_request(self):
     self.proto.connectionMade()
 
-    self.assertEqual(0, self.proto.send_echo_request(('abcdef',)))
+    self.proto.send_echo_request(0, ('abcdef',))
     self.assertEqual('\x01\x02\x00\x0e\x00\x00\x00\x00abcdef',
                      self._get_next_sent_message())
-    self.assertEqual(1, self.proto.send_echo_request(('abcdefgh',)))
-    self.assertEqual('\x01\x02\x00\x10\x00\x00\x00\x01abcdefgh',
+    self.proto.send_echo_request(4, ('abcdefgh',))
+    self.assertEqual('\x01\x02\x00\x10\x00\x00\x00\x04abcdefgh',
                      self._get_next_sent_message())
 
   def test_handle_echo_request(self):
@@ -307,11 +318,11 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_features_request(self):
     self.proto.connectionMade()
 
-    self.assertEqual(0, self.proto.send_features_request())
+    self.proto.send_features_request(0)
     self.assertEqual('\x01\x05\x00\x08\x00\x00\x00\x00',
                      self._get_next_sent_message())
-    self.assertEqual(1, self.proto.send_features_request())
-    self.assertEqual('\x01\x05\x00\x08\x00\x00\x00\x01',
+    self.proto.send_features_request(4)
+    self.assertEqual('\x01\x05\x00\x08\x00\x00\x00\x04',
                      self._get_next_sent_message())
 
   def test_handle_features_request(self):
@@ -350,11 +361,11 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_get_config_request(self):
     self.proto.connectionMade()
 
-    self.assertEqual(0, self.proto.send_get_config_request())
+    self.proto.send_get_config_request(0)
     self.assertEqual('\x01\x07\x00\x08\x00\x00\x00\x00',
                      self._get_next_sent_message())
-    self.assertEqual(1, self.proto.send_get_config_request())
-    self.assertEqual('\x01\x07\x00\x08\x00\x00\x00\x01',
+    self.proto.send_get_config_request(4)
+    self.assertEqual('\x01\x07\x00\x08\x00\x00\x00\x04',
                      self._get_next_sent_message())
 
   def test_handle_get_config_request(self):
@@ -847,28 +858,26 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_stats_request_desc(self):
     self.proto.connectionMade()
 
-    self.assertEqual(0, self.proto.send_stats_request_desc())
+    self.proto.send_stats_request_desc(0)
     self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x00'
                      '\x00\x00' '\x00\x00',
                      self._get_next_sent_message())
-    self.assertEqual(1, self.proto.send_stats_request_desc())
-    self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x01'
+    self.proto.send_stats_request_desc(4)
+    self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x04'
                      '\x00\x00' '\x00\x00',
                      self._get_next_sent_message())
 
   def test_send_stats_request_flow(self):
     self.proto.connectionMade()
 
-    self.assertEqual(0, self.proto.send_stats_request_flow(
-        self.match1, 0x0a, 0xabcd))
+    self.proto.send_stats_request_flow(0, self.match1, 0x0a, 0xabcd)
     self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x00'
                      '\x00\x01' '\x00\x00'
                      + self.match1.serialize()
                      + '\x0a\x00' '\xab\xcd',
                      self._get_next_sent_message())
-    self.assertEqual(1, self.proto.send_stats_request_flow(
-        self.match1, 0x0a, 0xabcd))
-    self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x01'
+    self.proto.send_stats_request_flow(4, self.match1, 0x0a, 0xabcd)
+    self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x04'
                      '\x00\x01' '\x00\x00'
                      + self.match1.serialize()
                      + '\x0a\x00' '\xab\xcd',
@@ -877,16 +886,14 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_stats_request_aggregate(self):
     self.proto.connectionMade()
 
-    self.assertEqual(0, self.proto.send_stats_request_aggregate(
-        self.match1, 0x0a, 0xabcd))
+    self.proto.send_stats_request_aggregate(0, self.match1, 0x0a, 0xabcd)
     self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x00'
                      '\x00\x02' '\x00\x00'
                      + self.match1.serialize()
                      + '\x0a\x00' '\xab\xcd',
                      self._get_next_sent_message())
-    self.assertEqual(1, self.proto.send_stats_request_aggregate(
-        self.match1, 0x0a, 0xabcd))
-    self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x01'
+    self.proto.send_stats_request_aggregate(4, self.match1, 0x0a, 0xabcd)
+    self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x04'
                      '\x00\x02' '\x00\x00'
                      + self.match1.serialize()
                      + '\x0a\x00' '\xab\xcd',
@@ -895,25 +902,25 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_stats_request_table(self):
     self.proto.connectionMade()
 
-    self.assertEqual(0, self.proto.send_stats_request_table())
+    self.proto.send_stats_request_table(0)
     self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x00'
                      '\x00\x03' '\x00\x00',
                      self._get_next_sent_message())
-    self.assertEqual(1, self.proto.send_stats_request_table())
-    self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x01'
+    self.proto.send_stats_request_table(4)
+    self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x04'
                      '\x00\x03' '\x00\x00',
                      self._get_next_sent_message())
 
   def test_send_stats_request_port(self):
     self.proto.connectionMade()
 
-    self.assertEqual(0, self.proto.send_stats_request_port(0xabcd))
+    self.proto.send_stats_request_port(0, 0xabcd)
     self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x00'
                      '\x00\x04' '\x00\x00'
                      '\xab\xcd\x00\x00\x00\x00\x00\x00',
                      self._get_next_sent_message())
-    self.assertEqual(1, self.proto.send_stats_request_port(0xabcd))
-    self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x01'
+    self.proto.send_stats_request_port(4, 0xabcd)
+    self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x04'
                      '\x00\x04' '\x00\x00'
                      '\xab\xcd\x00\x00\x00\x00\x00\x00',
                      self._get_next_sent_message())
@@ -921,15 +928,13 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_stats_request_queue(self):
     self.proto.connectionMade()
 
-    self.assertEqual(0, self.proto.send_stats_request_queue(0xabcd,
-                                                            0x12345678))
+    self.proto.send_stats_request_queue(0, 0xabcd, 0x12345678)
     self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x00'
                      '\x00\x05' '\x00\x00'
                      '\xab\xcd\x00\x00' '\x12\x34\x56\x78',
                      self._get_next_sent_message())
-    self.assertEqual(1, self.proto.send_stats_request_queue(0xabcd,
-                                                            0x12345678))
-    self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x01'
+    self.proto.send_stats_request_queue(4, 0xabcd, 0x12345678)
+    self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x04'
                      '\x00\x05' '\x00\x00'
                      '\xab\xcd\x00\x00' '\x12\x34\x56\x78',
                      self._get_next_sent_message())
@@ -937,15 +942,13 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_stats_request_vendor(self):
     self.proto.connectionMade()
 
-    self.assertEqual(0, self.proto.send_stats_request_vendor(
-        0x4242, data=('helloyou',)))
+    self.proto.send_stats_request_vendor(0, 0x4242, data=('helloyou',))
     self.assertEqual('\x01\x10\x00\x18\x00\x00\x00\x00'
                      '\xff\xff' '\x00\x00'
                      '\x00\x00\x42\x42' 'helloyou',
                      self._get_next_sent_message())
-    self.assertEqual(1, self.proto.send_stats_request_vendor(
-        0x4242, data=('helloyou',)))
-    self.assertEqual('\x01\x10\x00\x18\x00\x00\x00\x01'
+    self.proto.send_stats_request_vendor(4, 0x4242, data=('helloyou',))
+    self.assertEqual('\x01\x10\x00\x18\x00\x00\x00\x04'
                      '\xff\xff' '\x00\x00'
                      '\x00\x00\x42\x42' 'helloyou',
                      self._get_next_sent_message())
@@ -1257,11 +1260,11 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_barrier_request(self):
     self.proto.connectionMade()
 
-    self.assertEqual(0, self.proto.send_barrier_request())
+    self.proto.send_barrier_request(0)
     self.assertEqual('\x01\x12\x00\x08\x00\x00\x00\x00',
                      self._get_next_sent_message())
-    self.assertEqual(1, self.proto.send_barrier_request())
-    self.assertEqual('\x01\x12\x00\x08\x00\x00\x00\x01',
+    self.proto.send_barrier_request(4)
+    self.assertEqual('\x01\x12\x00\x08\x00\x00\x00\x04',
                      self._get_next_sent_message())
 
   def test_handle_barrier_request(self):
@@ -1288,12 +1291,12 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_send_queue_get_config_request(self):
     self.proto.connectionMade()
 
-    self.assertEqual(0, self.proto.send_queue_get_config_request(0xabcd))
+    self.proto.send_queue_get_config_request(0, 0xabcd)
     self.assertEqual('\x01\x14\x00\x0c\x00\x00\x00\x00'
                      '\xab\xcd\x00\x00',
                      self._get_next_sent_message())
-    self.assertEqual(1, self.proto.send_queue_get_config_request(0xabcd))
-    self.assertEqual('\x01\x14\x00\x0c\x00\x00\x00\x01'
+    self.proto.send_queue_get_config_request(4, 0xabcd)
+    self.assertEqual('\x01\x14\x00\x0c\x00\x00\x00\x04'
                      '\xab\xcd\x00\x00',
                      self._get_next_sent_message())
 
@@ -1349,13 +1352,18 @@ class TestOpenflowProtocol(unittest2.TestCase):
   # TODO(romain): Test proper handling of small chunks of data.
 
 
-class TestOpenflowProtocolRequestTracker(unittest2.TestCase):
+class TestOpenflowProtocolOperations(unittest2.TestCase):
 
   def setUp(self):
     self.transport = MockTransport()
+    self.reactor = mock_twisted.MockReactorTime()
     self.vendor_handler = MockVendorHandler()
-    self.proto = ofproto.OpenflowProtocolRequestTracker(
-        vendor_handlers=(self.vendor_handler,))
+    self.default_op_timeout = 3
+    self.echo_op_period = 5
+    self.proto = ofproto.OpenflowProtocolOperations(
+        self.reactor, vendor_handlers=(self.vendor_handler,),
+        default_op_timeout=self.default_op_timeout,
+        echo_op_period=self.echo_op_period)
     self.proto.transport = self.transport
 
   def _get_next_sent_message(self):
@@ -1375,15 +1383,138 @@ class TestOpenflowProtocolRequestTracker(unittest2.TestCase):
     buf.set_message_boundaries(msg_length)
     return buf.read_bytes(msg_length)
 
-  def test_connection_made_send_hello(self):
+  def test_connection_made_send_hello_echo_request(self):
     self.proto.connectionMade()
     # Sent initial OFPT_HELLO with xid 0.
     self.assertEqual('\x01\x00\x00\x08\x00\x00\x00\x00',
                      self._get_next_sent_message())
+    # Sent initial OFPT_ECHO_REQUEST with xid 0.
+    self.assertRegexpMatches(self._get_next_sent_message(),
+                             r'\x01\x02\x00\x0c\x00\x00\x00\x00'
+                             '....')  # 32-bit random data
+
+  def test_echo_op_periodic(self):
+    self.proto.connectionMade()
+    self._get_next_sent_message()  # Initial OFPT_HELLO.
+
+    # Initial OFPT_ECHO_REQUEST with xid 0.
+    next_msg = self._get_next_sent_message()
+    self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x00', next_msg[:8])
+    data = next_msg[8:]  # 32-big random data
+    self.assertItemsEqual(
+        [mock_twisted.MockDelayedCall(
+            reactor_time=self.reactor,
+            time=self.default_op_timeout,
+            already_cancelled=False,
+            already_called=False,
+            callable=self.proto._timeout_operation,
+            args=(0,),
+            kw={}),
+         ], self.reactor.delayed_calls)
+
+    # Receive the reply after 2s, before timeout.
+    self.reactor.increment_time(2)
+    self.assertItemsEqual(
+        [mock_twisted.MockDelayedCall(
+            reactor_time=self.reactor,
+            time=self.default_op_timeout,
+            already_cancelled=False,
+            already_called=False,
+            callable=self.proto._timeout_operation,
+            args=(0,),
+            kw={}),
+         ], self.reactor.delayed_calls)
+    self.proto.dataReceived('\x01\x03\x00\x0c\x00\x00\x00\x00' + data)
+    self.assertItemsEqual(
+        [mock_twisted.MockDelayedCall(
+            reactor_time=self.reactor,
+            time=self.reactor.seconds() + self.echo_op_period,
+            already_cancelled=False,
+            already_called=False,
+            callable=self.proto._echo,
+            args=(),
+            kw={}),
+         ], self.reactor.delayed_calls)
+
+    # Next OFPT_ECHO_REQUEST with xid 1.
+    self.reactor.increment_time(self.echo_op_period)
+    next_msg = self._get_next_sent_message()
+    self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x01', next_msg[:8])
+    data = next_msg[8:]  # 32-big random data
+    self.assertItemsEqual(
+        [mock_twisted.MockDelayedCall(
+            reactor_time=self.reactor,
+            time=self.reactor.seconds() + self.default_op_timeout,
+            already_cancelled=False,
+            already_called=False,
+            callable=self.proto._timeout_operation,
+            args=(1,),
+            kw={}),
+         ], self.reactor.delayed_calls)
+
+  def test_echo_op_timeout(self):
+    self.proto.connectionMade()
+    self._get_next_sent_message()  # Initial OFPT_HELLO.
+
+    # Initial OFPT_ECHO_REQUEST with xid 0.
+    next_msg = self._get_next_sent_message()
+    self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x00', next_msg[:8])
+    data = next_msg[8:]  # 32-big random data
+    self.assertItemsEqual(
+        [mock_twisted.MockDelayedCall(
+            reactor_time=self.reactor,
+            time=self.default_op_timeout,
+            already_cancelled=False,
+            already_called=False,
+            callable=self.proto._timeout_operation,
+            args=(0,),
+            kw={}),
+         ], self.reactor.delayed_calls)
+    self.assertTrue(self.transport.open)  # Connection open.
+
+    # Let the echo operation time out.
+    self.reactor.increment_time(self.default_op_timeout)
+    self.assertFalse(self.transport.open)  # Connection closed.
+
+  def test_echo_op_wrong_data(self):
+    self.proto.connectionMade()
+    self._get_next_sent_message()  # Initial OFPT_HELLO.
+
+    # Initial OFPT_ECHO_REQUEST with xid 0.
+    next_msg = self._get_next_sent_message()
+    self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x00', next_msg[:8])
+    data = next_msg[8:]  # 32-big random data
+    self.assertItemsEqual(
+        [mock_twisted.MockDelayedCall(
+            reactor_time=self.reactor,
+            time=self.default_op_timeout,
+            already_cancelled=False,
+            already_called=False,
+            callable=self.proto._timeout_operation,
+            args=(0,),
+            kw={}),
+         ], self.reactor.delayed_calls)
+
+    # Receive the reply with wrong data, after 2s, before timeout.
+    self.reactor.increment_time(2)
+    self.assertItemsEqual(
+        [mock_twisted.MockDelayedCall(
+            reactor_time=self.reactor,
+            time=self.default_op_timeout,
+            already_cancelled=False,
+            already_called=False,
+            callable=self.proto._timeout_operation,
+            args=(0,),
+            kw={}),
+         ], self.reactor.delayed_calls)
+    with self.assertRaises(ValueError):
+      self.proto.dataReceived('\x01\x03\x00\x13\x00\x00\x00\x00'
+                              'garbage' + data)
 
   def test_handle_echo_request(self):
     self.proto.connectionMade()
     self._get_next_sent_message()  # Initial OFPT_HELLO.
+    self._get_next_sent_message()  # Initial OFPT_ECHO_REQUEST.
 
     self.proto.dataReceived('\x01\x02\x00\x10\x00\x00\x00\x04abcdefgh')
 
