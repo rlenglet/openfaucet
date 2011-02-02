@@ -1,4 +1,4 @@
-# Copyright (C) 2011 Midokura KK
+# Copyright (C) 2010, 2011 Midokura KK
 
 # Implementation of the OpenFlow protocol version 1.0.0.
 #
@@ -7,8 +7,8 @@
 # implements the following methods:
 # TODO(romain): Document the vendor callback methods.
 
-import binascii
 import collections
+import logging
 import random
 import struct
 import threading
@@ -18,6 +18,7 @@ from twisted.internet import protocol
 from openfaucet import buffer
 from openfaucet import ofaction
 from openfaucet import ofconfig
+from openfaucet import oferror
 from openfaucet import ofmatch
 from openfaucet import ofstats
 
@@ -59,100 +60,6 @@ OFPT_BARRIER_REPLY = 19       # Controller/switch message.
 # Queue Configuration messages.
 OFPT_QUEUE_GET_CONFIG_REQUEST = 20  # Controller/switch message.
 OFPT_QUEUE_GET_CONFIG_REPLY = 21    # Controller/switch message.
-
-# OpenFlow error types.
-OFPET_HELLO_FAILED = 0        # Hello protocol failed.
-OFPET_BAD_REQUEST = 1         # Request was not understood.
-OFPET_BAD_ACTION = 2          # Error in action description.
-OFPET_FLOW_MOD_FAILED = 3     # Problem modifying flow entry.
-OFPET_PORT_MOD_FAILED = 4     # Port mod request failed.
-OFPET_QUEUE_OP_FAILED = 5     # Queue operation failed.
-# OpenFlow error codes for type OFPET_HELLO_FAILED.
-OFPHFC_INCOMPATIBLE = 0
-OFPHFC_EPERM = 1
-# OpenFlow error codes for type OFPET_BAD_REQUEST.
-OFPBRC_BAD_VERSION = 0
-OFPBRC_BAD_TYPE = 1
-OFPBRC_BAD_STAT = 2
-OFPBRC_BAD_VENDOR = 3
-OFPBRC_BAD_SUBTYPE = 4
-OFPBRC_EPERM = 5
-OFPBRC_BAD_LEN = 6
-OFPBRC_BUFFER_EMPTY = 7
-OFPBRC_BUFFER_UNKNOWN = 8
-# OpenFlow error codes for type OFPET_BAD_ACTION.
-OFPBAC_BAD_TYPE = 0
-OFPBAC_BAD_LEN = 1
-OFPBAC_BAD_VENDOR = 2
-OFPBAC_BAD_VENDOR_TYPE = 3
-OFPBAC_BAD_OUT_PORT = 4
-OFPBAC_BAD_ARGUMENT = 5
-OFPBAC_EPERM = 6
-OFPBAC_TOO_MANY = 7
-OFPBAC_BAD_QUEUE = 8
-# OpenFlow error codes for type OFPET_FLOW_MOD_FAILED.
-OFPFMFC_ALL_TABLES_FULL = 0
-OFPFMFC_OVERLAP = 1
-OFPFMFC_EPERM = 2
-OFPFMFC_BAD_EMERG_TIMEOUT = 3
-OFPFMFC_BAD_COMMAND = 4
-OFPFMFC_UNSUPPORTED = 5
-# OpenFlow error codes for type OFPET_PORT_MOD_FAILED.
-OFPPMFC_BAD_PORT = 0
-OFPPMFC_BAD_HW_ADDR = 1
-# OpenFlow error codes for type OFPET_QUEUE_OP_FAILED.
-OFPQOFC_BAD_PORT = 0
-OFPQOFC_BAD_QUEUE = 1
-OFPQOFC_EPERM = 2
-
-OFP_ERROR_MESSAGES = {
-  OFPET_HELLO_FAILED: ('hello protocol failed', {
-    OFPHFC_INCOMPATIBLE: 'no compatible version',
-    OFPHFC_EPERM: 'permissions error',
-    }),
-  OFPET_BAD_REQUEST: ('request was not understood', {
-    OFPBRC_BAD_VERSION: 'ofp_header.version not supported',
-    OFPBRC_BAD_TYPE: 'ofp_header.type not supported',
-    OFPBRC_BAD_STAT: 'ofp_stats_request.type not supported',
-    OFPBRC_BAD_VENDOR: 'vendor not supported',
-    OFPBRC_BAD_SUBTYPE: 'vendor subtype not supported',
-    OFPBRC_EPERM: 'permissions error',
-    OFPBRC_BAD_LEN: 'wrong request length for type',
-    OFPBRC_BUFFER_EMPTY: 'specified buffer has already been used',
-    OFPBRC_BUFFER_UNKNOWN: 'specified buffer does not exist',
-    }),
-  OFPET_BAD_ACTION: ('error in action description', {
-    OFPBAC_BAD_TYPE: 'unknown action type',
-    OFPBAC_BAD_LEN: 'length problem in actions',
-    OFPBAC_BAD_VENDOR: 'unknown vendor id specified',
-    OFPBAC_BAD_VENDOR_TYPE: 'unknown action type for vendor id',
-    OFPBAC_BAD_OUT_PORT: 'problem validating output action',
-    OFPBAC_BAD_ARGUMENT: 'bad action argument',
-    OFPBAC_EPERM: 'permissions error',
-    OFPBAC_TOO_MANY: 'can\'t handle this many actions',
-    OFPBAC_BAD_QUEUE: 'problem validating output queue',
-    }),
-  OFPET_FLOW_MOD_FAILED: ('problem modifying flow entry', {
-    OFPFMFC_ALL_TABLES_FULL: 'flow not added because of full tables',
-    OFPFMFC_OVERLAP:
-        'attempted to add overlapping flow with CHECK_OVERLAP flag set',
-    OFPFMFC_EPERM: 'permissions error',
-    OFPFMFC_BAD_EMERG_TIMEOUT:
-        'flow not added because of non-zero idle/hard timeout',
-    OFPFMFC_BAD_COMMAND: 'unknown command',
-    OFPFMFC_UNSUPPORTED:
-        'unsupported action list - cannot process in the order specified',
-    }),
-  OFPET_PORT_MOD_FAILED: ('port mod request failed', {
-    OFPPMFC_BAD_PORT: 'specified port does not exist',
-    OFPPMFC_BAD_HW_ADDR: 'specified hardware address is wrong',
-    }),
-  OFPET_QUEUE_OP_FAILED: ('queue operation failed', {
-    OFPQOFC_BAD_PORT: 'invalid port (or port does not exist)',
-    OFPQOFC_BAD_QUEUE: 'queue does not exist',
-    OFPQOFC_EPERM: 'permissions error',
-    }),
-  }
 
 # Reasons for OFPT_PACKET_IN messages.
 OFPR_NO_MATCH = 0
@@ -222,9 +129,11 @@ class OpenflowProtocol(protocol.Protocol):
   message encoding / decoding.
   """
 
-  __slots__ = ('_buffer', '_vendor_handlers', '_error_data_bytes')
+  __slots__ = ('_buffer', '_vendor_handlers', '_error_data_bytes',
+               '_logger', '_log_extra')
 
-  def __init__(self, vendor_handlers=(), error_data_bytes=64):
+  def __init__(self, vendor_handlers=(), error_data_bytes=64,
+               logger=logging.getLogger('')):
     """Initialize this OpenFlow protocol handler.
 
     Args:
@@ -232,18 +141,34 @@ class OpenflowProtocol(protocol.Protocol):
           to an empty sequence.
       error_data_bytes: The maximum number of bytes of erroneous
           requests to send back in error messages. Must be >= 64.
+          Defaults to 64.
+      logger: The Python logger object to use for logging. Defaults to
+          the root logger.
     """
     # Index the vendor handlers by vendor ID.
     # TODO(romain): Specify clearly that a vendor handler must have a
     # vendor_id attribute or property.
     self._vendor_handlers = dict((v.vendor_id, v) for v in vendor_handlers)
     self._error_data_bytes = error_data_bytes
+    self._logger = logger
+    self._log_extra = {}
 
   def connectionMade(self):
     """Initialize the resources to manage the newly opened OpenFlow connection.
     """
+    self._logger.debug('connection made')
     self._buffer = buffer.ReceiveBuffer()
     # TODO(romain): Notify that the connection has been made?
+
+  def set_log_extra(self, log_extra):
+    """Set the additional information to add to every log.
+
+    Args:
+      log_extra: A dictionary of additional data to add to every
+          log. The keys in this dictionary should not clash with the
+          keys used by the logging system.
+    """
+    self._log_extra = log_extra
 
   def connectionLost(reason):
     """Release any resources used to manage the connection that was just lost.
@@ -254,6 +179,7 @@ class OpenflowProtocol(protocol.Protocol):
           twisted.internet.error.ConnectionLost instance (or a
           subclass of one of those).
     """
+    self._logger.debug('connection lost')
     self._buffer = None
 
   def dataReceived(self, data):
@@ -268,7 +194,8 @@ class OpenflowProtocol(protocol.Protocol):
     while len(self._buffer) >= OFP_HEADER_LENGTH:
 
       self._buffer.set_message_boundaries(OFP_HEADER_LENGTH)
-      _, _, msg_length, _ = self._buffer.unpack_inplace(OFP_HEADER_FORMAT)
+      version, msg_type, msg_length, xid = \
+          self._buffer.unpack_inplace(OFP_HEADER_FORMAT)
 
       if msg_length > len(self._buffer):
         # Not enough data has been received to decode the whole
@@ -280,24 +207,74 @@ class OpenflowProtocol(protocol.Protocol):
 
       self._buffer.set_message_boundaries(msg_length)
 
-      self._handle_message()
+      try:
+        self._handle_message()
+      except oferror.OpenflowError, e:
+        # TODO(romain): Print the stacktrace.
+        self._logger.error('openflow error %r', e, extra=self._log_extra)
+        # Always set the xid to the message that failed, as this is
+        # required for at least some error types.
+        self.send_error(e, xid=xid)
+      except Exception, e:
+        # TODO(romain): Print the stacktrace.
+        self._logger.error('message decoding error %r', e,
+                           extra=self._log_extra)
 
       if self._buffer.message_bytes_left > 0:
-        # TODO(romain): Log and close the connection.
-        self.error_and_close('message not completely decoded')
+        self._logger.error('message not completely decoded, %i bytes left',
+                           self._buffer.message_bytes_left,
+                           extra=self._log_extra)
         self._buffer.skip_bytes(self._buffer.message_bytes_left)
+
+  def raise_error_with_request(self, error_type, error_code):
+    raise oferror.OpenflowError(
+        oferror.OFPET_BAD_REQUEST, oferror.OFPBRC_BAD_LEN,
+        (self._buffer.get_first_message_bytes(self._error_data_bytes),))
+
+  def _log_handle_msg(self, msg_type_str, **kwargs):
+    """Log a message handling debug message.
+
+    Args:
+      msg_type_str: The string describing the message type.
+      kwargs: The dict of args passed to the handle_* method.
+    """
+    if self._logger.isEnabledFor(logging.DEBUG):
+      msg = ['handle message of type %s' % msg_type_str]
+      msg.extend(['%s=%r' % (k, v) for k, v in kwargs.iteritems()])
+      self._logger.debug(', '.join(msg), extra=self._log_extra)
+
+  def _log_send_msg(self, msg_type_str, **kwargs):
+    """Log a message sending debug message.
+
+    Args:
+      msg_type_str: The string describing the message type.
+      kwargs: The dict of args passed to the send_* method.
+    """
+    if self._logger.isEnabledFor(logging.DEBUG):
+      msg = ['send message of type %s' % msg_type_str]
+      msg.extend(['%s=%r' % (k, v) for k, v in kwargs.iteritems()])
+      self._logger.debug(', '.join(msg), extra=self._log_extra)
 
   def _handle_message(self):
     """Handle a received OpenFlow message.
     """
-    version, msg_type, msg_length, xid = self._buffer.unpack_inplace(
-        OFP_HEADER_FORMAT)
-    # Keep the header for sending it back as data in error messages.
-    self._received_message_header = self._buffer.read_bytes(OFP_HEADER_LENGTH)
+    version, msg_type, msg_length, xid = self._buffer.unpack(OFP_HEADER_FORMAT)
+    self._logger.debug(
+        'received message with version %i, type %i, lenth %i, xid %i',
+        version, msg_type, msg_length, xid, extra=self._log_extra)
 
     if version != OFP_VERSION_1_0_0:
-      # TODO(romain): Log and close the connection.
-      self.error_and_close('message has wrong version')
+      if msg_type == OFPT_HELLO:
+        self._logger.error('OFPT_HELLO message has wrong version %i',
+                           version, extra=self._log_extra)
+        raise oferror.OpenflowError(
+            oferror.OFPET_HELLO_FAILED, oferror.OFPHFC_INCOMPATIBLE,
+            ('invalid version %i in OFPT_HELLO message' % version,))
+      else:
+        self._logger.error('message has wrong version %i', version,
+                           extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_VERSION)
 
     if msg_type == OFPT_HELLO:
         self._handle_hello(msg_length, xid)
@@ -344,8 +321,10 @@ class OpenflowProtocol(protocol.Protocol):
     elif msg_type == OFPT_QUEUE_GET_CONFIG_REPLY:
         self._handle_queue_get_config_reply(msg_length, xid)
     else:
-      # TODO(romain): Log and close the connection.
-      self.error_and_close('unknown type:' + msg_type)
+      self._logger.error('message has unknown type %i', msg_type,
+                         extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_TYPE)
 
   def _handle_hello(self, msg_length, xid):
     # A OFPT_HELLO message has no body in the current version.
@@ -354,51 +333,29 @@ class OpenflowProtocol(protocol.Protocol):
     # extensions.
     if msg_length > OFP_HEADER_LENGTH:
       self._buffer.skip_bytes(msg_length - OFP_HEADER_LENGTH)
+      self._logger.debug('received OFPT_HELLO message with %i bytes of data',
+                         msg_length - OFP_HEADER_LENGTH, extra=self._log_extra)
+    self._log_handle_msg('OFPT_HELLO')
     self.handle_hello()
 
   def _handle_error(self, msg_length, xid):
     if msg_length < 12:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_ERROR message too short')
-    error_type, error_code = self._buffer.unpack('!HH')
+      self._logger.error('OFPT_ERROR message too short with length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
 
-    error_type_data = OFP_ERROR_MESSAGES.get(error_type)
-    if error_type_data is None:
-      error_type_txt = 'unknown error type %i' % error_type
-      error_code_txt = 'unknown error code %i' % error_code
-    else:
-      error_type_txt, error_code_txts = error_type_data
-      error_code_txt = error_code_txts.get(error_code)
-      if error_code_txt is None:
-        error_code_txt = 'unknown error code %i' % error_code
-
-    # Get details from the message data.
-    if error_type == OFPET_HELLO_FAILED:
-      if msg_length > 12:
-        detail_txt = self._buffer.read_bytes(msg_length - 12)
-        error_txt = '%s: %s (%s)' % (error_type_txt, error_code_txt, detail_txt)
-      else:
-        error_txt = '%s: %s' % (error_type_txt, error_code_txt)
-    elif error_type in (OFPET_BAD_REQUEST, OFPET_BAD_ACTION,
-                        OFPET_FLOW_MOD_FAILED, OFPET_PORT_MOD_FAILED,
-                        OFPET_QUEUE_OP_FAILED):
-      if msg_length < 76:  # data is >=64 bytes of the failed requests
-        # TODO(romain): Log and close the connection.
-        raise ValueError('error message of type %i too short (%i bytes)' % (
-            error_type, msg_length))
-      failed_req = self._buffer.read_bytes(msg_length - 12)
-      error_txt = '%s: %s (%s)' % (error_type_txt, error_code_txt,
-                                   binascii.b2a_hex(failed_req))
-
-    # TODO(romain): Log the error text.
-
-    self.handle_error(error_type, error_code, error_text, error_type_data)
+    error = oferror.OpenflowError.deserialize(self._buffer)
+    # TODO(romain): Handle error decoding errors.
+    self._log_handle_msg('OFPT_ERROR', error=error)
+    self.handle_error(xid, error)
 
   def _handle_echo_request(self, msg_length, xid):
     if msg_length > OFP_HEADER_LENGTH:
       data = self._buffer.read_bytes(msg_length - OFP_HEADER_LENGTH)
     else:
       data = ''
+    self._log_handle_msg('OFPT_ECHO_REQUEST', data=data)
     self.handle_echo_request(xid, data)
 
   def _handle_echo_reply(self, msg_length, xid):
@@ -406,74 +363,108 @@ class OpenflowProtocol(protocol.Protocol):
       data = self._buffer.read_bytes(msg_length - OFP_HEADER_LENGTH)
     else:
       data = ''
+    self._log_handle_msg('OFPT_ECHO_REPLY', data=data)
     self.handle_echo_reply(xid, data)
 
   def _handle_vendor(self, msg_length, xid):
     if msg_length < 12:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_VENDOR message has invalid length')
+      self._logger.error('OFPT_VENDOR message has invalid length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
+
     vendor_id = self._buffer.unpack('!L')[0]
     vendor_handler = self._vendor_handlers.get(vendor_id)
     if vendor_handler is None:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_VENDOR message with unknown vendor id', vendor_id)
+      self._logger.error('OFPT_VENDOR message has unknown vendor id %i',
+                         vendor_id, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_VENDOR)
+
     # TODO(romain): Specify clearly that exactly msg_length-12 bytes
     # must be consumed by this call. Check that this is the case after
     # the call returns.
+    self._log_handle_msg('OFPT_VENDOR', vendor_id=vendor_id)
     vendor_handler.handle_vendor_message(self, msg_length, xid, self._buffer)
 
   def _handle_features_request(self, msg_length, xid):
     if msg_length != OFP_HEADER_LENGTH:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_FEATURES_REQUEST message has invalid length')
+      self._logger.error('OFPT_FEATURES_REQUEST message has invalid length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
+    self._log_handle_msg('OFPT_FEATURES_REQUEST')
     self.handle_features_request(xid)
 
   def _handle_features_reply(self, msg_length, xid):
     if msg_length < 8 + ofconfig.SwitchFeatures.FORMAT_LENGTH:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_FEATURES_REPLY message too short')
+      self._logger.error('OFPT_FEATURES_REPLY message too short with length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
     if ((msg_length - 8 - ofconfig.SwitchFeatures.FORMAT_LENGTH)
         % ofconfig.PhyPort.FORMAT_LENGTH) != 0:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_FEATURES_REPLY message not aligned properly')
+      self._logger.error('OFPT_FEATURES_REPLY message not aligned properly',
+                         extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
     switch_features = ofconfig.SwitchFeatures.deserialize(self._buffer)
+    self._log_handle_msg('OFPT_FEATURES_REPLY',
+                         switch_features=switch_features)
     self.handle_features_reply(xid, switch_features)
 
   def _handle_get_config_request(self, msg_length, xid):
     if msg_length > OFP_HEADER_LENGTH:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_GET_CONFIG_REQUEST message has invalid length')
+      self._logger.error(
+          'OFPT_GET_CONFIG_REQUEST message has invalid length %i',
+          msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
+    self._log_handle_msg('OFPT_GET_CONFIG_REQUEST')
     self.handle_get_config_request(xid)
 
   def _handle_get_config_reply(self, msg_length, xid):
     if msg_length != OFP_HEADER_LENGTH + ofconfig.SwitchConfig.FORMAT_LENGTH:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_GET_CONFIG_REPLY message has invalid length')
+      self._logger.error('OFPT_GET_CONFIG_REPLY message has invalid length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
     switch_config = ofconfig.SwitchConfig.deserialize(self._buffer)
+    self._log_handle_msg('OFPT_GET_CONFIG_REPLY',
+                         switch_config=switch_config)
     self.handle_get_config_reply(xid, switch_config)
 
   def _handle_set_config(self, msg_length, xid):
     if msg_length != OFP_HEADER_LENGTH + ofconfig.SwitchConfig.FORMAT_LENGTH:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_SET_CONFIG message has invalid length')
+      self._logger.error('OFPT_SET_CONFIG message has invalid length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
     switch_config = ofconfig.SwitchConfig.deserialize(self._buffer)
+    self._log_handle_msg('OFPT_SET_CONFIG', switch_config=switch_config)
     self.handle_set_config(switch_config)
 
   def _handle_packet_in(self, msg_length, xid):
     if msg_length < 20:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_PACKET_IN message too short')
+      self._logger.error('OFPT_PACKET_IN message too short with length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
     buffer_id, total_len, in_port, reason = self._buffer.unpack('!LHHBx')
     if reason not in (OFPR_NO_MATCH, OFPR_ACTION):
-      # TODO(romain): Log and close the connection.
       raise ValueError('OFPT_PACKET_IN message has invalid reason', reason)
     data = self._buffer.read_bytes(msg_length - 18)
+    self._log_handle_msg(
+        'OFPT_PACKET_IN', buffer_id=buffer_id, total_len=total_len,
+        in_port=in_port, reason=reason, data=data)
     self.handle_packet_in(buffer_id, total_len, in_port, reason, data)
 
   def _handle_flow_removed(self, msg_length, xid):
     if msg_length != 88:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_FLOW_REMOVED message has invalid length')
+      self._logger.error('OFPT_FLOW_REMOVED message has invalid length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
     # This is almost the same as an ofp_flow_stats structure, but has
     # one field added (reason), and several fields removed
     # (hard_timeout, table_id), so just deserialize those fields by
@@ -482,53 +473,67 @@ class OpenflowProtocol(protocol.Protocol):
     (cookie, priority, reason, duration_sec, duration_nsec, idle_timeout,
      packet_count, byte_count) = self._buffer.unpack('!QHBxLLH2xQQ')
     if reason not in (OFPRR_IDLE_TIMEOUT, OFPRR_HARD_TIMEOUT, OFPRR_DELETE):
-      # TODO(romain): Log and close the connection.
       raise ValueError('OFPT_FLOW_REMOVED message has invalid reason', reason)
+    self._log_handle_msg(
+        'OFPT_FLOW_REMOVED', match=match, cookie=cookie, priority=priority,
+        reason=reason, duration_sec=duration_sec, duration_nsec=duration_nsec,
+        idle_timeout=idle_timeout, packet_count=packet_count,
+        byte_count=byte_count)
     self.handle_flow_removed(
         match, cookie, priority, reason, duration_sec, duration_nsec,
         idle_timeout, packet_count, byte_count)
 
   def _handle_port_status(self, msg_length, xid):
     if msg_length != 64:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_PORT_STATUS message has invalid length')
+      self._logger.error('OFPT_PORT_STATUS message has invalid length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
     (reason,) = self._buffer.unpack('!B7x')
     if reason not in (OFPPR_ADD, OFPPR_DELETE, OFPPR_MODIFY):
-      # TODO(romain): Log and close the connection.
       raise ValueError('OFPT_PORT_STATUS message has invalid reason', reason)
     desc = ofconfig.PhyPort.deserialize(self._buffer)
+    self._log_handle_msg('OFPT_PORT_STATUS', reason=reason, desc=desc)
     self.handle_port_status(reason, desc)
 
   def _handle_packet_out(self, msg_length, xid):
     if msg_length < 16:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_PACKET_OUT message has invalid length')
+      self._logger.error('OFPT_PACKET_OUT message too short with length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
     buffer_id, in_port, actions_len = self._buffer.unpack('!LHH')
 
     if msg_length < (16 + actions_len * 8):
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_PACKET_OUT message has invalid actions length')
+      self._logger.error('OFPT_PACKET_OUT message has too small actions '
+                         'length %i for message length %i',
+                         actions_len, msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
+                                    oferror.OFPBAC_BAD_LEN)
 
     actions = tuple(self.deserialize_action(self._buffer)
                     for i in xrange(actions_len))
     data = self._buffer.read_bytes(self._buffer.message_bytes_left)
+    self._log_handle_msg(
+        'OFPT_PACKET_OUT', buffer_id=buffer_id, in_port=in_port,
+        actions=actions, data=data)
     self.handle_packet_out(buffer_id, in_port, actions, data)
 
   def _handle_flow_mod(self, msg_length, xid):
     if msg_length < 72:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_FLOW_MOD message has invalid length')
+      self._logger.error('OFPT_FLOW_MOD message too short with length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
 
     match = ofmatch.Match.deserialize(self._buffer)
     (cookie, command, idle_timeout, hard_timeout, priority, buffer_id,
      out_port, flags) = self._buffer.unpack('!QHHHHLHH')
 
     if cookie == 0xffffffffffffffff:
-      # TODO(romain): Log and close the connection.
       raise ValueError('reserved cookie', cookie)
     if command not in (OFPFC_ADD, OFPFC_MODIFY, OFPFC_MODIFY_STRICT,
                        OFPFC_DELETE, OFPFC_DELETE_STRICT):
-      # TODO(romain): Log and close the connection.
       raise ValueError('invalid command', command)
     if flags & ~(OFPFF_SEND_FLOW_REM | OFPFF_CHECK_OVERLAP | OFPFF_EMERG):
       # Be liberal. Ignore those bits instead of raising an exception.
@@ -538,21 +543,28 @@ class OpenflowProtocol(protocol.Protocol):
     # TODO(romain): Check that the port is valid for this message
     # type. E.g. *_TABLE should be invalid?
 
-    send_flow_rem = flags & OFPFF_SEND_FLOW_REM
-    check_overlap = flags & OFPFF_CHECK_OVERLAP
-    emerg = flags & OFPFF_EMERG
+    send_flow_rem = bool(flags & OFPFF_SEND_FLOW_REM)
+    check_overlap = bool(flags & OFPFF_CHECK_OVERLAP)
+    emerg = bool(flags & OFPFF_EMERG)
     actions = []
     while self._buffer.message_bytes_left > 0:
       actions.append(self.deserialize_action(self._buffer))
     actions = tuple(actions)
+    self._log_handle_msg(
+        'OFPT_FLOW_MOD', match=match, cookie=cookie, command=command,
+        idle_timeout=idle_timeout, hard_timeout=hard_timeout, priority=priority,
+        buffer_id=buffer_id, out_port=out_port, send_flow_rem=send_flow_rem,
+        check_overlap=check_overlap, emerg=emerg, actions=actions)
     self.handle_flow_mod(match, cookie, command, idle_timeout, hard_timeout,
                          priority, buffer_id, out_port, send_flow_rem,
                          check_overlap, emerg, actions)
 
   def _handle_port_mod(self, msg_length, xid):
     if msg_length != 32:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_PORT_MOD message has invalid length')
+      self._logger.error('OFPT_PORT_MOD message has invalid length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
 
     port_no, hw_addr, config_ser, mask_ser, advertise_ser = \
         self._buffer.unpack('!H6sLLL4x')
@@ -567,96 +579,130 @@ class OpenflowProtocol(protocol.Protocol):
       advertise = None
     else:
       advertise = ofconfig.PortFeatures.deserialize(advertise_ser)
+    self._log_handle_msg('OFPT_PORT_MOD', port_no=port_no, hw_addr=hw_addr,
+                         config=config, mask=mask, advertise=advertise)
     self.handle_port_mod(port_no, hw_addr, config, mask, advertise)
 
   def _handle_stats_request(self, msg_length, xid):
     if msg_length < 12:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_STATS_REQUEST message too short')
+      self._logger.error('OFPT_STATS_REQUEST message too short with length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
 
     type, flags = self._buffer.unpack('!HH')
     if type not in (OFPST_DESC, OFPST_FLOW, OFPST_AGGREGATE, OFPST_TABLE,
                     OFPST_PORT, OFPST_QUEUE, OFPST_VENDOR):
-      # TODO(romain): Log and close the connection.
-      raise ValueError('invalid stats type', type)
+      self._logger.error('OFPT_STATS_REQUEST message has invalid stats type %i',
+                         type, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_STAT)
     if flags != 0:  # No flags are currently defined.
       # Be liberal. Ignore those bits instead of raising an exception.
-      # TODO(romain): Log this.
-      # ('undefined flag bits set', flags)
-      pass
+      self._logger.debug(
+          'OFPT_STATS_REQUEST message has undefined flag bits set %i',
+          flags, extra=self._log_extra)
 
     # Decode the request body depending on the stats type.
     if type == OFPST_DESC:
       if msg_length != 12:
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REQUEST message has invalid length'
-                         ' for OFPST_DESC stats')
+        self._logger.error('OFPT_STATS_REQUEST message has invalid length %i'
+                           ' for OFPST_DESC stats',
+                           msg_length, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
+      self._log_handle_msg('OFPT_STATS_REQUEST / OFPST_DESC')
       self.handle_stats_request_desc(xid)
     elif type == OFPST_FLOW:
       if msg_length != (12 + 44):
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REQUEST message has invalid length'
-                         ' for OFPST_FLOW stats')
+        self._logger.error('OFPT_STATS_REQUEST message has invalid length %i'
+                           ' for OFPST_FLOW stats',
+                           msg_length, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
       match = ofmatch.Match.deserialize(self._buffer)
       table_id, out_port = self._buffer.unpack('!BxH')
+      self._log_handle_msg('OFPT_STATS_REQUEST / OFPST_FLOW', match=match,
+                           table_id=table_id, out_port=out_port)
       self.handle_stats_request_flow(xid, match, table_id, out_port)
     elif type == OFPST_AGGREGATE:
       if msg_length != (12 + 44):
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REQUEST message has invalid length'
-                         ' for OFPST_AGGREGATE stats')
+        self._logger.error('OFPT_STATS_REQUEST message has invalid length %i'
+                           ' for OFPST_AGGREGATE stats',
+                           msg_length, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
       match = ofmatch.Match.deserialize(self._buffer)
       table_id, out_port = self._buffer.unpack('!BxH')
+      self._log_handle_msg('OFPT_STATS_REQUEST / OFPST_AGGREGATE', match=match,
+                           table_id=table_id, out_port=out_port)
       self.handle_stats_request_aggregate(xid, match, table_id, out_port)
     elif type == OFPST_TABLE:
       if msg_length != 12:
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REQUEST message has invalid length'
-                         ' for OFPST_TABLE stats')
+        self._logger.error('OFPT_STATS_REQUEST message has invalid length %i'
+                           ' for OFPST_TABLE stats',
+                           msg_length, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
+      self._log_handle_msg('OFPT_STATS_REQUEST / OFPST_TABLE')
       self.handle_stats_request_table(xid)
     elif type == OFPST_PORT:
       if msg_length != (12 + 8):
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REQUEST message has invalid length'
-                         ' for OFPST_PORT stats')
+        self._logger.error('OFPT_STATS_REQUEST message has invalid length %i'
+                           ' for OFPST_PORT stats',
+                           msg_length, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
       port_no = self._buffer.unpack('!H6x')[0]
+      self._log_handle_msg('OFPT_STATS_REQUEST / OFPST_PORT', port_no=port_no)
       self.handle_stats_request_port(xid, port_no)
     elif type == OFPST_QUEUE:
       if msg_length != (12 + 8):
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REQUEST message has invalid length'
-                         ' for OFPST_QUEUE stats')
+        self._logger.error('OFPT_STATS_REQUEST message has invalid length %i'
+                           ' for OFPST_QUEUE stats',
+                           msg_length, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
       port_no, queue_id = self._buffer.unpack('!H2xL')
+      self._log_handle_msg('OFPT_STATS_REQUEST / OFPST_QUEUE', port_no=port_no,
+                           queue_id=queue_id)
       self.handle_stats_request_queue(xid, port_no, queue_id)
     elif type == OFPST_VENDOR:
       if msg_length < (12 + 4):
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REQUEST message too short'
-                         ' for OFPST_VENDOR stats')
+        self._logger.error('OFPT_STATS_REQUEST message too short with length '
+                           '%i for OFPST_VENDOR stats',
+                           msg_length, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
       vendor_id = self._buffer.unpack('!L')[0]
       vendor_handler = self._vendor_handlers.get(vendor_id)
       if vendor_handler is None:
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REQUEST message with unknown vendor id',
-                         vendor_id)
+        self._logger.error(
+            'OFPT_STATS_REQUEST message has unknown vendor id %i',
+            vendor_id, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_VENDOR)
+      self._log_handle_msg('OFPT_STATS_REQUEST / OFPST_VENDOR',
+                           vendor_id=vendor_id)
       vendor_handler.handle_vendor_stats_request(self, msg_length, xid,
                                                  self._buffer)
 
   def _handle_stats_reply(self, msg_length, xid):
     if msg_length < 12:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_STATS_REPLY message too short')
+      self._logger.error('OFPT_STATS_REPLY message too short with length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
 
     type, flags = self._buffer.unpack('!HH')
     if type not in (OFPST_DESC, OFPST_FLOW, OFPST_AGGREGATE, OFPST_TABLE,
                     OFPST_PORT, OFPST_QUEUE, OFPST_VENDOR):
-      # TODO(romain): Log and close the connection.
       raise ValueError('invalid stats type', type)
     if flags & ~OFPSF_REPLY_MORE:
       # Be liberal. Ignore those bits instead of raising an exception.
-      # TODO(romain): Log this.
-      # ('undefined flag bits set', flags)
-      pass
+      self._logger.debug(
+          'OFPT_STATS_REPLY message has undefined flag bits set %i',
+          flags, extra=self._log_extra)
     reply_more = bool(flags & OFPSF_REPLY_MORE)
 
     # Decode the request body depending on the stats type.
@@ -664,117 +710,165 @@ class OpenflowProtocol(protocol.Protocol):
       if reply_more:
         raise ValueError('OFPSF_REPLY_MORE bit set for OFPST_DESC stats')
       if msg_length != (12 + 1056):
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REPLY message has invalid length'
-                         ' for OFPST_DESC stats')
+        self._logger.error('OFPT_STATS_REPLY message has invalid length %i'
+                           ' for OFPST_DESC stats',
+                           msg_length, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
       desc_stats = ofstats.DescriptionStats.deserialize(self._buffer)
+      self._log_handle_msg('OFPT_STATS_REPLY / OFPST_DESC',
+                           desc_stats=desc_stats)
       self.handle_stats_reply_desc(xid, desc_stats)
     elif type == OFPST_FLOW:
       flow_stats = []
       while self._buffer.message_bytes_left > 0:
         flow_stats.append(ofstats.FlowStats.deserialize(
             self._buffer, self.deserialize_action))
-      self.handle_stats_reply_flow(xid, tuple(flow_stats), reply_more)
+      flow_stats = tuple(flow_stats)
+      self._log_handle_msg('OFPT_STATS_REPLY / OFPST_FLOW',
+                           flow_stats=flow_stats, reply_more=reply_more)
+      self.handle_stats_reply_flow(xid, flow_stats, reply_more)
     elif type == OFPST_AGGREGATE:
       if reply_more:
         raise ValueError('OFPSF_REPLY_MORE bit set for OFPST_AGGREGATE stats')
       if msg_length != (12 + 24):
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REPLY message has invalid length'
-                         ' for OFPST_AGGREGATE stats')
+        self._logger.error('OFPT_STATS_REPLY message has invalid length %i'
+                           ' for OFPST_AGGREGATE stats',
+                           msg_length, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
       packet_count, byte_count, flow_count = self._buffer.unpack('!QQL4x')
+      self._log_handle_msg('OFPT_STATS_REPLY / OFPST_AGGREGATE',
+                           packet_count=packet_count, byte_count=byte_count,
+                           flow_count=flow_count)
       self.handle_stats_reply_aggregate(xid, packet_count, byte_count,
                                         flow_count)
     elif type == OFPST_TABLE:
       if (msg_length - 12) % 64 != 0:
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REPLY message has invalid length'
-                         ' for OFPST_TABLE stats')
+        self._logger.error('OFPT_STATS_REPLY message has invalid length %i'
+                           ' for OFPST_TABLE stats',
+                           msg_length, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
       table_stats = []
       while self._buffer.message_bytes_left > 0:
         table_stats.append(ofstats.TableStats.deserialize(self._buffer))
-      self.handle_stats_reply_table(xid, tuple(table_stats), reply_more)
+      table_stats = tuple(table_stats)
+      self._log_handle_msg('OFPT_STATS_REPLY / OFPST_TABLE',
+                           table_stats=table_stats, reply_more=reply_more)
+      self.handle_stats_reply_table(xid, table_stats, reply_more)
     elif type == OFPST_PORT:
       if (msg_length - 12) % 104 != 0:
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REPLY message has invalid length'
-                         ' for OFPST_PORT stats')
+        self._logger.error('OFPT_STATS_REPLY message has invalid length %i'
+                           ' for OFPST_PORT stats',
+                           msg_length, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
       port_stats = []
       while self._buffer.message_bytes_left > 0:
         port_stats.append(ofstats.PortStats.deserialize(self._buffer))
-      self.handle_stats_reply_port(xid, tuple(port_stats), reply_more)
+      port_stats = tuple(port_stats)
+      self._log_handle_msg('OFPT_STATS_REPLY / OFPST_PORT',
+                           port_stats=port_stats, reply_more=reply_more)
+      self.handle_stats_reply_port(xid, port_stats, reply_more)
     elif type == OFPST_QUEUE:
       if (msg_length - 12) % 32 != 0:
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REPLY message has invalid length'
-                         ' for OFPST_QUEUE stats')
+        self._logger.error('OFPT_STATS_REPLY message has invalid length %i'
+                           ' for OFPST_QUEUE stats',
+                           msg_length, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
       queue_stats = []
       while self._buffer.message_bytes_left > 0:
         queue_stats.append(ofstats.QueueStats.deserialize(self._buffer))
-      self.handle_stats_reply_queue(xid, tuple(queue_stats), reply_more)
+      queue_stats = tuple(queue_stats)
+      self._log_handle_msg('OFPT_STATS_REPLY / OFPST_QUEUE',
+                           queue_stats=queue_stats, reply_more=reply_more)
+      self.handle_stats_reply_queue(xid, queue_stats, reply_more)
     elif type == OFPST_VENDOR:
       if msg_length < (12 + 4):
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REPLY message too short'
-                         ' for OFPST_VENDOR stats')
+        self._logger.error('OFPT_STATS_REPLY message too short with length '
+                           '%i for OFPST_VENDOR stats',
+                           msg_length, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
       vendor_id = self._buffer.unpack('!L')[0]
       vendor_handler = self._vendor_handlers.get(vendor_id)
       if vendor_handler is None:
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPT_STATS_REQUEST message with unknown vendor id',
-                         vendor_id)
+        self._logger.error(
+            'OFPT_STATS_REPLY message has unknown vendor id %i',
+            vendor_id, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                      oferror.OFPBRC_BAD_LEN)
+      self._log_handle_msg('OFPT_STATS_REPLY / OFPST_VENDOR',
+                           vendor_id=vendor_id)
       vendor_handler.handle_vendor_stats_reply(self, msg_length, xid,
                                                self._buffer, reply_more)
 
   def _handle_barrier_request(self, msg_length, xid):
     if msg_length != OFP_HEADER_LENGTH:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_BARRIER_REQUEST message has invalid length')
+      self._logger.error('OFPT_BARRIER_REQUEST message has invalid length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
+    self._log_handle_msg('OFPT_BARRIER_REQUEST')
     self.handle_barrier_request(xid)
 
   def _handle_barrier_reply(self, msg_length, xid):
     if msg_length != OFP_HEADER_LENGTH:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_BARRIER_REPLY message has invalid length')
+      self._logger.error('OFPT_BARRIER_REPLY message has invalid length %i',
+                         msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
+    self._log_handle_msg('OFPT_BARRIER_REPLY')
     self.handle_barrier_reply(xid)
 
   def _handle_queue_get_config_request(self, msg_length, xid):
     if msg_length != 12:
-      # TODO(romain): Log and close the connection.
-      raise ValueError(
-          'OFPT_QUEUE_GET_CONFIG_REQUEST message has invalid length')
+      self._logger.error(
+          'OFPT_QUEUE_GET_CONFIG_REQUEST message has invalid length %i',
+          msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
     port_no = self._buffer.unpack('!H2x')[0]
+    self._log_handle_msg('OFPT_QUEUE_GET_CONFIG_REQUEST',
+                         port_no=port_no)
     self.handle_queue_get_config_request(xid, port_no)
 
   def _handle_queue_get_config_reply(self, msg_length, xid):
     if msg_length < 16:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('OFPT_QUEUE_GET_CONFIG_REPLY message too short')
+      self._logger.error(
+          'OFPT_QUEUE_GET_CONFIG_REPLY message has invalid length %i',
+          msg_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
+                                    oferror.OFPBRC_BAD_LEN)
     port_no = self._buffer.unpack('!H6x')[0]
     if port_no >= OFPP_MAX:
       raise ValueError('invalid port number', port_no)
     queues = []
     while self._buffer.message_bytes_left > 0:
       queues.append(ofconfig.PacketQueue.deserialize(self._buffer))
-    self.handle_queue_get_config_reply(xid, port_no, tuple(queues))
+    queues = tuple(queues)
+    self._log_handle_msg('OFPT_QUEUE_GET_CONFIG_REPLY',
+                         port_no=port_no, queues=queues)
+    self.handle_queue_get_config_reply(xid, port_no, queues)
 
   def handle_hello(self):
     """Handle the reception of a OFPT_HELLO message.
 
-    This method does nothing and may be redefined in subclasses.
+    This method does nothing and should be redefined in subclasses.
     """
     pass
 
-  def handle_error(self, error_type, error_code, error_text, data):
+  def handle_error(self, xid, error):
     """Handle the reception of a OFPT_ERROR message.
 
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      error_type: The error type, as one of the OFPET_* constants.
-      error_code: The error code, as one of the OFP* error code constants.
-      error_text: A text representation of the error type and code.
-      data: The data attached in the error message, as a byte buffer.
+      xid: The transaction id associated with the erroneous message,
+          as a 32-bit unsigned integer.
+      error: The OpenflowError object that describes the error.
     """
     pass
 
@@ -986,10 +1080,10 @@ class OpenflowProtocol(protocol.Protocol):
   def handle_port_mod(self, port_no, hw_addr, config, mask, advertise):
     """Handle the reception of a OFPT_PORT_MOD message.
 
-    This method does nothing and should be redefined in subclasses.
-
     The config and mask arguments can be passed in a call to patch()
     on a PortConfig object to obtain an up-to-date PortConfig.
+
+    This method does nothing and should be redefined in subclasses.
 
     Args:
       port_no: The port's unique number, as a 16-bit unsigned
@@ -1295,8 +1389,10 @@ class OpenflowProtocol(protocol.Protocol):
     """
     action_type, action_length = buf.unpack('!HH')
     if action_length < 8:
-      # TODO(romain): Log and close the connection.
-      raise ValueError('invalid action length', action_length)
+      self._logger.error('action is too short with length %i',
+                         action_length, extra=self._log_extra)
+      self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
+                                    oferror.OFPBAC_BAD_LEN)
 
     # Delegate the OFPAT_VENDOR actions deserialization to the
     # vendor handler.
@@ -1304,23 +1400,26 @@ class OpenflowProtocol(protocol.Protocol):
       vendor_id = buf.unpack('!L')[0]
       vendor_handler = self._vendor_handlers.get(vendor_id)
       if vendor_handler is None:
-        # TODO(romain): Log and close the connection.
-        raise ValueError('OFPAT_VENDOR action with unknown vendor id',
-                         vendor_id)
+        self._logger.error('OFPAT_VENDOR action has unknown vendor id %i',
+                           vendor_id, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
+                                      oferror.OFPBAC_BAD_VENDOR)
       a = vendor_handler.deserialize_vendor_action(action_length, buf)
       # TODO(romain): Test that the vendor handler deserialized
       # exactly action_length bytes.
 
     else:  # Standard action type.
-      action_class = ofaction.ACTION_TYPES.get(action_type)
-      # TODO(romain): Implement support for VENDOR actions.
+      action_class = ofaction.ACTION_CLASSES.get(action_type)
       if action_class is None:
-        # TODO(romain): Log and close the connection.
-        raise ValueError('invalid action type', action_type)
+        self._logger.error('action has unknown type %i',
+                           action_type, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
+                                      oferror.OFPBAC_BAD_TYPE)
       if action_length != 4 + action_class.format_length:
-        # TODO(romain): Log and close the connection.
-        raise ValueError('invalid action length for type', action_type,
-                         action_length)
+        self._logger.error('action has invalid lenth %i for type %i',
+                           action_length, action_type, extra=self._log_extra)
+        self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
+                                      oferror.OFPBAC_BAD_LEN)
       a = action_class.deserialize(buf)
 
     return a
@@ -1345,21 +1444,21 @@ class OpenflowProtocol(protocol.Protocol):
   def send_hello(self):
     """Send a OFPT_HELLO message.
     """
+    self._log_send_msg('OFPT_HELLO')
+
     self._send_message(OFPT_HELLO)
 
-  def send_error(self, error_type, error_code, data):
+  def send_error(self, error, xid=0):
     """Send a OFPT_ERROR message.
 
     Args:
-      error_type: The error type, as one of the OFPET_* constants.
-      error_code: The error code, as one of the OFP* error code constants.
-      data: The data to send in the error message, as a sequence of
-          byte buffers.
+      error: The OpenflowError object that describes the error.
+      xid: The transaction id associated with the erroneous message,
+          as a 32-bit unsigned integer. Defaults to 0.
     """
-    error_header_data = struct.pack('!HH', error_type, error_code)
-    all_data = [error_header_data]
-    all_data.extend(data)
-    self._send_message(OFPT_ERROR, data=all_data)
+    self._log_send_msg('OFPT_ERROR', error=error)
+
+    self._send_message(OFPT_ERROR, xid=xid, data=error.serialize())
 
   def send_echo_request(self, xid, data):
     """Send a OFPT_ECHO_REQUEST message.
@@ -1369,6 +1468,8 @@ class OpenflowProtocol(protocol.Protocol):
           unsigned integer.
       data: A sequence of arbitrary byte buffers to send as payload.
     """
+    self._log_send_msg('OFPT_ECHO_REQUEST', data=data)
+
     self._send_message(OFPT_ECHO_REQUEST, xid=xid, data=data)
 
   def send_echo_reply(self, xid, data):
@@ -1380,6 +1481,8 @@ class OpenflowProtocol(protocol.Protocol):
       data: The payload received in the OFPT_ECHO_REQUEST message, as
           a sequence of byte buffers.
     """
+    self._log_send_msg('OFPT_ECHO_REPLY', data=data)
+
     self._send_message(OFPT_ECHO_REPLY, xid=xid, data=data)
 
   def send_vendor(self, vendor_id, xid=0, data=()):
@@ -1392,6 +1495,8 @@ class OpenflowProtocol(protocol.Protocol):
       data: The data in the message sent after the header, as a
           sequence of byte buffers. Defaults to an empty sequence.
     """
+    self._log_send_msg('OFPT_VENDOR', vendor_id=vendor_id)
+
     vendor_header_data = struct.pack('!L', vendor_id)
     all_data = [vendor_header_data]
     all_data.extend(data)
@@ -1407,6 +1512,8 @@ class OpenflowProtocol(protocol.Protocol):
       xid: The transaction id associated with the request, as a 32-bit
           unsigned integer.
     """
+    self._log_send_msg('OFPT_FEATURES_REQUEST')
+
     self._send_message(OFPT_FEATURES_REQUEST, xid=xid)
 
   def send_features_reply(self, xid, switch_features):
@@ -1417,6 +1524,8 @@ class OpenflowProtocol(protocol.Protocol):
           message this is a reply to, as a 32-bit unsigned integer.
       switch_features: A SwitchFeatures object containing the switch features.
     """
+    self._log_send_msg('OFPT_FEATURES_REPLY', switch_features=switch_features)
+
     self._send_message(OFPT_FEATURES_REPLY, xid=xid,
                        data=switch_features.serialize())
 
@@ -1427,6 +1536,8 @@ class OpenflowProtocol(protocol.Protocol):
       xid: The transaction id associated with the request, as a 32-bit
           unsigned integer.
     """
+    self._log_send_msg('OFPT_GET_CONFIG_REQUEST')
+
     self._send_message(OFPT_GET_CONFIG_REQUEST, xid=xid)
 
   def send_get_config_reply(self, xid, switch_config):
@@ -1437,6 +1548,8 @@ class OpenflowProtocol(protocol.Protocol):
           message this is a reply to, as a 32-bit unsigned integer.
       switch_config: A SwitchConfig object containing the switch configuration.
     """
+    self._log_send_msg('OFPT_GET_CONFIG_REPLY', switch_config=switch_config)
+
     self._send_message(OFPT_GET_CONFIG_REPLY, xid=xid,
                        data=switch_config.serialize())
 
@@ -1446,6 +1559,8 @@ class OpenflowProtocol(protocol.Protocol):
     Args:
       switch_config: A SwitchConfig object containing the switch configuration.
     """
+    self._log_send_msg('OFPT_SET_CONFIG', switch_config=switch_config)
+
     self._send_message(OFPT_SET_CONFIG, data=switch_config.serialize())
 
   def send_packet_in(self, buffer_id, total_len, in_port, reason, data):
@@ -1463,6 +1578,10 @@ class OpenflowProtocol(protocol.Protocol):
       data: The Ethernet frame, as a sequence of byte buffers. The
           total length must 2 bytes minimum.
     """
+    self._log_send_msg(
+        'OFPT_PACKET_IN', buffer_id=buffer_id, total_len=total_len,
+        in_port=in_port, reason=reason, data=data)
+
     if reason not in (OFPR_NO_MATCH, OFPR_ACTION):
       raise ValueError('invalid reason', reason)
     total_length = sum(len(s) for s in data)
@@ -1498,6 +1617,12 @@ class OpenflowProtocol(protocol.Protocol):
       byte_count: The number of bytes in packets in the flow, as a 64-bit
           unsigned integer.
     """
+    self._log_send_msg(
+        'OFPT_FLOW_REMOVED', match=match, cookie=cookie, priority=priority,
+        reason=reason, duration_sec=duration_sec, duration_nsec=duration_nsec,
+        idle_timeout=idle_timeout, packet_count=packet_count,
+        byte_count=byte_count)
+
     if reason not in (OFPRR_IDLE_TIMEOUT, OFPRR_HARD_TIMEOUT, OFPRR_DELETE):
       raise ValueError('invalid reason', reason)
     # This is almost the same as an ofp_flow_stats structure, but has
@@ -1519,6 +1644,8 @@ class OpenflowProtocol(protocol.Protocol):
           or OFPPR_MODIFY (some attribute of the port has changed).
       desc: A PhyPort object defining the physical port.
     """
+    self._log_send_msg('OFPT_PORT_STATUS', reason=reason, desc=desc)
+
     if reason not in (OFPPR_ADD, OFPPR_DELETE, OFPPR_MODIFY):
       raise ValueError('invalid reason', reason)
     all_data = (struct.pack('!B7x', reason), desc.serialize())
@@ -1539,6 +1666,10 @@ class OpenflowProtocol(protocol.Protocol):
           buffers. Should be of length 0 if buffer_id is -1, and
           should be of length >0 otherwise.
     """
+    self._log_send_msg(
+        'OFPT_PACKET_OUT', buffer_id=buffer_id, in_port=in_port,
+        actions=actions, data=data)
+
     data_len = sum(len(d) for d in data)
     if buffer_id == 0xffffffff:
       if data_len == 0:
@@ -1602,6 +1733,12 @@ class OpenflowProtocol(protocol.Protocol):
       actions: The sequence of Action* objects specifying the actions
           to perform on the flow's packets.
     """
+    self._log_send_msg(
+        'OFPT_FLOW_MOD', match=match, cookie=cookie, command=command,
+        idle_timeout=idle_timeout, hard_timeout=hard_timeout, priority=priority,
+        buffer_id=buffer_id, out_port=out_port, send_flow_rem=send_flow_rem,
+        check_overlap=check_overlap, emerg=emerg, actions=actions)
+
     if cookie == 0xffffffffffffffff:
       raise ValueError('reserved cookie', cookie)
 
@@ -1645,6 +1782,9 @@ class OpenflowProtocol(protocol.Protocol):
           advertised by the port. If None or all fields are False, the
           advertised features are not replaced.
     """
+    self._log_send_msg('OFPT_PORT_MOD', port_no=port_no, hw_addr=hw_addr,
+                       config=config, mask=mask, advertise=advertise)
+
     if port_no < 1 or port_no > OFPP_MAX:
       raise ValueError('invalid physical port number', port_no)
 
@@ -1690,6 +1830,8 @@ class OpenflowProtocol(protocol.Protocol):
       xid: The transaction id associated with the request, as a 32-bit
           unsigned integer.
     """
+    self._log_send_msg('OFPT_STATS_REQUEST / OFPST_DESC')
+
     self._send_stats_request(xid, OFPST_DESC)
 
   def send_stats_request_flow(self, xid, match, table_id, out_port):
@@ -1706,6 +1848,9 @@ class OpenflowProtocol(protocol.Protocol):
       out_port: Require matching flows to include this as an output
           port. A value of OFPP_NONE indicates no restriction.
     """
+    self._log_send_msg('OFPT_STATS_REQUEST / OFPST_FLOW', match=match,
+                         table_id=table_id, out_port=out_port)
+
     # Send a ofp_flow_stats_request structure.
     self._send_stats_request(xid, OFPST_FLOW, data=(
         match.serialize(),
@@ -1725,6 +1870,9 @@ class OpenflowProtocol(protocol.Protocol):
       out_port: Require matching flows to include this as an output
           port. A value of OFPP_NONE indicates no restriction.
     """
+    self._log_send_msg('OFPT_STATS_REQUEST / OFPST_AGGREGATE', match=match,
+                       table_id=table_id, out_port=out_port)
+
     # Send a ofp_aggregate_stats_request structure.
     self._send_stats_request(xid, OFPST_AGGREGATE, data=(
         match.serialize(),
@@ -1739,6 +1887,8 @@ class OpenflowProtocol(protocol.Protocol):
       xid: The transaction id associated with the request, as a 32-bit
           unsigned integer.
     """
+    self._log_send_msg('OFPT_STATS_REQUEST / OFPST_TABLE')
+
     self._send_stats_request(xid, OFPST_TABLE)
 
   def send_stats_request_port(self, xid, port_no):
@@ -1753,6 +1903,8 @@ class OpenflowProtocol(protocol.Protocol):
       port_no: The port's unique number, as a 16-bit unsigned
           integer. If OFPP_NONE, stats for all ports are replied.
     """
+    self._log_send_msg('OFPT_STATS_REQUEST / OFPST_PORT', port_no=port_no)
+
     # Send a ofp_port_stats_request structure.
     self._send_stats_request(xid, OFPST_PORT, data=(
         struct.pack('!H6x', port_no),))
@@ -1770,6 +1922,9 @@ class OpenflowProtocol(protocol.Protocol):
       queue_id: The queue's ID. If OFPQ_ALL, stats for all queues are
           replied.
     """
+    self._log_send_msg('OFPT_STATS_REQUEST / OFPST_QUEUE', port_no=port_no,
+                       queue_id=queue_id)
+
     # Send a ofp_queue_stats_request structure.
     self._send_stats_request(xid, OFPST_QUEUE, data=(
         struct.pack('!H2xL', port_no, queue_id),))
@@ -1786,6 +1941,9 @@ class OpenflowProtocol(protocol.Protocol):
       data: The data in the message sent after the header, as a
           sequence of byte buffers. Defaults to an empty sequence.
     """
+    self._log_send_msg('OFPT_STATS_REQUEST / OFPST_VENDOR',
+                       vendor_id=vendor_id)
+
     all_data = [struct.pack('!L', vendor_id)]
     all_data.extend(data)
     self._send_stats_request(xid, OFPST_VENDOR, data=all_data)
@@ -1825,6 +1983,8 @@ class OpenflowProtocol(protocol.Protocol):
       desc_stats: A DescriptionStats that contains the switch description
           stats.
     """
+    self._log_send_msg('OFPT_STATS_REPLY / OFPST_DESC', desc_stats=desc_stats)
+
     self._send_stats_reply(xid, OFPST_DESC, data=(desc_stats.serialize(),))
 
   def send_stats_reply_flow(self, xid, flow_stats, reply_more=False):
@@ -1841,6 +2001,9 @@ class OpenflowProtocol(protocol.Protocol):
           this one to completely reply the request. If False, this is
           the last reply to the request.
     """
+    self._log_send_msg('OFPT_STATS_REPLY / OFPST_FLOW',
+                       flow_stats=flow_stats, reply_more=reply_more)
+
     all_data = []
     for fs in flow_stats:
       all_data.extend(fs.serialize(self.serialize_action))
@@ -1863,6 +2026,10 @@ class OpenflowProtocol(protocol.Protocol):
       flow_count: The number of aggregated flows, as a 32-bit unsigned
           integer.
     """
+    self._log_send_msg('OFPT_STATS_REPLY / OFPST_AGGREGATE',
+                       packet_count=packet_count, byte_count=byte_count,
+                       flow_count=flow_count)
+
     self._send_stats_reply(xid, OFPST_AGGREGATE, data=(
         struct.pack('!QQL4x', packet_count, byte_count, flow_count),))
 
@@ -1880,6 +2047,9 @@ class OpenflowProtocol(protocol.Protocol):
           this one to completely reply the request. If False, this is
           the last reply to the request.
     """
+    self._log_send_msg('OFPT_STATS_REPLY / OFPST_TABLE',
+                       table_stats=table_stats, reply_more=reply_more)
+
     self._send_stats_reply(
         xid, OFPST_TABLE, reply_more=reply_more,
         data=[ts.serialize() for ts in table_stats])
@@ -1898,6 +2068,9 @@ class OpenflowProtocol(protocol.Protocol):
           this one to completely reply the request. If False, this is
           the last reply to the request.
     """
+    self._log_send_msg('OFPT_STATS_REPLY / OFPST_PORT',
+                       port_stats=port_stats, reply_more=reply_more)
+
     self._send_stats_reply(
         xid, OFPST_PORT, reply_more=reply_more,
         data=[ps.serialize() for ps in port_stats])
@@ -1916,6 +2089,9 @@ class OpenflowProtocol(protocol.Protocol):
           this one to completely reply the request. If False, this is
           the last reply to the request.
     """
+    self._log_send_msg('OFPT_STATS_REPLY / OFPST_QUEUE',
+                       queue_stats=queue_stats, reply_more=reply_more)
+
     self._send_stats_reply(
         xid, OFPST_QUEUE, reply_more=reply_more,
         data=[qs.serialize() for qs in queue_stats])
@@ -1939,6 +2115,8 @@ class OpenflowProtocol(protocol.Protocol):
       The transaction id associated with the sent request, as a 32-bit
       unsigned integer.
     """
+    self._log_send_msg('OFPT_STATS_REPLY / OFPST_VENDOR', vendor_id=vendor_id)
+
     all_data = [struct.pack('!L', vendor_id)]
     all_data.extend(data)
     return self._send_stats_reply(xid, OFPST_VENDOR, reply_more=reply_more,
@@ -1951,6 +2129,8 @@ class OpenflowProtocol(protocol.Protocol):
       xid: The transaction id associated with the request, as a 32-bit
           unsigned integer.
     """
+    self._log_send_msg('OFPT_BARRIER_REQUEST')
+
     self._send_message(OFPT_BARRIER_REQUEST, xid=xid)
 
   def send_barrier_reply(self, xid):
@@ -1960,6 +2140,8 @@ class OpenflowProtocol(protocol.Protocol):
       xid: The transaction id associated with the OFPT_BARRIER_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
     """
+    self._log_send_msg('OFPT_BARRIER_REPLY')
+
     self._send_message(OFPT_BARRIER_REPLY, xid=xid)
 
   def send_queue_get_config_request(self, xid, port_no):
@@ -1971,6 +2153,8 @@ class OpenflowProtocol(protocol.Protocol):
       port_no: The port's unique number, as a 16-bit unsigned
           integer. Must be a valid physical port, i.e. < OFPP_MAX.
     """
+    self._log_send_msg('OFPT_QUEUE_GET_CONFIG_REQUEST', port_no=port_no)
+
     if port_no >= OFPP_MAX:
       raise ValueError('invalid port number', port_no)
     self._send_message(OFPT_QUEUE_GET_CONFIG_REQUEST, xid=xid,
@@ -1988,6 +2172,9 @@ class OpenflowProtocol(protocol.Protocol):
       queues: A sequence of PacketQueue objects describing the port's
           queues.
     """
+    self._log_send_msg('OFPT_QUEUE_GET_CONFIG_REPLY',
+                       port_no=port_no, queues=queues)
+
     if port_no >= OFPP_MAX:
       raise ValueError('invalid port number', port_no)
     all_data = [struct.pack('!H6x', port_no)]
@@ -2044,7 +2231,8 @@ class OpenflowProtocolOperations(OpenflowProtocol):
       '_echo_op_period', '_pending_ops', '_pending_ops_lock')
 
   def __init__(self, reactor, vendor_handlers=(), error_data_bytes=64,
-               default_op_timeout=3.0, echo_op_period=5.0):
+               logger=logging.getLogger(''), default_op_timeout=3.0,
+               echo_op_period=5.0):
     """Initialize this OpenFlow protocol handler.
 
     Args:
@@ -2054,14 +2242,18 @@ class OpenflowProtocolOperations(OpenflowProtocol):
           to an empty sequence.
       error_data_bytes: The maximum number of bytes of erroneous
           requests to send back in error messages. Must be >= 64.
+          Defaults to 64.
+      logger: The Python logger object to use for logging. Defaults to
+          the root logger.
       default_op_timeout: The default period, in seconds, before an
           operation times out. This value is used as the timeout for
           echo operations. Defaults to 3.0 (seconds).
       echo_op_period: The period, in seconds, between two echo
           operations. Defaults to 5 (seconds).
     """
-    OpenflowProtocol.__init__(self, vendor_handlers=vendor_handlers,
-                              error_data_bytes=error_data_bytes)
+    OpenflowProtocol.__init__(
+        self, vendor_handlers=vendor_handlers,
+        error_data_bytes=error_data_bytes, logger=logger)
     self._reactor = reactor
     self._default_op_timeout = default_op_timeout
     self._echo_op_period = echo_op_period
@@ -2222,8 +2414,8 @@ class OpenflowProtocolOperations(OpenflowProtocol):
       sent_data: The data that was sent in the echo request, as a byte buffer.
     """
     if data != sent_data:
-      # TODO(romain): Log and close the connection, like in
-      # handle_echo_timeout().
+      self._logger.error('echo reply with invalid data', extra=self._log_extra)
+      self.transport.loseConnection()
       raise ValueError('OFPT_ECHO_REPLY message has invalid data')
     # Schedule the next request.
     self._reactor.callLater(self._echo_op_period, self._echo)
@@ -2233,5 +2425,5 @@ class OpenflowProtocolOperations(OpenflowProtocol):
 
     This method may be redefined in subclasses.
     """
-    # TODO(romain): Log and close the connection.
+    self._logger.error('echo request timed out', extra=self._log_extra)
     self.transport.loseConnection()

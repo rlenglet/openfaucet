@@ -67,7 +67,7 @@ class TestFlowStats(unittest2.TestCase):
 
   def _deserialize_action(self, buf):
     action_type, action_length = buf.unpack('!HH')
-    action_class = ofaction.ACTION_TYPES.get(action_type)
+    action_class = ofaction.ACTION_CLASSES.get(action_type)
     return action_class.deserialize(buf)
 
   def test_serialize(self):

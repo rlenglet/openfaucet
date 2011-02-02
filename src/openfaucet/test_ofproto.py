@@ -6,6 +6,7 @@ import unittest2
 from openfaucet import buffer
 from openfaucet import ofaction
 from openfaucet import ofconfig
+from openfaucet import oferror
 from openfaucet import ofmatch
 from openfaucet import ofproto
 from openfaucet import ofstats
@@ -67,9 +68,8 @@ class MockOpenflowProtocolSubclass(ofproto.OpenflowProtocol):
   def handle_hello(self):
     self.calls_made.append(('handle_hello',))
 
-  def handle_error(self, error_type, error_code, error_text, data):
-    self.calls_made.append(('handle_error', error_type, error_code, error_text,
-                            data))
+  def handle_error(self, xid, error):
+    self.calls_made.append(('handle_error', xid, error))
 
   def handle_echo_request(self, xid, data):
     self.calls_made.append(('handle_echo_request', xid, data))
@@ -267,20 +267,41 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
   def test_send_hello(self):
     self.proto.connectionMade()
+
     self.proto.send_hello()
-    # Sent OFPT_HELLO with xid 0.
     self.assertEqual('\x01\x00\x00\x08\x00\x00\x00\x00',
                      self._get_next_sent_message())
 
   def test_handle_hello(self):
     self.proto.connectionMade()
 
-    # OFPT_HELLO with xid 0.
     self.proto.dataReceived('\x01\x00\x00\x08\x00\x00\x00\x00')
     self.assertListEqual([('handle_hello',)],
                          self.proto.calls_made)
 
-  # TODO(romain): Test OFPT_ERROR messages.
+  def test_send_error(self):
+    self.proto.connectionMade()
+
+    error = oferror.OpenflowError(
+        oferror.OFPET_BAD_ACTION, oferror.OFPBAC_BAD_LEN,
+        ('blahblahblah',))
+    self.proto.send_error(error, xid=4)
+    self.assertEqual('\x01\x01\x00\x18\x00\x00\x00\x04'
+                     '\x00\x02' '\x00\x01'
+                     'blahblahblah',
+                     self._get_next_sent_message())
+
+  def test_handle_error(self):
+    self.proto.connectionMade()
+
+    error = oferror.OpenflowError(
+        oferror.OFPET_BAD_ACTION, oferror.OFPBAC_BAD_LEN,
+        ('blahblahblah',))
+    self.proto.dataReceived('\x01\x01\x00\x18\x00\x00\x00\x04'
+                            '\x00\x02' '\x00\x01'
+                            'blahblahblah')
+    self.assertListEqual([('handle_error', 4, error)],
+                         self.proto.calls_made)
 
   def test_send_echo_request(self):
     self.proto.connectionMade()
@@ -425,11 +446,11 @@ class TestOpenflowProtocol(unittest2.TestCase):
                      'abcdef',
                      self._get_next_sent_message())
 
-  def test_send_packet_in_invalid_action_53(self):
+  def test_send_packet_in_invalid_action_0x53(self):
     self.proto.connectionMade()
 
     with self.assertRaises(ValueError):
-      self.proto.send_packet_in(0x1324, 0x100, 0x42, 53,
+      self.proto.send_packet_in(0x1324, 0x100, 0x42, 0x53,
                                 ('abcd', 'ef'))
     self.assertIsNone(self._get_next_sent_message())
 
@@ -443,14 +464,15 @@ class TestOpenflowProtocol(unittest2.TestCase):
                            ofproto.OFPR_ACTION, 'abcdef')],
                          self.proto.calls_made)
 
-  def test_handle_packet_in_invalid_action(self):
+  def test_handle_packet_in_invalid_action_0x53(self):
     self.proto.connectionMade()
 
-    with self.assertRaises(Exception):
-      self.proto.dataReceived('\x01\x0a\x00\x18\x00\x00\x00\x00'
-                              '\x00\x00\x13\x24\x01\x00\x00\x42\x53\x00'
-                              'abcdef')
+    self.proto.dataReceived('\x01\x0a\x00\x18\x00\x00\x00\x00'
+                            '\x00\x00\x13\x24\x01\x00\x00\x42\x53\x00'
+                            'abcdef')
     self.assertListEqual([], self.proto.calls_made)
+    # No error message sent back, as this is not a standard error.
+    self.assertIsNone(self._get_next_sent_message())
 
   def test_send_flow_removed(self):
     self.proto.connectionMade()
@@ -494,15 +516,16 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_handle_flow_removed_invalid_action_3(self):
     self.proto.connectionMade()
 
-    with self.assertRaises(ValueError):
-      self.proto.dataReceived(
-          '\x01\x0b\x00\x58\x00\x00\x00\x00'
-          + self.match1.serialize()
-          + '\x00\x00\x00\x00\x12\x34\x56\x78'
-          '\x10\x00' '\x03\x00' '\x00\x30\x20\x10' '\x00\x03\x02\x01'
-          '\x42\x31\x00\x00' '\x00\x00\x00\x00\x00\x63\x52\x41'
-          '\x00\x00\x00\x00\x00\x55\x44\x33')
+    self.proto.dataReceived(
+        '\x01\x0b\x00\x58\x00\x00\x00\x00'
+        + self.match1.serialize()
+        + '\x00\x00\x00\x00\x12\x34\x56\x78'
+        '\x10\x00' '\x03\x00' '\x00\x30\x20\x10' '\x00\x03\x02\x01'
+        '\x42\x31\x00\x00' '\x00\x00\x00\x00\x00\x63\x52\x41'
+        '\x00\x00\x00\x00\x00\x55\x44\x33')
     self.assertListEqual([], self.proto.calls_made)
+    # No error message sent back, as this is not a standard error.
+    self.assertIsNone(self._get_next_sent_message())
 
   def test_send_port_status(self):
     self.proto.connectionMade()
@@ -533,11 +556,12 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_handle_port_status_invalid_action_3(self):
     self.proto.connectionMade()
 
-    with self.assertRaises(ValueError):
-      self.proto.dataReceived('\x01\x0c\x00\x40\x00\x00\x00\x00'
-                              '\x03\x00\x00\x00\x00\x00\x00\x00'
-                              + self.phyport1.serialize())
+    self.proto.dataReceived('\x01\x0c\x00\x40\x00\x00\x00\x00'
+                            '\x03\x00\x00\x00\x00\x00\x00\x00'
+                            + self.phyport1.serialize())
     self.assertListEqual([], self.proto.calls_made)
+    # No error message sent back, as this is not a standard error.
+    self.assertIsNone(self._get_next_sent_message())
 
   def test_send_packet_out_buffered_no_actions(self):
     self.proto.connectionMade()
@@ -757,26 +781,28 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_handle_flow_mod_invalid_cookie_minus1(self):
     self.proto.connectionMade()
 
-    with self.assertRaises(ValueError):
-      self.proto.dataReceived(
-          '\x01\x0e\x00\x48\x00\x00\x00\x00'
-          + self.match1.serialize()
-          + '\xff\xff\xff\xff\xff\xff\xff\xff'
-          '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
-          '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01')
+    self.proto.dataReceived(
+        '\x01\x0e\x00\x48\x00\x00\x00\x00'
+        + self.match1.serialize()
+        + '\xff\xff\xff\xff\xff\xff\xff\xff'
+        '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
+        '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01')
     self.assertListEqual([], self.proto.calls_made)
+    # No error message sent back, as this is not a standard error.
+    self.assertIsNone(self._get_next_sent_message())
 
   def test_handle_flow_mod_invalid_command_5(self):
     self.proto.connectionMade()
 
-    with self.assertRaises(ValueError):
-      self.proto.dataReceived(
-          '\x01\x0e\x00\x48\x00\x00\x00\x00'
-          + self.match1.serialize()
-          + '\x00\x00\x00\x00\x12\x34\x56\x78'
-          '\x00\x05' '\x42\x31\x00\x00' '\x10\x00'
-          '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01')
+    self.proto.dataReceived(
+        '\x01\x0e\x00\x48\x00\x00\x00\x00'
+        + self.match1.serialize()
+        + '\x00\x00\x00\x00\x12\x34\x56\x78'
+        '\x00\x05' '\x42\x31\x00\x00' '\x10\x00'
+        '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01')
     self.assertListEqual([], self.proto.calls_made)
+    # No error message sent back, as this is not a standard error.
+    self.assertIsNone(self._get_next_sent_message())
 
   def test_send_port_mod(self):
     self.proto.connectionMade()
@@ -834,12 +860,13 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_handle_port_mod_invalid_port_no_0xff01(self):
     self.proto.connectionMade()
 
-    with self.assertRaises(ValueError):
-      self.proto.dataReceived('\x01\x0f\x00\x20\x00\x00\x00\x00'
-                              '\xff\x01\x12\x34\x56\x78\xab\xcd'
-                              '\x00\x00\x00\x10' '\x00\x00\x00\x14'
-                              '\x00\x00\x05\x20' '\x00\x00\x00\x00')
+    self.proto.dataReceived('\x01\x0f\x00\x20\x00\x00\x00\x00'
+                            '\xff\x01\x12\x34\x56\x78\xab\xcd'
+                            '\x00\x00\x00\x10' '\x00\x00\x00\x14'
+                            '\x00\x00\x05\x20' '\x00\x00\x00\x00')
     self.assertListEqual([], self.proto.calls_made)
+    # No error message sent back, as this is not a standard error.
+    self.assertIsNone(self._get_next_sent_message())
 
   def test_handle_port_mod_advertise_none(self):
     self.proto.connectionMade()
@@ -1342,10 +1369,11 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def test_handle_queue_get_config_reply_invalid_port_no_0xff01(self):
     self.proto.connectionMade()
 
-    with self.assertRaises(ValueError):
-      self.proto.dataReceived('\x01\x15\x00\x10\x00\x00\x00\x04'
-                              '\xff\x01\x00\x00\x00\x00\x00\x00')
+    self.proto.dataReceived('\x01\x15\x00\x10\x00\x00\x00\x04'
+                            '\xff\x01\x00\x00\x00\x00\x00\x00')
     self.assertListEqual([], self.proto.calls_made)
+    # No error message sent back, as this is not a standard error.
+    self.assertIsNone(self._get_next_sent_message())
 
   # TODO(romain): Test handling of bogus messages, with wrong message lengths.
 
@@ -1507,9 +1535,10 @@ class TestOpenflowProtocolOperations(unittest2.TestCase):
             args=(0,),
             kw={}),
          ], self.reactor.delayed_calls)
-    with self.assertRaises(ValueError):
-      self.proto.dataReceived('\x01\x03\x00\x13\x00\x00\x00\x00'
-                              'garbage' + data)
+    self.proto.dataReceived('\x01\x03\x00\x13\x00\x00\x00\x00'
+                            'garbage' + data)
+    # No error message sent back, as this is not a standard error.
+    self.assertIsNone(self._get_next_sent_message())
 
   def test_handle_echo_request(self):
     self.proto.connectionMade()
@@ -1524,4 +1553,12 @@ class TestOpenflowProtocolOperations(unittest2.TestCase):
 
 
 if __name__ == '__main__':
+  # Disable logging during unittests.
+  import logging
+  logging.getLogger('').setLevel(logging.CRITICAL)
+  #logging.getLogger('').setLevel(logging.DEBUG)
+  #logging.basicConfig(level=logging.DEBUG,
+  #                    format='%(asctime)s %(levelname)s %(message)s',
+  #                    filename='unittest.log',
+  #                    filemode='w')
   unittest2.main()

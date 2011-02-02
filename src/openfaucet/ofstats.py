@@ -117,7 +117,7 @@ class FlowStats(collections.namedtuple('FlowStats', (
     Returns:
       A sequence of binary strings that is a serialized form of this
       object into an OpenFlow ofp_flow_stats. The ofp_stats_reply
-      structure is not included in the generated string.
+      structure is not included in the generated strings.
     """
     all_data = [
         self.match.serialize(),

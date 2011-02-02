@@ -192,7 +192,7 @@ ActionEnqueue = __action('ActionEnqueue', OFPAT_ENQUEUE,
 
 
 # Mapping of all OFPAT_* action types (except OFPAT_VENDOR) to Action* types.
-ACTION_TYPES = dict((action_type.type, action_type) for action_type in (
+ACTION_CLASSES = dict((action_type.type, action_type) for action_type in (
     ActionOutput, ActionSetVlanVid, ActionSetVlanPcp, ActionStripVlan,
     ActionSetDlSrc, ActionSetDlDst, ActionSetNwSrc, ActionSetNwDst,
     ActionSetNwTos, ActionSetTpSrc, ActionSetTpDst, ActionEnqueue))
