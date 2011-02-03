@@ -156,7 +156,7 @@ class OpenflowProtocol(protocol.Protocol):
   def connectionMade(self):
     """Initialize the resources to manage the newly opened OpenFlow connection.
     """
-    self._logger.debug('connection made')
+    self._logger.debug('connection made', extra=self._log_extra)
     self._buffer = buffer.ReceiveBuffer()
     # TODO(romain): Notify that the connection has been made?
 
@@ -170,7 +170,7 @@ class OpenflowProtocol(protocol.Protocol):
     """
     self._log_extra = log_extra
 
-  def connectionLost(reason):
+  def connectionLost(self, reason):
     """Release any resources used to manage the connection that was just lost.
 
     Args:
@@ -179,7 +179,8 @@ class OpenflowProtocol(protocol.Protocol):
           twisted.internet.error.ConnectionLost instance (or a
           subclass of one of those).
     """
-    self._logger.debug('connection lost')
+    self._logger.debug('connection lost with reason %r', reason,
+                       extra=self._log_extra)
     self._buffer = None
 
   def dataReceived(self, data):

@@ -3,6 +3,9 @@
 import struct
 import unittest2
 
+import twisted.internet.error
+import twisted.python.failure
+
 from openfaucet import buffer
 from openfaucet import ofaction
 from openfaucet import ofconfig
@@ -264,6 +267,12 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
   def test_connection_made(self):
     self.proto.connectionMade()
+
+  def test_connection_lost(self):
+    self.proto.connectionMade()
+
+    self.proto.connectionLost(twisted.python.failure.Failure(
+        twisted.internet.error.ConnectionLost()))
 
   def test_send_hello(self):
     self.proto.connectionMade()
