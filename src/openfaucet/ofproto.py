@@ -9,11 +9,12 @@
 
 import collections
 import logging
-import random
 import struct
-import threading
+import weakref
 from twisted.internet import error
+from twisted.internet import interfaces
 from twisted.internet import protocol
+from zope.interface import implements
 
 from openfaucet import buffer
 from openfaucet import ofaction
@@ -122,53 +123,89 @@ OFPST_VENDOR = 0xffff
 OFPSF_REPLY_MORE = 1 << 0  # More replies to follow.
 
 
-class OpenflowProtocol(protocol.Protocol):
+class OpenflowProtocol(object):
   """An implementation of the OpenFlow 1.0 protocol.
 
   This protocol implementation is stateless and only implements
   message encoding / decoding.
+
+  This protocol is configured by setting attributes:
+    error_data_bytes: The maximum number of bytes of erroneous
+        requests to send back in an error message. Must be >= 64.
+        Defaults to 64.
+    logger: The Python logger used for logging in this protocol.
+        Defaults to the root logger.
+    log_extra: A dictionary of additional data to add to every
+        log. The keys in this dictionary should not clash with the
+        keys used by the logging system. Defaults to an empty
+        dictionary.
+    vendor_handlers: A sequence of vendor handler objects. Defaults to
+        an empty sequence.
   """
 
-  __slots__ = ('_buffer', '_vendor_handlers', '_error_data_bytes',
-               '_logger', '_log_extra')
+  implements(interfaces.IProtocol)
+  # Note: OpenflowProtocol should normally extend class
+  # protocol.Protocol, but that is an old-style Python class, i.e. it
+  # doesn't support properties, slots, etc. So we extend object
+  # instead, and implement interface IProtocol completely ourselves.
 
-  def __init__(self, vendor_handlers=(), error_data_bytes=64,
-               logger=logging.getLogger('')):
+  def __init__(self):
     """Initialize this OpenFlow protocol handler.
+    """
+    self.error_data_bytes = 64
+    self.logger = logging.getLogger('')
+    self.log_extra = {}
+    self._vendor_handlers = {}
+
+  def get_vendor_handlers(self):
+    """Get the sequence of vendor handlers for this connection.
+
+    Returns:
+      The sequence of vendor handler objects.
+    """
+    return self._vendor_handlers.values()
+
+  def set_vendor_handlers(self, vendor_handlers):
+    """Set the vendor handlers for this connection.
 
     Args:
-      vendor_handlers: A sequence of vendor handler objects. Defaults
-          to an empty sequence.
-      error_data_bytes: The maximum number of bytes of erroneous
-          requests to send back in error messages. Must be >= 64.
-          Defaults to 64.
-      logger: The Python logger object to use for logging. Defaults to
-          the root logger.
+      vendor_handlers: A sequence of vendor handler objects.
     """
     # Index the vendor handlers by vendor ID.
     # TODO(romain): Specify clearly that a vendor handler must have a
     # vendor_id attribute or property.
     self._vendor_handlers = dict((v.vendor_id, v) for v in vendor_handlers)
-    self._error_data_bytes = error_data_bytes
-    self._logger = logger
-    self._log_extra = {}
+
+  vendor_handlers = property(get_vendor_handlers, set_vendor_handlers)
+
+  def get_vendor_handler(self, vendor_id):
+    """Get a vendor handler with a given vendor id.
+
+    Args:
+      vendor_id: The vendor id of the handler to return.
+
+    Return:
+      The vendor handler object for the given vendor id, or None if not found.
+    """
+    return self._vendor_handlers.get(vendor_id)
+
+  def makeConnection(self, transport):
+    """Make a connection to a transport and a server.
+
+    Set the transport attribute of this Protocol, and call the
+    connectionMade() callback.
+    """
+    self.connected = True
+    self.transport = transport
+    self.connectionMade()
 
   def connectionMade(self):
     """Initialize the resources to manage the newly opened OpenFlow connection.
     """
-    self._logger.debug('connection made', extra=self._log_extra)
+    self.logger.debug('connection made', extra=self.log_extra)
     self._buffer = buffer.ReceiveBuffer()
-    # TODO(romain): Notify that the connection has been made?
-
-  def set_log_extra(self, log_extra):
-    """Set the additional information to add to every log.
-
-    Args:
-      log_extra: A dictionary of additional data to add to every
-          log. The keys in this dictionary should not clash with the
-          keys used by the logging system.
-    """
-    self._log_extra = log_extra
+    for v in self._vendor_handlers.itervalues():
+      v.connection_made()
 
   def connectionLost(self, reason):
     """Release any resources used to manage the connection that was just lost.
@@ -179,8 +216,11 @@ class OpenflowProtocol(protocol.Protocol):
           twisted.internet.error.ConnectionLost instance (or a
           subclass of one of those).
     """
-    self._logger.debug('connection lost with reason %r', reason,
-                       extra=self._log_extra)
+    self.logger.debug('connection lost with reason %r', reason,
+                      extra=self.log_extra)
+    for v in self._vendor_handlers.itervalues():
+      v.connection_lost(reason)
+    self.connected = False
     self._buffer = None
 
   def dataReceived(self, data):
@@ -212,25 +252,25 @@ class OpenflowProtocol(protocol.Protocol):
         self._handle_message()
       except oferror.OpenflowError, e:
         # TODO(romain): Print the stacktrace.
-        self._logger.error('openflow error %r', e, extra=self._log_extra)
+        self.logger.error('openflow error %r', e, extra=self.log_extra)
         # Always set the xid to the message that failed, as this is
         # required for at least some error types.
         self.send_error(e, xid=xid)
       except Exception, e:
         # TODO(romain): Print the stacktrace.
-        self._logger.error('message decoding error %r', e,
-                           extra=self._log_extra)
+        self.logger.error('message decoding error %r', e,
+                          extra=self.log_extra)
 
       if self._buffer.message_bytes_left > 0:
-        self._logger.error('message not completely decoded, %i bytes left',
-                           self._buffer.message_bytes_left,
-                           extra=self._log_extra)
+        self.logger.error('message not completely decoded, %i bytes left',
+                          self._buffer.message_bytes_left,
+                          extra=self.log_extra)
         self._buffer.skip_bytes(self._buffer.message_bytes_left)
 
   def raise_error_with_request(self, error_type, error_code):
     raise oferror.OpenflowError(
         oferror.OFPET_BAD_REQUEST, oferror.OFPBRC_BAD_LEN,
-        (self._buffer.get_first_message_bytes(self._error_data_bytes),))
+        (self._buffer.get_first_message_bytes(self.error_data_bytes),))
 
   def _log_handle_msg(self, msg_type_str, **kwargs):
     """Log a message handling debug message.
@@ -239,10 +279,10 @@ class OpenflowProtocol(protocol.Protocol):
       msg_type_str: The string describing the message type.
       kwargs: The dict of args passed to the handle_* method.
     """
-    if self._logger.isEnabledFor(logging.DEBUG):
+    if self.logger.isEnabledFor(logging.DEBUG):
       msg = ['handle message of type %s' % msg_type_str]
       msg.extend(['%s=%r' % (k, v) for k, v in kwargs.iteritems()])
-      self._logger.debug(', '.join(msg), extra=self._log_extra)
+      self.logger.debug(', '.join(msg), extra=self.log_extra)
 
   def _log_send_msg(self, msg_type_str, **kwargs):
     """Log a message sending debug message.
@@ -251,29 +291,29 @@ class OpenflowProtocol(protocol.Protocol):
       msg_type_str: The string describing the message type.
       kwargs: The dict of args passed to the send_* method.
     """
-    if self._logger.isEnabledFor(logging.DEBUG):
+    if self.logger.isEnabledFor(logging.DEBUG):
       msg = ['send message of type %s' % msg_type_str]
       msg.extend(['%s=%r' % (k, v) for k, v in kwargs.iteritems()])
-      self._logger.debug(', '.join(msg), extra=self._log_extra)
+      self.logger.debug(', '.join(msg), extra=self.log_extra)
 
   def _handle_message(self):
     """Handle a received OpenFlow message.
     """
     version, msg_type, msg_length, xid = self._buffer.unpack(OFP_HEADER_FORMAT)
-    self._logger.debug(
+    self.logger.debug(
         'received message with version %i, type %i, lenth %i, xid %i',
-        version, msg_type, msg_length, xid, extra=self._log_extra)
+        version, msg_type, msg_length, xid, extra=self.log_extra)
 
     if version != OFP_VERSION_1_0_0:
       if msg_type == OFPT_HELLO:
-        self._logger.error('OFPT_HELLO message has wrong version %i',
-                           version, extra=self._log_extra)
+        self.logger.error('OFPT_HELLO message has wrong version %i',
+                          version, extra=self.log_extra)
         raise oferror.OpenflowError(
             oferror.OFPET_HELLO_FAILED, oferror.OFPHFC_INCOMPATIBLE,
             ('invalid version %i in OFPT_HELLO message' % version,))
       else:
-        self._logger.error('message has wrong version %i', version,
-                           extra=self._log_extra)
+        self.logger.error('message has wrong version %i', version,
+                          extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_VERSION)
 
@@ -322,8 +362,8 @@ class OpenflowProtocol(protocol.Protocol):
     elif msg_type == OFPT_QUEUE_GET_CONFIG_REPLY:
         self._handle_queue_get_config_reply(msg_length, xid)
     else:
-      self._logger.error('message has unknown type %i', msg_type,
-                         extra=self._log_extra)
+      self.logger.error('message has unknown type %i', msg_type,
+                        extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_TYPE)
 
@@ -334,15 +374,15 @@ class OpenflowProtocol(protocol.Protocol):
     # extensions.
     if msg_length > OFP_HEADER_LENGTH:
       self._buffer.skip_bytes(msg_length - OFP_HEADER_LENGTH)
-      self._logger.debug('received OFPT_HELLO message with %i bytes of data',
-                         msg_length - OFP_HEADER_LENGTH, extra=self._log_extra)
+      self.logger.debug('received OFPT_HELLO message with %i bytes of data',
+                        msg_length - OFP_HEADER_LENGTH, extra=self.log_extra)
     self._log_handle_msg('OFPT_HELLO')
     self.handle_hello()
 
   def _handle_error(self, msg_length, xid):
     if msg_length < 12:
-      self._logger.error('OFPT_ERROR message too short with length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_ERROR message too short with length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
 
@@ -369,16 +409,16 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_vendor(self, msg_length, xid):
     if msg_length < 12:
-      self._logger.error('OFPT_VENDOR message has invalid length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_VENDOR message has invalid length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
 
     vendor_id = self._buffer.unpack('!L')[0]
     vendor_handler = self._vendor_handlers.get(vendor_id)
     if vendor_handler is None:
-      self._logger.error('OFPT_VENDOR message has unknown vendor id %i',
-                         vendor_id, extra=self._log_extra)
+      self.logger.error('OFPT_VENDOR message has unknown vendor id %i',
+                        vendor_id, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_VENDOR)
 
@@ -390,8 +430,8 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_features_request(self, msg_length, xid):
     if msg_length != OFP_HEADER_LENGTH:
-      self._logger.error('OFPT_FEATURES_REQUEST message has invalid length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_FEATURES_REQUEST message has invalid length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     self._log_handle_msg('OFPT_FEATURES_REQUEST')
@@ -399,14 +439,14 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_features_reply(self, msg_length, xid):
     if msg_length < 8 + ofconfig.SwitchFeatures.FORMAT_LENGTH:
-      self._logger.error('OFPT_FEATURES_REPLY message too short with length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_FEATURES_REPLY message too short with length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     if ((msg_length - 8 - ofconfig.SwitchFeatures.FORMAT_LENGTH)
         % ofconfig.PhyPort.FORMAT_LENGTH) != 0:
-      self._logger.error('OFPT_FEATURES_REPLY message not aligned properly',
-                         extra=self._log_extra)
+      self.logger.error('OFPT_FEATURES_REPLY message not aligned properly',
+                        extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     switch_features = ofconfig.SwitchFeatures.deserialize(self._buffer)
@@ -416,9 +456,9 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_get_config_request(self, msg_length, xid):
     if msg_length > OFP_HEADER_LENGTH:
-      self._logger.error(
+      self.logger.error(
           'OFPT_GET_CONFIG_REQUEST message has invalid length %i',
-          msg_length, extra=self._log_extra)
+          msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     self._log_handle_msg('OFPT_GET_CONFIG_REQUEST')
@@ -426,8 +466,8 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_get_config_reply(self, msg_length, xid):
     if msg_length != OFP_HEADER_LENGTH + ofconfig.SwitchConfig.FORMAT_LENGTH:
-      self._logger.error('OFPT_GET_CONFIG_REPLY message has invalid length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_GET_CONFIG_REPLY message has invalid length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     switch_config = ofconfig.SwitchConfig.deserialize(self._buffer)
@@ -437,8 +477,8 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_set_config(self, msg_length, xid):
     if msg_length != OFP_HEADER_LENGTH + ofconfig.SwitchConfig.FORMAT_LENGTH:
-      self._logger.error('OFPT_SET_CONFIG message has invalid length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_SET_CONFIG message has invalid length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     switch_config = ofconfig.SwitchConfig.deserialize(self._buffer)
@@ -447,8 +487,8 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_packet_in(self, msg_length, xid):
     if msg_length < 20:
-      self._logger.error('OFPT_PACKET_IN message too short with length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_PACKET_IN message too short with length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     buffer_id, total_len, in_port, reason = self._buffer.unpack('!LHHBx')
@@ -462,8 +502,8 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_flow_removed(self, msg_length, xid):
     if msg_length != 88:
-      self._logger.error('OFPT_FLOW_REMOVED message has invalid length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_FLOW_REMOVED message has invalid length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     # This is almost the same as an ofp_flow_stats structure, but has
@@ -486,8 +526,8 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_port_status(self, msg_length, xid):
     if msg_length != 64:
-      self._logger.error('OFPT_PORT_STATUS message has invalid length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_PORT_STATUS message has invalid length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     (reason,) = self._buffer.unpack('!B7x')
@@ -499,16 +539,16 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_packet_out(self, msg_length, xid):
     if msg_length < 16:
-      self._logger.error('OFPT_PACKET_OUT message too short with length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_PACKET_OUT message too short with length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     buffer_id, in_port, actions_len = self._buffer.unpack('!LHH')
 
     if msg_length < (16 + actions_len * 8):
-      self._logger.error('OFPT_PACKET_OUT message has too small actions '
-                         'length %i for message length %i',
-                         actions_len, msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_PACKET_OUT message has too small actions '
+                        'length %i for message length %i',
+                        actions_len, msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
                                     oferror.OFPBAC_BAD_LEN)
 
@@ -522,8 +562,8 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_flow_mod(self, msg_length, xid):
     if msg_length < 72:
-      self._logger.error('OFPT_FLOW_MOD message too short with length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_FLOW_MOD message too short with length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
 
@@ -562,8 +602,8 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_port_mod(self, msg_length, xid):
     if msg_length != 32:
-      self._logger.error('OFPT_PORT_MOD message has invalid length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_PORT_MOD message has invalid length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
 
@@ -586,39 +626,39 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_stats_request(self, msg_length, xid):
     if msg_length < 12:
-      self._logger.error('OFPT_STATS_REQUEST message too short with length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_STATS_REQUEST message too short with length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
 
     type, flags = self._buffer.unpack('!HH')
     if type not in (OFPST_DESC, OFPST_FLOW, OFPST_AGGREGATE, OFPST_TABLE,
                     OFPST_PORT, OFPST_QUEUE, OFPST_VENDOR):
-      self._logger.error('OFPT_STATS_REQUEST message has invalid stats type %i',
-                         type, extra=self._log_extra)
+      self.logger.error('OFPT_STATS_REQUEST message has invalid stats type %i',
+                        type, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_STAT)
     if flags != 0:  # No flags are currently defined.
       # Be liberal. Ignore those bits instead of raising an exception.
-      self._logger.debug(
+      self.logger.debug(
           'OFPT_STATS_REQUEST message has undefined flag bits set %i',
-          flags, extra=self._log_extra)
+          flags, extra=self.log_extra)
 
     # Decode the request body depending on the stats type.
     if type == OFPST_DESC:
       if msg_length != 12:
-        self._logger.error('OFPT_STATS_REQUEST message has invalid length %i'
-                           ' for OFPST_DESC stats',
-                           msg_length, extra=self._log_extra)
+        self.logger.error('OFPT_STATS_REQUEST message has invalid length %i'
+                          ' for OFPST_DESC stats',
+                          msg_length, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       self._log_handle_msg('OFPT_STATS_REQUEST / OFPST_DESC')
       self.handle_stats_request_desc(xid)
     elif type == OFPST_FLOW:
       if msg_length != (12 + 44):
-        self._logger.error('OFPT_STATS_REQUEST message has invalid length %i'
-                           ' for OFPST_FLOW stats',
-                           msg_length, extra=self._log_extra)
+        self.logger.error('OFPT_STATS_REQUEST message has invalid length %i'
+                          ' for OFPST_FLOW stats',
+                          msg_length, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       match = ofmatch.Match.deserialize(self._buffer)
@@ -628,9 +668,9 @@ class OpenflowProtocol(protocol.Protocol):
       self.handle_stats_request_flow(xid, match, table_id, out_port)
     elif type == OFPST_AGGREGATE:
       if msg_length != (12 + 44):
-        self._logger.error('OFPT_STATS_REQUEST message has invalid length %i'
-                           ' for OFPST_AGGREGATE stats',
-                           msg_length, extra=self._log_extra)
+        self.logger.error('OFPT_STATS_REQUEST message has invalid length %i'
+                          ' for OFPST_AGGREGATE stats',
+                          msg_length, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       match = ofmatch.Match.deserialize(self._buffer)
@@ -640,18 +680,18 @@ class OpenflowProtocol(protocol.Protocol):
       self.handle_stats_request_aggregate(xid, match, table_id, out_port)
     elif type == OFPST_TABLE:
       if msg_length != 12:
-        self._logger.error('OFPT_STATS_REQUEST message has invalid length %i'
-                           ' for OFPST_TABLE stats',
-                           msg_length, extra=self._log_extra)
+        self.logger.error('OFPT_STATS_REQUEST message has invalid length %i'
+                          ' for OFPST_TABLE stats',
+                          msg_length, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       self._log_handle_msg('OFPT_STATS_REQUEST / OFPST_TABLE')
       self.handle_stats_request_table(xid)
     elif type == OFPST_PORT:
       if msg_length != (12 + 8):
-        self._logger.error('OFPT_STATS_REQUEST message has invalid length %i'
-                           ' for OFPST_PORT stats',
-                           msg_length, extra=self._log_extra)
+        self.logger.error('OFPT_STATS_REQUEST message has invalid length %i'
+                          ' for OFPST_PORT stats',
+                          msg_length, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       port_no = self._buffer.unpack('!H6x')[0]
@@ -659,9 +699,9 @@ class OpenflowProtocol(protocol.Protocol):
       self.handle_stats_request_port(xid, port_no)
     elif type == OFPST_QUEUE:
       if msg_length != (12 + 8):
-        self._logger.error('OFPT_STATS_REQUEST message has invalid length %i'
-                           ' for OFPST_QUEUE stats',
-                           msg_length, extra=self._log_extra)
+        self.logger.error('OFPT_STATS_REQUEST message has invalid length %i'
+                          ' for OFPST_QUEUE stats',
+                          msg_length, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       port_no, queue_id = self._buffer.unpack('!H2xL')
@@ -670,17 +710,17 @@ class OpenflowProtocol(protocol.Protocol):
       self.handle_stats_request_queue(xid, port_no, queue_id)
     elif type == OFPST_VENDOR:
       if msg_length < (12 + 4):
-        self._logger.error('OFPT_STATS_REQUEST message too short with length '
-                           '%i for OFPST_VENDOR stats',
-                           msg_length, extra=self._log_extra)
+        self.logger.error('OFPT_STATS_REQUEST message too short with length '
+                          '%i for OFPST_VENDOR stats',
+                          msg_length, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       vendor_id = self._buffer.unpack('!L')[0]
       vendor_handler = self._vendor_handlers.get(vendor_id)
       if vendor_handler is None:
-        self._logger.error(
+        self.logger.error(
             'OFPT_STATS_REQUEST message has unknown vendor id %i',
-            vendor_id, extra=self._log_extra)
+            vendor_id, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_VENDOR)
       self._log_handle_msg('OFPT_STATS_REQUEST / OFPST_VENDOR',
@@ -690,8 +730,8 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_stats_reply(self, msg_length, xid):
     if msg_length < 12:
-      self._logger.error('OFPT_STATS_REPLY message too short with length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_STATS_REPLY message too short with length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
 
@@ -701,9 +741,9 @@ class OpenflowProtocol(protocol.Protocol):
       raise ValueError('invalid stats type', type)
     if flags & ~OFPSF_REPLY_MORE:
       # Be liberal. Ignore those bits instead of raising an exception.
-      self._logger.debug(
+      self.logger.debug(
           'OFPT_STATS_REPLY message has undefined flag bits set %i',
-          flags, extra=self._log_extra)
+          flags, extra=self.log_extra)
     reply_more = bool(flags & OFPSF_REPLY_MORE)
 
     # Decode the request body depending on the stats type.
@@ -711,9 +751,9 @@ class OpenflowProtocol(protocol.Protocol):
       if reply_more:
         raise ValueError('OFPSF_REPLY_MORE bit set for OFPST_DESC stats')
       if msg_length != (12 + 1056):
-        self._logger.error('OFPT_STATS_REPLY message has invalid length %i'
-                           ' for OFPST_DESC stats',
-                           msg_length, extra=self._log_extra)
+        self.logger.error('OFPT_STATS_REPLY message has invalid length %i'
+                          ' for OFPST_DESC stats',
+                          msg_length, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       desc_stats = ofstats.DescriptionStats.deserialize(self._buffer)
@@ -733,9 +773,9 @@ class OpenflowProtocol(protocol.Protocol):
       if reply_more:
         raise ValueError('OFPSF_REPLY_MORE bit set for OFPST_AGGREGATE stats')
       if msg_length != (12 + 24):
-        self._logger.error('OFPT_STATS_REPLY message has invalid length %i'
-                           ' for OFPST_AGGREGATE stats',
-                           msg_length, extra=self._log_extra)
+        self.logger.error('OFPT_STATS_REPLY message has invalid length %i'
+                          ' for OFPST_AGGREGATE stats',
+                          msg_length, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       packet_count, byte_count, flow_count = self._buffer.unpack('!QQL4x')
@@ -746,9 +786,9 @@ class OpenflowProtocol(protocol.Protocol):
                                         flow_count)
     elif type == OFPST_TABLE:
       if (msg_length - 12) % 64 != 0:
-        self._logger.error('OFPT_STATS_REPLY message has invalid length %i'
-                           ' for OFPST_TABLE stats',
-                           msg_length, extra=self._log_extra)
+        self.logger.error('OFPT_STATS_REPLY message has invalid length %i'
+                          ' for OFPST_TABLE stats',
+                          msg_length, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       table_stats = []
@@ -760,9 +800,9 @@ class OpenflowProtocol(protocol.Protocol):
       self.handle_stats_reply_table(xid, table_stats, reply_more)
     elif type == OFPST_PORT:
       if (msg_length - 12) % 104 != 0:
-        self._logger.error('OFPT_STATS_REPLY message has invalid length %i'
-                           ' for OFPST_PORT stats',
-                           msg_length, extra=self._log_extra)
+        self.logger.error('OFPT_STATS_REPLY message has invalid length %i'
+                          ' for OFPST_PORT stats',
+                          msg_length, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       port_stats = []
@@ -774,9 +814,9 @@ class OpenflowProtocol(protocol.Protocol):
       self.handle_stats_reply_port(xid, port_stats, reply_more)
     elif type == OFPST_QUEUE:
       if (msg_length - 12) % 32 != 0:
-        self._logger.error('OFPT_STATS_REPLY message has invalid length %i'
-                           ' for OFPST_QUEUE stats',
-                           msg_length, extra=self._log_extra)
+        self.logger.error('OFPT_STATS_REPLY message has invalid length %i'
+                          ' for OFPST_QUEUE stats',
+                          msg_length, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       queue_stats = []
@@ -788,17 +828,17 @@ class OpenflowProtocol(protocol.Protocol):
       self.handle_stats_reply_queue(xid, queue_stats, reply_more)
     elif type == OFPST_VENDOR:
       if msg_length < (12 + 4):
-        self._logger.error('OFPT_STATS_REPLY message too short with length '
-                           '%i for OFPST_VENDOR stats',
-                           msg_length, extra=self._log_extra)
+        self.logger.error('OFPT_STATS_REPLY message too short with length '
+                          '%i for OFPST_VENDOR stats',
+                          msg_length, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       vendor_id = self._buffer.unpack('!L')[0]
       vendor_handler = self._vendor_handlers.get(vendor_id)
       if vendor_handler is None:
-        self._logger.error(
+        self.logger.error(
             'OFPT_STATS_REPLY message has unknown vendor id %i',
-            vendor_id, extra=self._log_extra)
+            vendor_id, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
       self._log_handle_msg('OFPT_STATS_REPLY / OFPST_VENDOR',
@@ -808,8 +848,8 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_barrier_request(self, msg_length, xid):
     if msg_length != OFP_HEADER_LENGTH:
-      self._logger.error('OFPT_BARRIER_REQUEST message has invalid length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_BARRIER_REQUEST message has invalid length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     self._log_handle_msg('OFPT_BARRIER_REQUEST')
@@ -817,8 +857,8 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_barrier_reply(self, msg_length, xid):
     if msg_length != OFP_HEADER_LENGTH:
-      self._logger.error('OFPT_BARRIER_REPLY message has invalid length %i',
-                         msg_length, extra=self._log_extra)
+      self.logger.error('OFPT_BARRIER_REPLY message has invalid length %i',
+                        msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     self._log_handle_msg('OFPT_BARRIER_REPLY')
@@ -826,9 +866,9 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_queue_get_config_request(self, msg_length, xid):
     if msg_length != 12:
-      self._logger.error(
+      self.logger.error(
           'OFPT_QUEUE_GET_CONFIG_REQUEST message has invalid length %i',
-          msg_length, extra=self._log_extra)
+          msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     port_no = self._buffer.unpack('!H2x')[0]
@@ -838,9 +878,9 @@ class OpenflowProtocol(protocol.Protocol):
 
   def _handle_queue_get_config_reply(self, msg_length, xid):
     if msg_length < 16:
-      self._logger.error(
+      self.logger.error(
           'OFPT_QUEUE_GET_CONFIG_REPLY message has invalid length %i',
-          msg_length, extra=self._log_extra)
+          msg_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_LEN)
     port_no = self._buffer.unpack('!H6x')[0]
@@ -1390,8 +1430,8 @@ class OpenflowProtocol(protocol.Protocol):
     """
     action_type, action_length = buf.unpack('!HH')
     if action_length < 8:
-      self._logger.error('action is too short with length %i',
-                         action_length, extra=self._log_extra)
+      self.logger.error('action is too short with length %i',
+                        action_length, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
                                     oferror.OFPBAC_BAD_LEN)
 
@@ -1401,8 +1441,8 @@ class OpenflowProtocol(protocol.Protocol):
       vendor_id = buf.unpack('!L')[0]
       vendor_handler = self._vendor_handlers.get(vendor_id)
       if vendor_handler is None:
-        self._logger.error('OFPAT_VENDOR action has unknown vendor id %i',
-                           vendor_id, extra=self._log_extra)
+        self.logger.error('OFPAT_VENDOR action has unknown vendor id %i',
+                          vendor_id, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
                                       oferror.OFPBAC_BAD_VENDOR)
       a = vendor_handler.deserialize_vendor_action(action_length, buf)
@@ -1412,13 +1452,13 @@ class OpenflowProtocol(protocol.Protocol):
     else:  # Standard action type.
       action_class = ofaction.ACTION_CLASSES.get(action_type)
       if action_class is None:
-        self._logger.error('action has unknown type %i',
-                           action_type, extra=self._log_extra)
+        self.logger.error('action has unknown type %i',
+                          action_type, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
                                       oferror.OFPBAC_BAD_TYPE)
       if action_length != 4 + action_class.format_length:
-        self._logger.error('action has invalid lenth %i for type %i',
-                           action_length, action_type, extra=self._log_extra)
+        self.logger.error('action has invalid lenth %i for type %i',
+                          action_length, action_type, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
                                       oferror.OFPBAC_BAD_LEN)
       a = action_class.deserialize(buf)
@@ -2184,247 +2224,71 @@ class OpenflowProtocol(protocol.Protocol):
     self._send_message(OFPT_QUEUE_GET_CONFIG_REPLY, xid=xid, data=all_data)
 
 
-class Callback(collections.namedtuple('Callback', (
-    'callable', 'args', 'kwargs'))):
-  """A callable and its arguments.
-
-  The callable arguments are:
-    args: The (possibly empty) sequence of positional arguments.
-    kwargs: The dict of keyword arguments. If None, no keyword
-        arguments are passed, equivalent to an empty dict.
+class OpenflowProtocolFactory(object):
+  """A Twisted factory of OpenflowProtocol objects.
   """
 
-  def call(self, first_args=()):
-    """Call this callable with the initial args and additional args.
+  implements(interfaces.IProtocolFactory)
+  # Note: OpenflowProtocolFactory should normally extend class
+  # protocol.Factory, but that is an old-style Python class, i.e. it
+  # doesn't support properties, slots, etc. So we extend object
+  # instead, and implement interface IProtocolFactory completely
+  # ourselves.
+
+  def __init__(self, protocol=OpenflowProtocol, error_data_bytes=64,
+               logger=logging.getLogger(''), vendor_handlers=()):
+    """Initialize this OpenFlow protocol factory.
 
     Args:
-      first_args: The sequence of the first positional args to pass
-          the callable, before this Callback's args and
-          kwargs. Defaults to an empty sequence.
-    """
-    if not self.args:
-      args = first_args
-    elif not first_args:
-      args = self.args
-    else:
-      args = first_args + self.args
-
-    if self.kwargs is None:
-      self.callable(*args)
-    else:
-      self.callable(*args, **kwargs)
-
-
-TerminationCallbacks = collections.namedtuple('TerminationCallbacks', (
-    'success_callback', 'timeout_callback', 'timeout_delayed_call'))
-
-
-class OpenflowProtocolOperations(OpenflowProtocol):
-  """An implementation of the OpenFlow 1.0 protocol that abstracts operations.
-
-  This class extends OpenflowProtocol to keep track of pending
-  operations (request / reply pairs) and to periodically initiate echo
-  operations.
-  """
-
-  __slots__ = OpenflowProtocol.__slots__ + (
-      '_reactor', '_next_xid', '_default_op_timeout',
-      '_echo_op_period', '_pending_ops', '_pending_ops_lock')
-
-  def __init__(self, reactor, vendor_handlers=(), error_data_bytes=64,
-               logger=logging.getLogger(''), default_op_timeout=3.0,
-               echo_op_period=5.0):
-    """Initialize this OpenFlow protocol handler.
-
-    Args:
-      reactor: An object implementing Twisted's IReactorTime
-          interface, used to do delayed calls.
-      vendor_handlers: A sequence of vendor handler objects. Defaults
-          to an empty sequence.
+      protocol: The class of protocol objects to create. Defaults to
+          class OpenflowProtocol.
       error_data_bytes: The maximum number of bytes of erroneous
-          requests to send back in error messages. Must be >= 64.
+          requests to send back in an error message. Must be >= 64.
           Defaults to 64.
-      logger: The Python logger object to use for logging. Defaults to
-          the root logger.
-      default_op_timeout: The default period, in seconds, before an
-          operation times out. This value is used as the timeout for
-          echo operations. Defaults to 3.0 (seconds).
-      echo_op_period: The period, in seconds, between two echo
-          operations. Defaults to 5 (seconds).
+      logger: The Python logger used for logging in every created
+          protocol object. Defaults to the root logger.
+      vendor_handlers: A sequence of vendor handler classes. One
+          instance of every class is instantiated (with no arguments)
+          and passed to every created protocol object. Defaults to an
+          empty sequence.
     """
-    OpenflowProtocol.__init__(
-        self, vendor_handlers=vendor_handlers,
-        error_data_bytes=error_data_bytes, logger=logger)
-    self._reactor = reactor
-    self._default_op_timeout = default_op_timeout
-    self._echo_op_period = echo_op_period
-    # Maintain a dictionary mapping XIDs and TerminationCallbacks objects.
-    self._pending_ops = {}
-    self._pending_ops_lock = threading.Lock()
+    self._protocol = protocol
+    self._error_data_bytes = error_data_bytes
+    self._logger = logger
+    self._vendor_handlers = vendor_handlers
 
-  def connectionMade(self):
-    """Initialize the resources to manage the newly opened OpenFlow connection.
-
-    Send a OFPT_HELLO message to the other end and start initiating
-    periodic echo operations.
+  def doStart(self):
+    """Called every time this is connected to a Port or Connector.
     """
-    OpenflowProtocol.connectionMade(self)
-    self._next_xid = 0
-    self.send_hello()
-    self._echo()
+    pass
 
-  # ----------------------------------------------------------------------
-  # Generic request handling API. Those methods should be called by
-  # subclasses to manage requests.
-  # ----------------------------------------------------------------------
+  def doStop(self):
+    """Called every time this is unconnected from a Port or Connector.
+    """
+    pass
 
-  def _get_next_xid(self):
-    """Get the next transaction id to send in a request message
+  def buildProtocol(self, addr):
+    """Create a protocol to handle a connection established to the given address.
+
+    Args:
+      addr: The address of the newly-established connection, as a
+          twisted.internet.interfaces.IAddress object.
 
     Returns:
-      The next transaction id, to be associated with the sent request,
-      as a 32-bit unsigned integer.
+      An OpenflowProtocol object.
     """
-    xid = self._next_xid
-    # Simply increment, and wrap to 32-bit.
-    self._next_xid = (self._next_xid + 1) & 0xffffffff
-    return xid
-
-  def _initiate_operation(self, success_callback, timeout_callback,
-                          timeout=None):
-    """Register an operation which request is about to be sent.
-
-    Args:
-      success_callback: The Callback to call when the operation's
-          reply is received, and its extra args. The positional and
-          keyword arguments in the Callback are passed in addition to
-          the positional args that are specific to the type of
-          request. The handling of this callable must be done in each
-          reply-specific handler.
-      timeout_callback: The Callback to call if the operation times
-          out.
-      timeout: The period, in seconds, before the operation times
-          out. If None, defaults to the default_op_timeout passed to
-          the constructor.
-
-    Returns:
-      The next transaction id, to be associated with the sent request,
-      as a 32-bit unsigned integer.
-    """
-    xid = None
-    with self._pending_ops_lock:
-      first_xid = xid = self._get_next_xid()
-      while self._pending_ops.has_key(xid):
-        xid = self._get_next_xid()
-        if first_xid == xid:  # tried all values
-          raise ValueError('no unused XID')
-      if timeout is None:
-        timeout = self._default_op_timeout
-      timeout_delayed_call = self._reactor.callLater(
-          timeout, self._timeout_operation, xid)
-      self._pending_ops[xid] = TerminationCallbacks(
-          success_callback, timeout_callback, timeout_delayed_call)
-    return xid
-
-  def _terminate_operation(self, xid, reply_more=False):
-    """Handle an operation's successful termination.
-
-    This method should be called in every handle_*_reply() method.
-
-    Args:
-      xid: The transaction id of the operation.
-      reply_more: If True, more replies are expected to terminate this
-          operation, so keep the status of the operation as
-          pending. Defaults to False.
-
-    Returns:
-      The Callback to call. None if the operation already timed out.
-    """
-    with self._pending_ops_lock:
-      callbacks = self._pending_ops.get(xid, None)
-      if callbacks is not None:
-        if not reply_more:
-          del self._pending_ops[xid]
-          try:
-            callbacks.timeout_delayed_call.cancel()
-          except error.AlreadyCalled:
-            return None
-        return callbacks.success_callback
-
-  def _timeout_operation(self, xid):
-    """Handle an operation's timeout.
-
-    Args:
-      xid: The transaction id of the timed out operation.
-    """
-    callbacks = None
-    with self._pending_ops_lock:
-      callbacks = self._pending_ops.pop(xid, None)
-    if callbacks is not None:
-      callbacks.timeout_callback.call()
-
-  # ----------------------------------------------------------------------
-  # OFPT_ECHO_* request handling.
-  # ----------------------------------------------------------------------
-
-  def handle_echo_request(self, xid, data):
-    """Handle the reception of a OFPT_ECHO_REQUEST message.
-
-    Reply to the request by sending back an OFPT_ECHO_REPLY message
-    with the same xid and data.
-
-    Args:
-      xid: The transaction id associated with the request, as a 32-bit
-          unsigned integer.
-      data: The data attached in the echo request, as a byte buffer.
-    """
-    self.send_echo_reply(xid, (data,))
-
-  def handle_echo_reply(self, xid, data):
-    """Handle the reception of a OFPT_ECHO_REPLY message.
-
-    Args:
-      xid: The transaction id associated with the request, as a 32-bit
-          unsigned integer.
-      data: The data attached in the echo reply, as a byte buffer.
-    """
-    success_callable = self._terminate_operation(xid)
-    if success_callable is not None:
-      success_callable.call(first_args=(data,))
-
-  def _echo(self):
-    """Initiate an echo operation.
-
-    The request's payload is 32 bits of pseudo-random data.
-    """
-    sent_data = struct.pack('!L', random.getrandbits(32))
-    xid = self._initiate_operation(
-        Callback(self._handle_echo_termination, (sent_data,), None),
-        Callback(self._handle_echo_timeout, (), None),
-        timeout=None)  # default timeout
-    self.send_echo_request(xid, sent_data)
-
-  def _handle_echo_termination(self, data, sent_data):
-    """Handle the completion of an echo operation.
-
-    Check that the received data is the data sent in the
-    request. Schedule the next operation.
-
-    Args:
-      data: The data attached in the echo reply, as a byte buffer.
-      sent_data: The data that was sent in the echo request, as a byte buffer.
-    """
-    if data != sent_data:
-      self._logger.error('echo reply with invalid data', extra=self._log_extra)
-      self.transport.loseConnection()
-      raise ValueError('OFPT_ECHO_REPLY message has invalid data')
-    # Schedule the next request.
-    self._reactor.callLater(self._echo_op_period, self._echo)
-
-  def _handle_echo_timeout(self):
-    """Handle the timeout of an echo request by closing the connection.
-
-    This method may be redefined in subclasses.
-    """
-    self._logger.error('echo request timed out', extra=self._log_extra)
-    self.transport.loseConnection()
+    p = self._protocol()
+    p.factory = self
+    p.error_data_bytes = self._error_data_bytes
+    p.logger = self._logger
+    # TODO(romain): Also get the local host and port.
+    p.log_extra={'remote_host': addr.host,
+                 'remote_port': addr.port}
+    # Create a protocol handler instance of every class. Set their
+    # protocol attributes to the created protocol object, as a weak
+    # reference to avoid hard circular references and to ease GC.
+    vendor_handlers = [c() for c in self._vendor_handlers]
+    for vh in vendor_handlers:
+      vh.protocol = weakref.ref(p)
+    p.vendor_handlers = vendor_handlers
+    return p

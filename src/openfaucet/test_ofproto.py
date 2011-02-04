@@ -2,7 +2,8 @@
 
 import struct
 import unittest2
-
+import weakref
+import twisted.internet.address
 import twisted.internet.error
 import twisted.python.failure
 
@@ -13,8 +14,6 @@ from openfaucet import oferror
 from openfaucet import ofmatch
 from openfaucet import ofproto
 from openfaucet import ofstats
-
-from openfaucet import mock_twisted
 
 
 def _create_port_config(
@@ -37,6 +36,9 @@ def _create_port_features(
       mode_1gb_hd=mode_1gb_hd, mode_1gb_fd=mode_1gb_fd,
       mode_10gb_fd=mode_10gb_fd, copper=copper, fiber=fiber, autoneg=autoneg,
       pause=pause, pause_asym=pause_asym)
+
+
+# TODO(romain): Move mock types below into their own module.
 
 
 class MockTransport(object):
@@ -64,8 +66,8 @@ class MockTransport(object):
 
 class MockOpenflowProtocolSubclass(ofproto.OpenflowProtocol):
 
-  def __init__(self, *args, **kargs):
-    ofproto.OpenflowProtocol.__init__(self, *args, **kargs)
+  def __init__(self):
+    ofproto.OpenflowProtocol.__init__(self)
     self.calls_made = []
 
   def handle_hello(self):
@@ -198,6 +200,12 @@ class MockVendorHandler(object):
 
   vendor_id = 0x4242
 
+  def connection_made(self):
+    pass
+
+  def connection_lost(self, reason):
+    pass
+
   def handle_vendor_message(self, conn, msg_length, xid, buffer):
     bytes = buffer.read_bytes(msg_length - 12)  # Consume the remaining bytes.
     self.calls_made.append(('handle_vendor_message', conn, msg_length, xid,
@@ -225,9 +233,12 @@ class TestOpenflowProtocol(unittest2.TestCase):
   def setUp(self):
     self.transport = MockTransport()
     self.vendor_handler = MockVendorHandler()
-    self.proto = MockOpenflowProtocolSubclass(
-        vendor_handlers=(self.vendor_handler,))
+
+    self.proto = MockOpenflowProtocolSubclass()
+    self.proto.vendor_handlers = (self.vendor_handler,)
     self.proto.transport = self.transport
+
+    self.vendor_handler.protocol = weakref.ref(self.proto)
 
     self.phyport1 = ofconfig.PhyPort(
       port_no=0x42, hw_addr='\xab\xcd\xef\xa0\xb1\xc2', name='testport1',
@@ -1389,176 +1400,47 @@ class TestOpenflowProtocol(unittest2.TestCase):
   # TODO(romain): Test proper handling of small chunks of data.
 
 
-class TestOpenflowProtocolOperations(unittest2.TestCase):
+class TestOpenflowProtocolFactory(unittest2.TestCase):
 
   def setUp(self):
-    self.transport = MockTransport()
-    self.reactor = mock_twisted.MockReactorTime()
-    self.vendor_handler = MockVendorHandler()
-    self.default_op_timeout = 3
-    self.echo_op_period = 5
-    self.proto = ofproto.OpenflowProtocolOperations(
-        self.reactor, vendor_handlers=(self.vendor_handler,),
-        default_op_timeout=self.default_op_timeout,
-        echo_op_period=self.echo_op_period)
-    self.proto.transport = self.transport
+    self.vendor_handler_classes = (MockVendorHandler,)
+    self.factory = ofproto.OpenflowProtocolFactory(
+        protocol=ofproto.OpenflowProtocol, error_data_bytes=64,
+        vendor_handlers=self.vendor_handler_classes)
 
-  def _get_next_sent_message(self):
-    """Get the undecoded next message sent by the protocol.
+    self.addr = twisted.internet.address.IPv4Address('TCP', '192.168.1.1',
+                                                     '14123')
 
-    Returns:
-      A byte array containing a single message, or None if no message
-      was received.
-    """
-    buf = self.transport.buffer
-    if len(buf) == 0:
-      return None
-    self.assertGreaterEqual(len(buf), ofproto.OFP_HEADER_LENGTH)
-    buf.set_message_boundaries(ofproto.OFP_HEADER_LENGTH)
-    _, _, msg_length, _ = buf.unpack_inplace(ofproto.OFP_HEADER_FORMAT)
-    self.assertGreaterEqual(len(buf), msg_length)
-    buf.set_message_boundaries(msg_length)
-    return buf.read_bytes(msg_length)
+  def test_build_protocol_error_data_bytes(self):
+    self.factory._error_data_bytes = 123
+    self.factory.doStart()
+    proto = self.factory.buildProtocol(self.addr)
+    self.assertEqual(123, proto.error_data_bytes)
+    self.factory.doStop()
 
-  def test_connection_made_send_hello_echo_request(self):
-    self.proto.connectionMade()
-    # Sent initial OFPT_HELLO with xid 0.
-    self.assertEqual('\x01\x00\x00\x08\x00\x00\x00\x00',
-                     self._get_next_sent_message())
-    # Sent initial OFPT_ECHO_REQUEST with xid 0.
-    self.assertRegexpMatches(self._get_next_sent_message(),
-                             r'\x01\x02\x00\x0c\x00\x00\x00\x00'
-                             '....')  # 32-bit random data
+  def test_build_protocol_logger(self):
+    self.factory._logger = 'anything'
+    self.factory.doStart()
+    proto = self.factory.buildProtocol(self.addr)
+    self.assertEqual('anything', proto.logger)
+    self.factory.doStop()
 
-  def test_echo_op_periodic(self):
-    self.proto.connectionMade()
-    self._get_next_sent_message()  # Initial OFPT_HELLO.
+  def test_build_protocol_log_extra(self):
+    self.factory.doStart()
+    proto = self.factory.buildProtocol(self.addr)
+    self.assertDictEqual({'remote_host': self.addr.host,
+                          'remote_port': self.addr.port},
+                         proto.log_extra)
+    self.factory.doStop()
 
-    # Initial OFPT_ECHO_REQUEST with xid 0.
-    next_msg = self._get_next_sent_message()
-    self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x00', next_msg[:8])
-    data = next_msg[8:]  # 32-big random data
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(0,),
-            kw={}),
-         ], self.reactor.delayed_calls)
-
-    # Receive the reply after 2s, before timeout.
-    self.reactor.increment_time(2)
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(0,),
-            kw={}),
-         ], self.reactor.delayed_calls)
-    self.proto.dataReceived('\x01\x03\x00\x0c\x00\x00\x00\x00' + data)
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.reactor.seconds() + self.echo_op_period,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._echo,
-            args=(),
-            kw={}),
-         ], self.reactor.delayed_calls)
-
-    # Next OFPT_ECHO_REQUEST with xid 1.
-    self.reactor.increment_time(self.echo_op_period)
-    next_msg = self._get_next_sent_message()
-    self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x01', next_msg[:8])
-    data = next_msg[8:]  # 32-big random data
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.reactor.seconds() + self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(1,),
-            kw={}),
-         ], self.reactor.delayed_calls)
-
-  def test_echo_op_timeout(self):
-    self.proto.connectionMade()
-    self._get_next_sent_message()  # Initial OFPT_HELLO.
-
-    # Initial OFPT_ECHO_REQUEST with xid 0.
-    next_msg = self._get_next_sent_message()
-    self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x00', next_msg[:8])
-    data = next_msg[8:]  # 32-big random data
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(0,),
-            kw={}),
-         ], self.reactor.delayed_calls)
-    self.assertTrue(self.transport.open)  # Connection open.
-
-    # Let the echo operation time out.
-    self.reactor.increment_time(self.default_op_timeout)
-    self.assertFalse(self.transport.open)  # Connection closed.
-
-  def test_echo_op_wrong_data(self):
-    self.proto.connectionMade()
-    self._get_next_sent_message()  # Initial OFPT_HELLO.
-
-    # Initial OFPT_ECHO_REQUEST with xid 0.
-    next_msg = self._get_next_sent_message()
-    self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x00', next_msg[:8])
-    data = next_msg[8:]  # 32-big random data
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(0,),
-            kw={}),
-         ], self.reactor.delayed_calls)
-
-    # Receive the reply with wrong data, after 2s, before timeout.
-    self.reactor.increment_time(2)
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(0,),
-            kw={}),
-         ], self.reactor.delayed_calls)
-    self.proto.dataReceived('\x01\x03\x00\x13\x00\x00\x00\x00'
-                            'garbage' + data)
-    # No error message sent back, as this is not a standard error.
-    self.assertIsNone(self._get_next_sent_message())
-
-  def test_handle_echo_request(self):
-    self.proto.connectionMade()
-    self._get_next_sent_message()  # Initial OFPT_HELLO.
-    self._get_next_sent_message()  # Initial OFPT_ECHO_REQUEST.
-
-    self.proto.dataReceived('\x01\x02\x00\x10\x00\x00\x00\x04abcdefgh')
-
-    # Sent back an OFPT_ECHO_REPLY with same length 8+8, data, and xid 4.
-    self.assertEqual('\x01\x03\x00\x10\x00\x00\x00\x04abcdefgh',
-                     self._get_next_sent_message())
+  def test_build_protocol_vendor_handlers(self):
+    self.factory.doStart()
+    proto = self.factory.buildProtocol(self.addr)
+    self.assertItemsEqual(self.vendor_handler_classes,
+                          [v.__class__ for v in proto.vendor_handlers])
+    for v in proto.vendor_handlers:
+      self.assertEqual(proto, v.protocol())
+    self.factory.doStop()
 
 
 if __name__ == '__main__':
