@@ -206,9 +206,9 @@ class MockVendorHandler(object):
   def connection_lost(self, reason):
     pass
 
-  def handle_vendor_message(self, conn, msg_length, xid, buffer):
+  def handle_vendor_message(self, msg_length, xid, buffer):
     bytes = buffer.read_bytes(msg_length - 12)  # Consume the remaining bytes.
-    self.calls_made.append(('handle_vendor_message', conn, msg_length, xid,
+    self.calls_made.append(('handle_vendor_message', msg_length, xid,
                             bytes))
 
   def deserialize_vendor_action(self, action_length, buffer):
@@ -216,15 +216,15 @@ class MockVendorHandler(object):
     self.calls_made.append(('deserialize_vendor_action', action_length, a))
     return a
 
-  def handle_vendor_stats_request(self, conn, msg_length, xid, buffer):
+  def handle_vendor_stats_request(self, msg_length, xid, buffer):
     bytes = buffer.read_bytes(msg_length - 16)  # Consume the remaining bytes.
-    self.calls_made.append(('handle_vendor_stats_request', conn, msg_length,
+    self.calls_made.append(('handle_vendor_stats_request', msg_length,
                             xid, bytes))
 
-  def handle_vendor_stats_reply(self, conn, msg_length, xid, buffer,
+  def handle_vendor_stats_reply(self, msg_length, xid, buffer,
                                 reply_more):
     bytes = buffer.read_bytes(msg_length - 16)  # Consume the remaining bytes.
-    self.calls_made.append(('handle_vendor_stats_reply', conn, msg_length,
+    self.calls_made.append(('handle_vendor_stats_reply', msg_length,
                             xid, bytes, reply_more))
 
 
@@ -1064,8 +1064,7 @@ class TestOpenflowProtocol(unittest2.TestCase):
                             '\xff\xff' '\x00\x00'
                             '\x00\x00\x42\x42' 'helloyou')
     self.assertListEqual([], self.proto.calls_made)
-    self.assertListEqual([('handle_vendor_stats_request', self.proto, 24, 4,
-                           'helloyou')],
+    self.assertListEqual([('handle_vendor_stats_request', 24, 4, 'helloyou')],
                          self.vendor_handler.calls_made)
 
   def test_send_stats_reply_desc(self):
@@ -1300,8 +1299,8 @@ class TestOpenflowProtocol(unittest2.TestCase):
                             '\xff\xff' '\x00\x01'
                             '\x00\x00\x42\x42' 'helloyou')
     self.assertListEqual([], self.proto.calls_made)
-    self.assertListEqual([('handle_vendor_stats_reply', self.proto, 24, 4,
-                           'helloyou', True)],
+    self.assertListEqual([('handle_vendor_stats_reply', 24, 4, 'helloyou',
+                           True)],
                          self.vendor_handler.calls_made)
 
   def test_send_barrier_request(self):

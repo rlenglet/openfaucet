@@ -101,7 +101,6 @@ def vendor_action(type_name, vendor_id, format, field_names, verbose=False):
   return result
 
 
-
 ActionOutput = __action('ActionOutput', OFPAT_OUTPUT,
                         '!HH', ('port', 'max_len'))
 

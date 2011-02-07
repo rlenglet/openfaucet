@@ -426,7 +426,7 @@ class OpenflowProtocol(object):
     # must be consumed by this call. Check that this is the case after
     # the call returns.
     self._log_handle_msg('OFPT_VENDOR', vendor_id=vendor_id)
-    vendor_handler.handle_vendor_message(self, msg_length, xid, self._buffer)
+    vendor_handler.handle_vendor_message(msg_length, xid, self._buffer)
 
   def _handle_features_request(self, msg_length, xid):
     if msg_length != OFP_HEADER_LENGTH:
@@ -725,8 +725,8 @@ class OpenflowProtocol(object):
                                       oferror.OFPBRC_BAD_VENDOR)
       self._log_handle_msg('OFPT_STATS_REQUEST / OFPST_VENDOR',
                            vendor_id=vendor_id)
-      vendor_handler.handle_vendor_stats_request(self, msg_length, xid,
-                                                 self._buffer)
+      vendor_handler.handle_vendor_stats_request(
+          msg_length, xid, self._buffer)
 
   def _handle_stats_reply(self, msg_length, xid):
     if msg_length < 12:
@@ -843,8 +843,8 @@ class OpenflowProtocol(object):
                                       oferror.OFPBRC_BAD_LEN)
       self._log_handle_msg('OFPT_STATS_REPLY / OFPST_VENDOR',
                            vendor_id=vendor_id)
-      vendor_handler.handle_vendor_stats_reply(self, msg_length, xid,
-                                               self._buffer, reply_more)
+      vendor_handler.handle_vendor_stats_reply(
+          msg_length, xid, self._buffer, reply_more)
 
   def _handle_barrier_request(self, msg_length, xid):
     if msg_length != OFP_HEADER_LENGTH:
