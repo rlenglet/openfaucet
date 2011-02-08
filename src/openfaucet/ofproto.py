@@ -14,7 +14,7 @@ import weakref
 from twisted.internet import error
 from twisted.internet import interfaces
 from twisted.internet import protocol
-from zope.interface import implements
+from zope import interface
 
 from openfaucet import buffer
 from openfaucet import ofaction
@@ -98,6 +98,9 @@ OFPP_LOCAL = 0xfffe
 # Not associated with a physical port.
 OFPP_NONE = 0xffff
 
+# Queue ids.
+OFPQ_ALL = 0xffffffff  # All queues.
+
 # OFPT_FLOW_MOD message commands.
 OFPFC_ADD = 0
 OFPFC_MODIFY = 1
@@ -143,7 +146,7 @@ class OpenflowProtocol(object):
         an empty sequence.
   """
 
-  implements(interfaces.IProtocol)
+  interface.implements(interfaces.IProtocol)
   # Note: OpenflowProtocol should normally extend class
   # protocol.Protocol, but that is an old-style Python class, i.e. it
   # doesn't support properties, slots, etc. So we extend object
@@ -269,7 +272,7 @@ class OpenflowProtocol(object):
 
   def raise_error_with_request(self, error_type, error_code):
     raise oferror.OpenflowError(
-        oferror.OFPET_BAD_REQUEST, oferror.OFPBRC_BAD_LEN,
+        error_type, error_code,
         (self._buffer.get_first_message_bytes(self.error_data_bytes),))
 
   def _log_handle_msg(self, msg_type_str, **kwargs):
@@ -1032,8 +1035,8 @@ class OpenflowProtocol(object):
           unsigned integer.
       duration_nsec: Time flow was alive in nanoseconds beyond
           duration_sec, as a 32-bit unsigned integer.
-      idle_timeout: The idle timeout from the original flow mod, as a
-          16-bit unsigned integer.
+      idle_timeout: The idle timeout in seconds from the original flow
+          mod, as a 16-bit unsigned integer.
       packet_count: The number of packets in the flow, as a 64-bit unsigned
           integer.
       byte_count: The number of bytes in packets in the flow, as a 64-bit
@@ -1091,7 +1094,7 @@ class OpenflowProtocol(object):
           OFPFC_MODIFY_STRICT (modify flows strictly matching wildcards),
           OFPFC_DELETE (delete all matching flows),
           or OFPFC_DELETE_STRICT (delete flows strictly matching wildcards).
-      idle_timeout: The idle time before discarding in seconds, as a
+      idle_timeout: The idle time in seconds before discarding, as a
           16-bit unsigned integer.
       hard_timeout: The maximum time before discarding in seconds, as
           a 16-bit unsigned integer.
@@ -1651,8 +1654,8 @@ class OpenflowProtocol(object):
           unsigned integer.
       duration_nsec: Time flow was alive in nanoseconds beyond
           duration_sec, as a 32-bit unsigned integer.
-      idle_timeout: The idle timeout from the original flow mod, as a
-          16-bit unsigned integer.
+      idle_timeout: The idle timeout in seconds from the original flow
+          mod, as a 16-bit unsigned integer.
       packet_count: The number of packets in the flow, as a 64-bit unsigned
           integer.
       byte_count: The number of bytes in packets in the flow, as a 64-bit
@@ -1749,7 +1752,7 @@ class OpenflowProtocol(object):
           OFPFC_MODIFY_STRICT (modify flows strictly matching wildcards),
           OFPFC_DELETE (delete all matching flows),
           or OFPFC_DELETE_STRICT (delete flows strictly matching wildcards).
-      idle_timeout: The idle time before discarding in seconds, as a
+      idle_timeout: The idle time in seconds before discarding, as a
           16-bit unsigned integer.
       hard_timeout: The maximum time before discarding in seconds, as
           a 16-bit unsigned integer.
@@ -2228,7 +2231,7 @@ class OpenflowProtocolFactory(object):
   """A Twisted factory of OpenflowProtocol objects.
   """
 
-  implements(interfaces.IProtocolFactory)
+  interface.implements(interfaces.IProtocolFactory)
   # Note: OpenflowProtocolFactory should normally extend class
   # protocol.Factory, but that is an old-style Python class, i.e. it
   # doesn't support properties, slots, etc. So we extend object
@@ -2269,6 +2272,11 @@ class OpenflowProtocolFactory(object):
 
   def buildProtocol(self, addr):
     """Create a protocol to handle a connection established to the given address.
+
+    Create a new vendor handler object of each handler class and bind
+    them with the created protocol object: the protocol object is set
+    as a weak reference in attribute 'protocol' of every created
+    vendor handler object.
 
     Args:
       addr: The address of the newly-established connection, as a

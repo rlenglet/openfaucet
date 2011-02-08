@@ -117,7 +117,7 @@ class MockReactorTime(object):
     """Initialize this IReactorTime.
     """
     self.delayed_calls = []
-    self.time = 0
+    self.time = 0.0
 
   def seconds(self):
     """Get the current time in seconds.

@@ -1,5 +1,6 @@
 # Copyright 2011 Midokura KK
 
+import re
 import struct
 import unittest2
 import weakref
@@ -54,9 +55,11 @@ class TestOpenflowProtocolOperations(unittest2.TestCase):
     self.assertEqual('\x01\x00\x00\x08\x00\x00\x00\x00',
                      self._get_next_sent_message())
     # Sent initial OFPT_ECHO_REQUEST with xid 0.
-    self.assertRegexpMatches(self._get_next_sent_message(),
-                             r'\x01\x02\x00\x0c\x00\x00\x00\x00'
-                             '....')  # 32-bit random data
+    self.assertRegexpMatches(
+        self._get_next_sent_message(),
+        re.compile(r'\x01\x02\x00\x0c\x00\x00\x00\x00'
+                   '....',  # 32-bit random data
+                   re.DOTALL))
 
   def test_echo_op_periodic(self):
     self.proto.connectionMade()
