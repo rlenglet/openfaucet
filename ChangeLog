@@ -1,0 +1,4 @@
+2011-02-09  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* AUTHORS, NEWS, COPYING, configure.ac, **/Makefile.am: Initial
+	autoolization.
