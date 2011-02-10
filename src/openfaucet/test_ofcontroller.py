@@ -43,6 +43,12 @@ class MockOpenflowController(object):
   def __init__(self):
     self.calls_made = []
 
+  def connection_made(self):
+    pass
+
+  def connection_lost(self, reason):
+    pass
+
   def handle_packet_in(self, buffer_id, total_len, in_port, reason, data):
     self.calls_made.append(
         ('handle_packet_in', buffer_id, total_len, in_port, reason, data))

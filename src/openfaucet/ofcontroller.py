@@ -30,6 +30,20 @@ class IOpenflowController(interface.Interface):
   """A handler of asynchronous messages received from a datapath.
   """
 
+  def connection_made(self):
+    """Initialize the resources to manage the newly opened OpenFlow connection.
+    """
+
+  def connection_lost(self, reason):
+    """Release any resources used to manage the connection that was just lost.
+
+    Args:
+      reason: A twisted.python.failure.Failure that wraps a
+          twisted.internet.error.ConnectionDone or
+          twisted.internet.error.ConnectionLost instance (or a
+          subclass of one of those).
+    """
+
   def handle_packet_in(self, buffer_id, total_len, in_port, reason, data):
     """Handle the reception of a OFPT_PACKET_IN message.
 
@@ -102,11 +116,26 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     """Initialize the resources to manage the newly opened OpenFlow connection.
 
     Send a request for the switch features as the controller-to-switch
-    handshake.
+    handshake. Call connection_made() on the controller.
     """
     ofprotoops.OpenflowProtocolOperations.connectionMade(self)
     self._features = None
     self.get_features(None)  # No callback.
+    self.controller.connection_made()
+
+  def connectionLost(self, reason):
+    """Release any resources used to manage the connection that was just lost.
+
+    Call connection_lost() on the controller.
+
+    Args:
+      reason: A twisted.python.failure.Failure that wraps a
+          twisted.internet.error.ConnectionDone or
+          twisted.internet.error.ConnectionLost instance (or a
+          subclass of one of those).
+    """
+    ofprotoops.OpenflowProtocolOperations.connectionLost(self, reason)
+    self.controller.connection_lost(reason)
 
   @property
   def features(self):

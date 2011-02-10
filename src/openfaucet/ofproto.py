@@ -216,6 +216,8 @@ class OpenflowProtocol(object):
 
   def connectionMade(self):
     """Initialize the resources to manage the newly opened OpenFlow connection.
+
+    Call connection_made() on every vendor handler.
     """
     self.logger.debug('connection made', extra=self.log_extra)
     self._buffer = buffer.ReceiveBuffer()
@@ -224,6 +226,8 @@ class OpenflowProtocol(object):
 
   def connectionLost(self, reason):
     """Release any resources used to manage the connection that was just lost.
+
+    Call connection_lost() on every vendor handler.
 
     Args:
       reason: A twisted.python.failure.Failure that wraps a
