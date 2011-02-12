@@ -9,5 +9,17 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
+build:
+	dh $@ --until dh_auto_build --parallel \
+	  --with autotools-dev,python-support
+	make html
+	dh $@ --remaining --parallel --with autotools-dev,python-support
+
+binary:
+	dh $@ --until dh_auto_install --parallel \
+	  --with autotools-dev,python-support
+	make install-html DESTDIR=$(CURDIR)/debian/tmp
+	dh $@ --remaining --parallel --with autotools-dev,python-support
+
 %:
 	dh $@ --parallel --with autotools-dev,python-support

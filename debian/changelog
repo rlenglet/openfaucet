@@ -1,3 +1,9 @@
+openfaucet (0.1~pre1-1) unstable; urgency=low
+
+  * Add python-openfaucet-doc binary package with the HTML documentation.
+
+ -- Romain Lenglet <romain.lenglet@berabera.info>  Sat, 12 Feb 2011 18:19:25 +0900
+
 openfaucet (0.1~pre1) unstable; urgency=low
 
   * Initial Release.

@@ -1,3 +1,8 @@
+2011-02-12  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* docs/Makefile.am: Simplify to build and install only HTML doc,
+	in $(htmldir)/html/. Fix broken install-html rule.
+
 2011-02-11  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* ChangeLog: Add copyright notice and permission notice.

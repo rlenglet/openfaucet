@@ -2,8 +2,8 @@ Source: openfaucet
 Section: python
 Priority: extra
 Maintainer: Romain Lenglet <romain.lenglet@berabera.info>
-Build-Depends: debhelper (>= 7.0.50~), autotools-dev, python, python-support,
- python-unittest2
+Build-Depends: debhelper (>= 7.0.50~), autotools-dev, python,
+ python-sphinx, python-support, python-unittest2
 Standards-Version: 3.9.1.0
 Homepage: https://github.com/midokura/openfaucet
 Vcs-Git: https://github.com/midokura/openfaucet.git
@@ -16,3 +16,16 @@ Depends: ${misc:Depends}, ${python:Depends}, python-twisted-core,
 Description: OpenFaucet - OpenFlow 1.0 library
  OpenFaucet is a Python / Twisted library implementing the OpenFlow
  1.0 protocol, used to implement controllers of OpenFlow switches.
+Tag: protocol::openflow, implemented-in::python
+
+Package: python-openfaucet-doc
+Architecture: all
+Depends: ${misc:Depends}, libjs-jquery
+Section: doc
+Description: Documentation for OpenFaucet
+ OpenFaucet is a Python / Twisted library implementing the OpenFlow
+ 1.0 protocol, used to implement controllers of OpenFlow switches.
+ .
+ This package provides the python-openfaucet documentation in HTML
+ format.
+Tag: made-of::html, role::documentation
