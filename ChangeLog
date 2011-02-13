@@ -1,5 +1,9 @@
 2011-02-13  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* docs/controller.rst, docs/index.rst, docs/Makefile.am: Clean up
+	documentation and add controller developer's guide sections
+	"Controller instantiation" and "Asynchronous message callbacks".
+
 	* src/openfaucet/ofcontroller.py (IOpenflowController),
 	src/openfaucet/ofproto.py (OpenflowProtocol): Fix controller
 	callbacks documentation.

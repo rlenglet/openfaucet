@@ -15,7 +15,8 @@
 # Makefile for Sphinx documentation.
 
 SPHINXDATA = \
-	index.rst
+	index.rst \
+	controller.rst
 
 dist_noinst_DATA = $(SPHINXDATA)
 
@@ -27,10 +28,12 @@ installdirs-local: installdirs-html-local installdirs-pdf-local
 
 HTMLDATA = \
 	html/index.html \
+	html/controller.html \
 	html/genindex.html \
 	html/search.html \
 	html/searchindex.js \
 	html/_sources/index.txt \
+	html/_sources/controller.txt \
 	html/_static/pygments.css \
 	html/_static/searchtools.js \
 	html/_static/file.png \
@@ -43,7 +46,8 @@ HTMLDATA = \
 
 CLEANFILES = \
 	environment.pickle \
-	index.doctree
+	index.doctree \
+	controller.doctree
 
 clean-local:
 	-rm -rf $(builddir)/html

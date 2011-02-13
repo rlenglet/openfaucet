@@ -12,8 +12,8 @@
 .. See the License for the specific language governing permissions and
 .. limitations under the License.
 
-Welcome to OpenFaucet's documentation!
-======================================
+Welcome to OpenFaucet's documentation
+=====================================
 OpenFaucet is a pure Python implementation of the OpenFlow 1.0.0
 protocol. OpenFlow is used to implement Layer-2 and -3 switching
 controller.
@@ -24,10 +24,11 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   controller
 
 
 Indices and tables
-==================
+~~~~~~~~~~~~~~~~~~
 
 * :ref:`genindex`
 * :ref:`modindex`
