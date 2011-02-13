@@ -1,3 +1,9 @@
+2011-02-13  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/ofcontroller.py (IOpenflowController),
+	src/openfaucet/ofproto.py (OpenflowProtocol): Fix controller
+	callbacks documentation.
+
 2011-02-12  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* docs/Makefile.am: Simplify to build and install only HTML doc,

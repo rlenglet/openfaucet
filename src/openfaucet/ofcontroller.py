@@ -48,14 +48,15 @@ class IOpenflowController(interface.Interface):
     """Handle the reception of a OFPT_PACKET_IN message.
 
     Args:
-      buffer_id: The buffer ID assigned by datapath.
+      buffer_id: The buffer ID assigned by the datapath. If
+          0xffffffff, the frame is not buffered, and the entire frame
+          is passed in data.
       total_len: The full length of the frame.
       in_port: The port on which the frame was received.
       reason: The reason why the frame is being sent, either
           OFPR_NO_MATCH (no matching flow) or OFPR_ACTION (action
-          explicitly output to controller)
-      data: The Ethernet frame, as a sequence of byte buffers. The
-          total length must be aligned on a 4*N+2 bytes boundary.
+          explicitly output to controller).
+      data: The Ethernet frame, as a byte buffer.
     """
 
   def handle_flow_removed(
@@ -71,7 +72,7 @@ class IOpenflowController(interface.Interface):
       reason: The reason why the flow entry expired, either
           OFPRR_IDLE_TIMEOUT (flow idle time exceeded idle_timeout),
           OFPRR_HARD_TIMEOUT (time exceeded hard_timeout), or
-          OFPRR_DELETE (victed by a DELETE flow mod message).
+          OFPRR_DELETE (evicted by a DELETE flow mod message).
       duration_sec: Time the flow was alive in seconds, as a 32-bit
           unsigned integer.
       duration_nsec: Time flow was alive in nanoseconds beyond
