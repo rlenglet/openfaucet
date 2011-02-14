@@ -1,0 +1,356 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>OpenFlow controller developer’s guide &mdash; OpenFaucet v0.1~pre1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1~pre1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="OpenFaucet v0.1~pre1 documentation" href="index.html" />
+    <link rel="prev" title="Welcome to OpenFaucet’s documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to OpenFaucet’s documentation"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">OpenFaucet v0.1~pre1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="openflow-controller-developer-s-guide">
+<h1>OpenFlow controller developer&#8217;s guide<a class="headerlink" href="#openflow-controller-developer-s-guide" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="controller-instantiation">
+<h2>Controller instantiation<a class="headerlink" href="#controller-instantiation" title="Permalink to this headline">¶</a></h2>
+<p>OpenFaucet is based on the Twisted framework for managing transport
+connections (e.g. TCP connections) between OpenFlow switches and
+controllers. Once a transport connection is established, the
+connection object is controlled by a controller stub object, which in
+turn controls a controller object and zero of more vendor extension
+handler objects. There is therefore a one-to-one binding between the
+transport connection and controller stub, a one-to-one binding between
+the controller stub and the controller, and one one-to-one binding
+between the controller stub and every vendor handler:</p>
+<div class="highlight-python"><pre>                         +---------+
+                         |transport|
+                         +---------+           1 +--------+
+                            1 ^          +------&gt;|vendor_1|
+                              |          |       +--------+
+                            1 v         1|
++----------+ 1      1 +---------------+&lt;-+ 1   1 +--------+
+|controller|&lt;--------&gt;|controller_stub|&lt;--------&gt;|vendor_2|
++----------+          +---------------+&lt;-+       +--------+
+                                        1|
+                                         |     1 +--------+
+                                         +------&gt;|vendor_3|
+                                                 +--------+</pre>
+</div>
+<p>Every controller stub is an instance of class ControllerStub that is
+created by a factory object which is an instance of class
+OpenflowControllerStubFactory. This factory class implements Twisted&#8217;s
+<tt class="xref py py-class docutils literal"><span class="pre">IProtocolFactory</span></tt> interface, so
+it can be used the standard way to manage Twisted transport
+connections. It must be configured by passing arguments to the its
+constructor:</p>
+<dl class="class">
+<dt id="openfaucet.ofcontroller.OpenflowControllerStubFactory">
+<em class="property">class </em><tt class="descclassname">openfaucet.ofcontroller.</tt><tt class="descname">OpenflowControllerStubFactory</tt><a class="headerlink" href="#openfaucet.ofcontroller.OpenflowControllerStubFactory" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="openfaucet.ofcontroller.OpenflowControllerStubFactory.__init__">
+<tt class="descname">__init__</tt><big>(</big><em>controller</em><span class="optional">[</span>, <em>protocol</em>, <em>error_data_bytes</em>, <em>logger</em>, <em>vendor_handlers</em>, <em>reactor</em>, <em>default_op_timeout</em>, <em>echo_op_period</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.OpenflowControllerStubFactory.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a factory of <tt class="xref py py-class docutils literal"><span class="pre">OpenflowControllerStub</span></tt> objects and
+of controllers and vendor handlers bound to them. The only
+mandatory parameter is <tt class="docutils literal"><span class="pre">controller</span></tt>, the class of controller
+objects to create.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>controller</strong> (<em>class</em>) &#8211; The class of controller objects to create,
+which must implement interface <a class="reference internal" href="#openfaucet.ofcontroller.IOpenflowController" title="openfaucet.ofcontroller.IOpenflowController"><tt class="xref py py-class docutils literal"><span class="pre">IOpenflowController</span></tt></a>.</li>
+<li><strong>protocol</strong> (<em>class</em>) &#8211; The class of protocol objects (controller
+stubs) to create. Defaults to class
+<tt class="xref py py-class docutils literal"><span class="pre">OpenflowControllerStub</span></tt>.</li>
+<li><strong>error_data_bytes</strong> (<em>integer</em>) &#8211; The maximum number of bytes of
+erroneous requests to send back in an error message. Must be
+&gt;= 64.  Defaults to 64.</li>
+<li><strong>logger</strong> (<em>logger object</em>) &#8211; The Python logger used for logging in every
+created protocol object. Defaults to the root logger, as
+obtained with <tt class="docutils literal"><span class="pre">logging.getLogger('')</span></tt>.</li>
+<li><strong>vendor_handlers</strong> (<em>class list</em>) &#8211; A sequence of vendor handler
+classes. One instance of every class is instantiated (with no
+arguments) and passed to every created protocol
+object. Defaults to an empty sequence.</li>
+<li><strong>reactor</strong> (<em>reactor object</em>) &#8211; An object implementing Twisted&#8217;s IReactorTime
+interface, used to do delayed calls. Defaults to Twisted&#8217;s
+default reactor <tt class="xref py py-mod docutils literal"><span class="pre">twisted.internet.reactor</span></tt>.</li>
+<li><strong>default_op_timeout</strong> (<em>float</em>) &#8211; The default period, in seconds,
+before an operation times out. This is also used as the
+timeout for echo operations. Defaults to 3.0 (seconds).</li>
+<li><strong>echo_op_period</strong> (<em>float</em>) &#8211; The period, in seconds, between two echo
+operations. Defaults to 5.0 (seconds).</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<p>For example, to configure a factory to create controller objects that
+are instance of class <tt class="docutils literal"><span class="pre">MyController</span></tt>, and to connect to an OpenFlow
+switch using a TCP connection:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">twisted.internet</span> <span class="kn">import</span> <span class="n">reactor</span>
+<span class="kn">from</span> <span class="nn">openfaucet</span> <span class="kn">import</span> <span class="n">ofcontroller</span>
+
+<span class="n">factory</span> <span class="o">=</span> <span class="n">ofcontroller</span><span class="o">.</span><span class="n">OpenflowControllerStubFactory</span><span class="p">(</span>
+    <span class="n">controller</span><span class="o">=</span><span class="n">MyController</span><span class="p">)</span>
+<span class="n">reactor</span><span class="o">.</span><span class="n">connectTCP</span><span class="p">(</span><span class="s">&#39;switch1.example.com&#39;</span><span class="p">,</span> <span class="mi">6633</span><span class="p">,</span> <span class="n">factory</span><span class="p">)</span>
+<span class="n">reactor</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Controller objects are created by the factory by calling the given
+<tt class="docutils literal"><span class="pre">controller</span></tt> class with no arguments, so every controller class must
+implement an <tt class="docutils literal"><span class="pre">__init__()</span></tt> constructor with no arguments. If a
+controller object requires attributes to be set, implement a factory
+that is a subclass of <a class="reference internal" href="#openfaucet.ofcontroller.OpenflowControllerStubFactory" title="openfaucet.ofcontroller.OpenflowControllerStubFactory"><tt class="xref py py-class docutils literal"><span class="pre">OpenflowControllerStubFactory</span></tt></a> which
+sets the attributes after the controller stub, the controller and
+vendor handlers are created, and override method
+<tt class="xref py py-meth docutils literal"><span class="pre">buildProtocol()</span></tt>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">openfaucet</span> <span class="kn">import</span> <span class="n">ofcontroller</span>
+
+<span class="k">class</span> <span class="nc">MyController</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">():</span>
+        <span class="k">pass</span>
+
+    <span class="c"># ...</span>
+
+<span class="k">class</span> <span class="nc">MyControllerStubFactory</span><span class="p">(</span><span class="n">ofcontroller</span><span class="o">.</span><span class="n">OpenflowControllerStubFactory</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">buildProtocol</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">ofcontroller</span><span class="o">.</span><span class="n">OpenflowControllerStubFactory</span><span class="o">.</span><span class="n">buildProtocol</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">)</span>
+        <span class="n">controller</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">controller</span>
+        <span class="c"># Complete controller initialization.</span>
+        <span class="n">controller</span><span class="o">.</span><span class="n">some_attribute</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_some_value</span>
+        <span class="k">return</span> <span class="n">p</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="asynchronous-message-callbacks">
+<h2>Asynchronous message callbacks<a class="headerlink" href="#asynchronous-message-callbacks" title="Permalink to this headline">¶</a></h2>
+<p>Every controller class must implement OpenFaucet&#8217;s
+<a class="reference internal" href="#openfaucet.ofcontroller.IOpenflowController" title="openfaucet.ofcontroller.IOpenflowController"><tt class="xref py py-class docutils literal"><span class="pre">IOpenflowController</span></tt></a> interface, which defines the following 5
+callback methods:</p>
+<dl class="class">
+<dt id="openfaucet.ofcontroller.IOpenflowController">
+<em class="property">class </em><tt class="descclassname">openfaucet.ofcontroller.</tt><tt class="descname">IOpenflowController</tt><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowController" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowController.connection_made">
+<tt class="descname">connection_made</tt><big>(</big><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowController.connection_made" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize the resources to manage the newly opened OpenFlow
+connection. This callback is made once the handshake is
+completed with the switch, i.e. once the description of the
+switch&#8217;s features have been received.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowController.connection_lost">
+<tt class="descname">connection_lost</tt><big>(</big><em>reason</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowController.connection_lost" title="Permalink to this definition">¶</a></dt>
+<dd><p>Release any resources used to manage the connection that was
+just lost.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><strong>reason</strong> &#8211; The reason why the connection was lost, as a
+<tt class="xref py py-class docutils literal"><span class="pre">Failure</span></tt> that wraps a
+<tt class="xref py py-class docutils literal"><span class="pre">ConnectionDone</span></tt> or
+<tt class="xref py py-class docutils literal"><span class="pre">ConnectionLost</span></tt> instance (or a
+subclass of one of those).</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowController.handle_packet_in">
+<tt class="descname">handle_packet_in</tt><big>(</big><em>buffer_id</em>, <em>total_len</em>, <em>in_port</em>, <em>reason</em>, <em>data</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowController.handle_packet_in" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle the reception of a <tt class="docutils literal"><span class="pre">OFPT_PACKET_IN</span></tt> message, i.e. an
+Ethernet frame forwarded by the datapath.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>buffer_id</strong> (<em>integer</em>) &#8211; The buffer ID assigned by datapath. If
+0xffffffff, the frame is not buffered, and the entire frame is
+passed in data.</li>
+<li><strong>total_len</strong> (<em>integer</em>) &#8211; The full length of the frame, in bytes.</li>
+<li><strong>in_port</strong> (<em>integer</em>) &#8211; The port on which the frame was received.</li>
+<li><strong>reason</strong> (<em>integer</em>) &#8211; The reason why the frame is being sent, either
+<tt class="xref py py-attr docutils literal"><span class="pre">OFPR_NO_MATCH</span></tt> (no matching flow)
+or <tt class="xref py py-attr docutils literal"><span class="pre">OFPR_ACTION</span></tt> (action explicitly
+output to controller).</li>
+<li><strong>data</strong> (<em>byte buffer</em>) &#8211; The Ethernet frame, as a byte buffer.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowController.handle_flow_removed">
+<tt class="descname">handle_flow_removed</tt><big>(</big><em>match</em>, <em>cookie</em>, <em>priority</em>, <em>reason</em>, <em>duration_sec</em>, <em>duration_nsec</em>, <em>idle_timeout</em>, <em>packet_count</em>, <em>byte_count</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowController.handle_flow_removed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle the reception of a <tt class="docutils literal"><span class="pre">OFPT_FLOW_REMOVED</span></tt> message,
+i.e. the notification that a flow has been removed from the
+datapath.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>match</strong> &#8211; A <tt class="xref py py-class docutils literal"><span class="pre">Match</span></tt> object
+describing the fields of the flow.</li>
+<li><strong>cookie</strong> (<em>64-bit unsigned integer</em>) &#8211; An opaque value issued by the controller when the
+flow was added.</li>
+<li><strong>priority</strong> (<em>16-bit unsigned integer</em>) &#8211; The priority level of the expired flow entry.</li>
+<li><strong>reason</strong> (<em>integer</em>) &#8211; The reason why the flow entry expired, either
+<tt class="xref py py-attr docutils literal"><span class="pre">OFPRR_IDLE_TIMEOUT</span></tt> (flow idle time
+exceeded idle_timeout),
+<tt class="xref py py-attr docutils literal"><span class="pre">OFPRR_HARD_TIMEOUT</span></tt> (time exceeded
+hard_timeout), or <tt class="xref py py-attr docutils literal"><span class="pre">OFPRR_DELETE</span></tt>
+(evicted by a <tt class="docutils literal"><span class="pre">DELETE</span></tt> flow mod message).</li>
+<li><strong>duration_sec</strong> (<em>32-bit unsigned integer.</em>) &#8211; Time the flow was alive in seconds.</li>
+<li><strong>duration_nsec</strong> (<em>32-bit unsigned integer</em>) &#8211; Time flow was alive in nanoseconds beyond
+duration_sec.</li>
+<li><strong>idle_timeout</strong> (<em>16-bit unsigned integer</em>) &#8211; The idle timeout in seconds from the
+original flow mod.</li>
+<li><strong>packet_count</strong> (<em>64-bit unsigned integer</em>) &#8211; The number of packets in the flow.</li>
+<li><strong>byte_count</strong> (<em>64-bit unsigned integer</em>) &#8211; The number of bytes in packets in the flow.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowController.handle_port_status">
+<tt class="descname">handle_port_status</tt><big>(</big><em>reason</em>, <em>desc</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowController.handle_port_status" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle the reception of a <tt class="docutils literal"><span class="pre">OFPT_PORT_STATUS</span></tt> message, i.e. a
+notification that a datapath port&#8217;s status has changed.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>reason</strong> (<em>integer</em>) &#8211; The reason for the port status change, either
+<tt class="xref py py-attr docutils literal"><span class="pre">OFPPR_ADD</span></tt> (the port was added),
+<tt class="xref py py-attr docutils literal"><span class="pre">OFPPR_DELETE</span></tt> (the port was
+removed), or <tt class="xref py py-attr docutils literal"><span class="pre">OFPPR_MODIFY</span></tt> (some
+attribute of the port has changed).</li>
+<li><strong>desc</strong> &#8211; A <tt class="xref py py-class docutils literal"><span class="pre">PhyPort</span></tt> object
+defining the physical port, including its new status.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="asynchronous-requests">
+<h2>Asynchronous requests<a class="headerlink" href="#asynchronous-requests" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="asynchronous-messages">
+<h2>Asynchronous messages<a class="headerlink" href="#asynchronous-messages" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">OpenFlow controller developer&#8217;s guide</a><ul>
+<li><a class="reference internal" href="#controller-instantiation">Controller instantiation</a></li>
+<li><a class="reference internal" href="#asynchronous-message-callbacks">Asynchronous message callbacks</a></li>
+<li><a class="reference internal" href="#asynchronous-requests">Asynchronous requests</a></li>
+<li><a class="reference internal" href="#asynchronous-messages">Asynchronous messages</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to OpenFaucet&#8217;s documentation</a></p>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to OpenFaucet’s documentation"
+             >previous</a> |</li>
+        <li><a href="index.html">OpenFaucet v0.1~pre1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Midokura KK.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+    </div>
+  </body>
+</html>
