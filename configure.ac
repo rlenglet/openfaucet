@@ -28,7 +28,7 @@ OPENFAUCET_PYTHON_CHECK_IMPORT([twisted], [],
 OPENFAUCET_PYTHON_CHECK_IMPORT([unittest2], [],
   [AC_MSG_WARN([the unittest2 library is required for tests])])
 
-AC_PATH_PROGS([SPHINXBUILD], [sphinx-build-2.6, sphinx-build], [notfound])
+AC_PATH_PROGS([SPHINXBUILD], [sphinx-build-2.6 sphinx-build], [notfound])
 AS_IF([test "x$ac_cv_path_SPHINXBUILD" = xnotfound],
       [AC_MSG_WARN([Sphinx is required to generate documentation])])
 
