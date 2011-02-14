@@ -1,3 +1,7 @@
+2011-02-14  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* docs/index.rst: Fix typo.
+
 2011-02-13  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* docs/controller.rst, docs/index.rst, docs/Makefile.am: Clean up
