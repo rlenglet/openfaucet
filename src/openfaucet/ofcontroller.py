@@ -32,6 +32,9 @@ class IOpenflowController(interface.Interface):
 
   def connection_made(self):
     """Initialize the resources to manage the newly opened OpenFlow connection.
+
+    This is called only after the handshake with the switch is
+    completed, i.e. once the switch's features have been received.
     """
 
   def connection_lost(self, reason):
@@ -117,12 +120,11 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     """Initialize the resources to manage the newly opened OpenFlow connection.
 
     Send a request for the switch features as the controller-to-switch
-    handshake. Call connection_made() on the controller.
+    handshake.
     """
     ofprotoops.OpenflowProtocolOperations.connectionMade(self)
     self._features = None
     self.get_features(None)  # No callback.
-    self.controller.connection_made()
 
   def connectionLost(self, reason):
     """Release any resources used to manage the connection that was just lost.
@@ -454,6 +456,13 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     # Update the local copy of the switch features, accessible in
     # property 'features'.
     with self._features_lock:
+
+      if self._features is None:
+        # This is the first time we receive an OFPT_FEATURES_REPLY,
+        # which means that this terminates the handshake with the
+        # datapath. Callback the controller.
+        self.controller.connection_made()
+
       self._features = switch_features
 
     if success_callable is not None:
