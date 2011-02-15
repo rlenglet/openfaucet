@@ -1,3 +1,10 @@
+2011-02-15  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/Makefile.am (TESTS), src/test_all.py.in: Run all unittests
+	as a single test suite, instead of running every unittest module
+	in turn. Use Automake's TESTS and TESTS_ENVIRONMENT variables to
+	configure tests.
+
 2011-02-14  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* docs/index.rst: Fix typo.

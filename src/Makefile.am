@@ -22,9 +22,10 @@ nobase_python_PYTHON = \
 	openfaucet/ofmatch.py \
 	openfaucet/ofproto.py \
 	openfaucet/ofprotoops.py \
-	openfaucet/ofstats.py
+	openfaucet/ofstats.py \
+	openfaucet/mock_twisted.py
 
-# Distribute but don't install unittests and mocks.
+# Distribute unittests but don't install them.
 UNITTESTS = \
 	openfaucet/test_buffer.py \
 	openfaucet/test_ofaction.py \
@@ -36,12 +37,19 @@ UNITTESTS = \
 	openfaucet/test_ofprotoops.py \
 	openfaucet/test_ofstats.py
 
-noinst_PYTHON = \
-	$(UNITTESTS) \
-	openfaucet/mock_twisted.py
+# Instead of running every unittest module by setting
+# TESTS = $(UNITTESTS), run them all as a single test suite.
+TESTS = test_all.py
+CLEANFILES = test_all.py
+EXTRADIST = test_all.py.in
+test_all.py: test_all.py.in $(UNITTESTS)
+	@echo generating test suite $@
+	@unittest_files="$(UNITTESTS)"; modules=;\
+	for file in $$unittest_files; do\
+	  module=`echo $$file | sed -e 's/\.py$$//' -e 'y/\//./'`;\
+	  modules="$$modules '$$module',"; done;\
+	sed -e 's/@UNITTEST_MODULES@/['"$$modules"']/'\
+	  $(srcdir)/test_all.py.in > $@
 
-check-local: $(UNITTESTS)
-	@for unittest in $?; do \
-	  echo PYTHON $$unittest; \
-	  PYTHONPATH=$(srcdir):$(builddir) $(PYTHON) -B $$unittest; \
-	done
+# The command to run the test_all.py unittests.
+TESTS_ENVIRONMENT = PYTHONPATH=$(srcdir):$(builddir) $(PYTHON) -B
