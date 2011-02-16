@@ -1,3 +1,14 @@
+2011-02-16  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/ofcontroller.py (IOpenflowControllerStub): Add
+	interface IOpenflowControllerStub for documenting methods callable
+	by controller objects.
+
+	* src/openfaucet/ofprotoops.py (Callback): Clean up documentation.
+
+	* docs/index.rst, docs/controller.rst: Reindent using 2
+	spaces. Complete section "Sending messages to datapaths".
+
 2011-02-15  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/Makefile.am (TESTS), src/test_all.py.in: Run all unittests

@@ -43,13 +43,12 @@ class Callback(collections.namedtuple('Callback', (
     Args:
       callable: A callable.
       args: The (possibly empty) sequence of positional arguments.
-      kwargs: The (possibly empty) dict of keyword arguments. If None,
-          no keyword arguments are passed, equivalent to an empty dict.
+      kwargs: The (possibly empty) dict of keyword arguments.
     """
     return Callback(callable, args, kwargs)
 
   def call(self, *first_args):
-    """Call this callable with the initial args and additional args.
+    """Call this callable with the given args and additional args.
 
     Args:
       first_args: The sequence of the first positional args to pass

@@ -99,6 +99,358 @@ class IOpenflowController(interface.Interface):
     """
 
 
+class IOpenflowControllerStub(interface.Interface):
+  """An encoder of messages to a datapath.
+  """
+
+  def get_features(self, callback, timeout_callback=None, timeout=None):
+    """Request the switch features.
+
+    This operation is asynchronous: the switch features are passed
+    back by calling the given callback as:
+
+    callback.callable(switch_features, *callback.args,
+                      **callback.kwargs)
+
+    with arguments:
+      switch_features: A SwitchFeatures object containing the switch
+          features.
+
+    Using this object's features attribute is more efficient than
+    calling this method, so this method should normally not be called
+    by controllers.
+
+    Args:
+      callback: The Callback to be called with the replied data.
+      timeout_callback: The Callback to be called in case the
+          operation times out.
+      timeout: The period, in seconds, before the operation times
+          out. If None, defaults to the default timeout.
+    """
+
+  features = interface.Attribute(
+    """The SwitchFeatures object describing the switch features.
+
+    None if the handshake with the datapath has not yet been
+    completed.
+
+    This SwitchFeatures object is automatically updated by this stub
+    when any port status is modified.
+    """)
+
+  def get_config(self, callback, timeout_callback=None, timeout=None):
+    """Request the switch config.
+
+    This operation is asynchronous: the switch config is passed back
+    by calling the given callback as:
+
+    callback.callable(switch_config, *callback.args,
+                      **callback.kwargs)
+
+    with arguments:
+      switch_config: A SwitchConfig object containing the switch
+          configuration.
+
+    Args:
+      callback: The Callback to be called with the replied data.
+      timeout_callback: The Callback to be called in case the
+          operation times out.
+      timeout: The period, in seconds, before the operation times
+          out. If None, defaults to the default timeout.
+    """
+
+  def send_set_config(self, switch_config):
+    """Send a OFPT_SET_CONFIG message.
+
+    Args:
+      switch_config: A SwitchConfig object containing the switch configuration.
+    """
+
+  def send_packet_out(self, buffer_id, in_port, actions, data):
+    """Send a OFPT_PACKET_OUT message.
+
+    Args:
+      buffer_id: The buffer ID assigned by the datapath, as a 32-bit
+          unsigned integer. If 0xffffffff, the frame is not buffered,
+          and the entire frame must be passed in data.
+      in_port: The port from which the frame is to be sent. OFPP_NONE
+          if none.
+      actions: The sequence of Action* objects specifying the actions
+          to perform on the frame.
+      data: The entire Ethernet frame, as a sequence of byte
+          buffers. Should be of length 0 if buffer_id is -1, and
+          should be of length >0 otherwise.
+    """
+
+  def send_flow_mod(self, match, cookie, command, idle_timeout, hard_timeout,
+                    priority, buffer_id, out_port, send_flow_rem, check_overlap,
+                    emerg, actions):
+    """Send a OFPT_FLOW_MOD message.
+
+    Args:
+      match: A Match object describing the fields of the flow.
+      cookie: An opaque 64-bit unsigned integer issued by the
+          controller. 0xffffffffffffffff is reserved and must not be
+          used.
+      command: The action to perform by the datapath, either
+          OFPFC_ADD (add a new flow),
+          OFPFC_MODIFY (modify all matching flows),
+          OFPFC_MODIFY_STRICT (modify flows strictly matching wildcards),
+          OFPFC_DELETE (delete all matching flows),
+          or OFPFC_DELETE_STRICT (delete flows strictly matching wildcards).
+      idle_timeout: The idle time in seconds before discarding, as a
+          16-bit unsigned integer.
+      hard_timeout: The maximum time before discarding in seconds, as
+          a 16-bit unsigned integer.
+      priority: The priority level of the flow entry, as a 16-bit
+          unsigned integer.
+      buffer_id: The buffer ID assigned by the datapath of a buffered
+          packet to apply the flow to, as a 32-bit unsigned
+          integer. If 0xffffffff, no buffered packet is to be applied
+          the flow actions.
+      out_port: For OFPFC_DELETE* commands, an output port that is
+          required to be included in matching flows. If OFPP_NONE, no
+          restriction applies in matching. For other commands, this is
+          ignored.
+      send_flow_rem: If True, send a OFPT_FLOW_REMOVED message when
+          the flow expires or is deleted.
+      check_overlap: If True, check for overlapping entries first,
+          i.e. if there are conflicting entries with the same
+          priority, the flow is not added and the modification fails.
+      emerg: if True, the switch must consider this flow entry as an
+          emergency entry, and only use it for forwarding when
+          disconnected from the controller.
+      actions: The sequence of Action* objects specifying the actions
+          to perform on the flow's packets.
+    """
+
+  def send_port_mod(self, port_no, hw_addr, config, mask, advertise):
+    """Send a OFPT_PORT_MOD message.
+
+    The config and mask arguments can be obtained by calling
+    get_diff() on a PortConfig object.
+
+    Args:
+      port_no: The port's unique number, as a 16-bit unsigned
+          integer. Must be between 1 and OFPP_MAX.
+      hw_addr: The port's MAC address, as a binary string. The
+          hardware address is not configurable. This is used only to
+          sanity-check the request, so it must be the same as returned
+          in PhyPort object.
+      config: The PortConfig containing the new values of fields to
+          replace. Only the fields which are True in mask are
+          replaced, the others are ignored.
+      mask: The PortConfig indicating which fields are to be replaced
+          with values from config.
+      advertise: The PortFeatures indicating the features to be
+          advertised by the port. If None or all fields are False, the
+          advertised features are not replaced.
+    """
+
+  def get_stats_desc(self, callback, timeout_callback=None, timeout=None):
+    """Request the switch stats.
+
+    This operation is asynchronous: the switch stats are passed back
+    by calling the given callback as:
+
+    callback.callable(desc_stats, *callback.args, **callback.kwargs)
+
+    with arguments:
+      desc_stats: A DescriptionStats that contains the switch description
+          stats.
+
+    Args:
+      callback: The Callback to be called with the replied data.
+      timeout_callback: The Callback to be called in case the
+          operation times out.
+      timeout: The period, in seconds, before the operation times
+          out. If None, defaults to the default timeout.
+    """
+
+  def get_stats_flow(self, match, table_id, out_port, callback,
+                     timeout_callback=None, timeout=None):
+    """Request individual flow stats.
+
+    This operation is asynchronous: the flow stats are passed back by
+    calling the given callback as:
+
+    callback.callable(flow_stats, reply_more, *callback.args,
+                      **callback.kwargs)
+
+    with arguments:
+      flow_stats: A tuple of FlowStats objects containing each the
+          stats for an individual flow.
+      reply_more: If True, more callbacks will be made to the callable
+          after this one to completely terminate this operation. If
+          False, this is the last callback in this operation.
+
+    Args:
+      match: A Match object describing the fields of the flows to match.
+      table_id: The ID of the table to read, as an 8-bit unsigned
+          integer. 0xff for all tables or 0xfe for emergency.
+      out_port: Require matching flows to include this as an output
+          port. A value of OFPP_NONE indicates no restriction.
+      callback: The Callback to be called with the replied data.
+      timeout_callback: The Callback to be called in case the
+          operation times out.
+      timeout: The period, in seconds, before the operation times
+          out. If None, defaults to the default timeout.
+    """
+
+  def get_stats_aggregate(self, match, table_id, out_port, callback,
+                          timeout_callback=None, timeout=None):
+    """Request aggregate flow stats.
+
+    This operation is asynchronous: the aggregate flow stats are
+    passed back by calling the given callback as:
+
+    callback.callable(packet_count, byte_count, flow_count,
+                      *callback.args, **callback.kwargs)
+
+    with arguments:
+      packet_count: The number of packets in aggregated flows, as a
+          64-bit unsigned integer.
+      byte_count: The number of bytes in aggregated flows, as a 64-bit
+          unsigned integer.
+      flow_count: The number of aggregated flows, as a 32-bit unsigned
+          integer.
+
+    Args:
+      match: A Match object describing the fields of the flows to match.
+      table_id: The ID of the table to read, as an 8-bit unsigned
+          integer. 0xff for all tables or 0xfe for emergency.
+      out_port: Require matching flows to include this as an output
+          port. A value of OFPP_NONE indicates no restriction.
+      callback: The Callback to be called with the replied data.
+      timeout_callback: The Callback to be called in case the
+          operation times out.
+      timeout: The period, in seconds, before the operation times
+          out. If None, defaults to the default timeout.
+    """
+
+  def get_stats_table(self, callback, timeout_callback=None, timeout=None):
+    """Request table stats.
+
+    This operation is asynchronous: the table stats are passed back by
+    calling the given callback as:
+
+    callback.callable(table_stats, reply_more, *callback.args,
+                      **callback.kwargs)
+
+    with arguments:
+      table_stats: A tuple of TableStats objects containing each the
+          stats for an individual table.
+      reply_more: If True, more callbacks will be made to the callable
+          after this one to completely terminate this operation. If
+          False, this is the last callback in this operation.
+
+    Args:
+      callback: The Callback to be called with the replied data.
+      timeout_callback: The Callback to be called in case the
+          operation times out.
+      timeout: The period, in seconds, before the operation times
+          out. If None, defaults to the default timeout.
+    """
+
+  def get_stats_port(self, port_no, callback, timeout_callback=None,
+                     timeout=None):
+    """Request port stats.
+
+    This operation is asynchronous: the port stats are passed back by
+    calling the given callback as:
+
+    callback.callable(port_stats, reply_more, *callback.args,
+                      **callback.kwargs)
+
+    with arguments:
+      port_stats: A tuple of PortStats objects containing each the
+          stats for an individual port.
+      reply_more: If True, more callbacks will be made to the callable
+          after this one to completely terminate this operation. If
+          False, this is the last callback in this operation.
+
+    Args:
+      port_no: The port's unique number, as a 16-bit unsigned
+          integer. If OFPP_NONE, stats for all ports are replied.
+      callback: The Callback to be called with the replied data.
+      timeout_callback: The Callback to be called in case the
+          operation times out.
+      timeout: The period, in seconds, before the operation times
+          out. If None, defaults to the default timeout.
+    """
+
+  def get_stats_queue(self, port_no, queue_id, callback, timeout_callback=None,
+                      timeout=None):
+    """Request queue stats.
+
+    This operation is asynchronous: the queue stats are passed back by
+    calling the given callback as:
+
+    callback.callable(queue_stats, reply_more, *callback.args,
+                      **callback.kwargs)
+
+    with arguments:
+      queue_stats: A tuple of QueueStats objects containing each the
+          stats for an individual queue.
+      reply_more: If True, more callbacks will be made to the callable
+          after this one to completely terminate this operation. If
+          False, this is the last callback in this operation.
+
+    Args:
+      port_no: The port's unique number, as a 16-bit unsigned
+          integer. If OFPP_ALL, stats for all ports are replied.
+      queue_id: The queue's ID. If OFPQ_ALL, stats for all queues are
+          replied.
+      callback: The Callback to be called with the replied data.
+      timeout_callback: The Callback to be called in case the
+          operation times out.
+      timeout: The period, in seconds, before the operation times
+          out. If None, defaults to the default timeout.
+    """
+
+  def barrier(self, callback, timeout_callback=None, timeout=None):
+    """Request a synchronization barrier.
+
+    This operation is asynchronous: the given callback is called when
+    the barrier is reached as:
+
+    callback.callable(*callback.args, **callback.kwargs)
+
+    Args:
+      callback: The Callback to be called with the replied data.
+      timeout_callback: The Callback to be called in case the
+          operation times out.
+      timeout: The period, in seconds, before the operation times
+          out. If None, defaults to the default timeout.
+    """
+
+  def get_queue_config(self, port_no, callback, timeout_callback=None,
+                       timeout=None):
+    """Request a port's queues configs.
+
+    This operation is asynchronous: the port's queues configs are
+    passed back by calling the given callback as:
+
+    callback.callable(port_no, queues, *callback.args,
+                      **callback.kwargs)
+
+    with arguments:
+      port_no: The port's unique number, as a 16-bit unsigned
+          integer. Must be a valid physical port, i.e. < OFPP_MAX.
+      queues: A sequence of PacketQueue objects describing the port's
+          queues.
+
+    Args:
+      port_no: The port's unique number, as a 16-bit unsigned
+          integer. Must be a valid physical port, i.e. < OFPP_MAX.
+      callback: The Callback to be called with the replied data.
+      timeout_callback: The Callback to be called in case the
+          operation times out.
+      timeout: The period, in seconds, before the operation times
+          out. If None, defaults to the default timeout.
+    """
+
+
 class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
   """A basic implementation of the OpenFlow 1.0 protocol controller side.
 
@@ -110,6 +462,8 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
   is kept up-to-date transparently when port mod messages are
   received.
   """
+
+  interface.implements(IOpenflowControllerStub)
 
   def __init__(self):
     ofprotoops.OpenflowProtocolOperations.__init__(self)
@@ -143,6 +497,9 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
   @property
   def features(self):
     """Get the switch features.
+
+    The returned SwitchFeatures object is automatically updated by
+    this stub when the status of ports is modified.
 
     Returns:
       The SwitchFeatures object describing the switch features, or
