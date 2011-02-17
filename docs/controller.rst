@@ -602,7 +602,7 @@ the operation times out.
     .. function:: callback.callable(flow_stats, reply_more[, *callback.args, **callback.kwargs])
 
       :param flow_stats: A tuple of
-        :class:`~openfaucet.ofstats.FlowStats` objects containing each
+        :class:`~openfaucet.ofstats.FlowStats` objects each containing
         the stats for an individual flow.
       :param reply_more: If True, more callbacks will be made to the
         callable after this one to completely terminate this
