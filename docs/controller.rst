@@ -331,8 +331,7 @@ the operation times out.
     :meth:`~openfaucet.ofcontroller.IOpenflowController.connection_made`
     has been called back. This
     :class:`~openfaucet.ofconfig.SwitchFeatures` object is
-    automatically updated by this stub when any port status is
-    modified.
+    automatically updated by this stub when any port status changes.
 
   .. method:: get_features(callback[, timeout_callback, timeout])
 

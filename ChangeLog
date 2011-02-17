@@ -1,5 +1,8 @@
 2011-02-17  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* docs/controller.rst, src/openfaucet/ofcontroller.py: Fix wording
+	in documentation of controller stub's "features" attribute.
+
 	* docs/controller.rst, src/openfaucet/oferror.py,
 	src/openfaucet/ofmatch.py, src/openfaucet/ofproto.py,
 	src/openfaucet/ofprotoops.py, src/openfaucet/test_ofcontroller.py,

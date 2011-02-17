@@ -135,7 +135,7 @@ class IOpenflowControllerStub(interface.Interface):
     completed.
 
     This SwitchFeatures object is automatically updated by this stub
-    when any port status is modified.
+    when any port status changes.
     """)
 
   def get_config(self, callback, timeout_callback=None, timeout=None):
