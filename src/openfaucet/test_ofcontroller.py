@@ -148,16 +148,16 @@ class TestOpenflowControllerStub(unittest2.TestCase):
 
   def test_connection_made_send_features_request(self):
     self.proto.connectionMade()
-    # Sent initial OFPT_HELLO with xid 0.
+    # Sent initial OFPT_HELLO with XID 0.
     self.assertEqual('\x01\x00\x00\x08\x00\x00\x00\x00',
                      self._get_next_sent_message())
-    # Sent initial OFPT_ECHO_REQUEST with xid 0.
+    # Sent initial OFPT_ECHO_REQUEST with XID 0.
     self.assertRegexpMatches(
         self._get_next_sent_message(),
         re.compile(r'\x01\x02\x00\x0c\x00\x00\x00\x00'
                    '....',  # 32-bit random data
                    re.DOTALL))
-    # Sent initial OFPT_FEATURES_REQUEST with xid 1.
+    # Sent initial OFPT_FEATURES_REQUEST with XID 1.
     self.assertEqual('\x01\x05\x00\x08\x00\x00\x00\x01',
                      self._get_next_sent_message())
 
@@ -184,7 +184,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
 
     self.proto.get_features(ofprotoops.Callback.make_callback(_callback))
 
-    # Sent OFPT_FEATURES_REQUEST with xid 2.
+    # Sent OFPT_FEATURES_REQUEST with XID 2.
     self.assertEqual('\x01\x05\x00\x08\x00\x00\x00\x02',
                      self._get_next_sent_message())
 
@@ -206,7 +206,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
 
     self.proto.get_config(ofprotoops.Callback.make_callback(_callback))
 
-    # Sent OFPT_GET_CONFIG_REQUEST with xid 2.
+    # Sent OFPT_GET_CONFIG_REQUEST with XID 2.
     self.assertEqual('\x01\x07\x00\x08\x00\x00\x00\x02',
                      self._get_next_sent_message())
 
@@ -229,7 +229,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
 
     self.proto.get_stats_desc(ofprotoops.Callback.make_callback(_callback))
 
-    # Sent OFPT_STATS_REQUEST with xid 2.
+    # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x02'
                      '\x00\x00' '\x00\x00',
                      self._get_next_sent_message())
@@ -260,7 +260,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     self.proto.get_stats_flow(self.match1, 0x0a, 0xabcd,
                               ofprotoops.Callback.make_callback(_callback))
 
-    # Sent OFPT_STATS_REQUEST with xid 2.
+    # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x02'
                      '\x00\x01' '\x00\x00'
                      + self.match1.serialize()
@@ -303,7 +303,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     self.proto.get_stats_aggregate(self.match1, 0x0a, 0xabcd,
                                    ofprotoops.Callback.make_callback(_callback))
 
-    # Sent OFPT_STATS_REQUEST with xid 2.
+    # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x02'
                      '\x00\x02' '\x00\x00'
                      + self.match1.serialize()
@@ -331,7 +331,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
 
     self.proto.get_stats_table(ofprotoops.Callback.make_callback(_callback))
 
-    # Sent OFPT_STATS_REQUEST with xid 2.
+    # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x02'
                      '\x00\x03' '\x00\x00',
                      self._get_next_sent_message())
@@ -374,7 +374,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     self.proto.get_stats_port(ofproto.OFPP_NONE,
                               ofprotoops.Callback.make_callback(_callback))
 
-    # Sent OFPT_STATS_REQUEST with xid 2.
+    # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x02'
                      '\x00\x04' '\x00\x00'
                      '\xff\xff\x00\x00\x00\x00\x00\x00',
@@ -414,7 +414,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     self.proto.get_stats_queue(ofproto.OFPP_ALL, ofproto.OFPQ_ALL,
                               ofprotoops.Callback.make_callback(_callback))
 
-    # Sent OFPT_STATS_REQUEST with xid 2.
+    # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x02'
                      '\x00\x05' '\x00\x00'
                      '\xff\xfc\x00\x00' '\xff\xff\xff\xff',
@@ -450,7 +450,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     self.proto.get_stats_queue(ofproto.OFPP_ALL, ofproto.OFPQ_ALL,
                               ofprotoops.Callback.make_callback(_callback))
 
-    # Sent OFPT_STATS_REQUEST with xid 2.
+    # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x02'
                      '\x00\x05' '\x00\x00'
                      '\xff\xfc\x00\x00' '\xff\xff\xff\xff',
@@ -475,7 +475,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
                           self.callbacks_made)
 
     # An OFPET_BAD_REQUEST / OFPBRC_BAD_TYPE error has been sent back,
-    # with the same xid.
+    # with the same XID.
     self.assertEqual('\x01\x01\x00\x30\x00\x00\x00\x02'
                      '\x00\x01' '\x00\x01'
                      '\x01\x11\x00\x24\x00\x00\x00\x02'
@@ -496,7 +496,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
 
     self.proto.barrier(ofprotoops.Callback.make_callback(_callback))
 
-    # Sent OFPT_BARRIER_REQUEST with xid 2.
+    # Sent OFPT_BARRIER_REQUEST with XID 2.
     self.assertEqual('\x01\x12\x00\x08\x00\x00\x00\x02',
                      self._get_next_sent_message())
 
@@ -517,7 +517,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     self.proto.get_queue_config(0xabcd,
                                 ofprotoops.Callback.make_callback(_callback))
 
-    # Sent OFPT_GET_CONFIG_REQUEST with xid 2.
+    # Sent OFPT_GET_CONFIG_REQUEST with XID 2.
     self.assertEqual('\x01\x14\x00\x0c\x00\x00\x00\x02'
                      '\xab\xcd\x00\x00',
                      self._get_next_sent_message())
@@ -649,7 +649,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     self.proto.dataReceived('\x01\x05\x00\x08\x00\x00\x00\x04')
 
     # An OFPET_BAD_REQUEST / OFPBRC_BAD_TYPE error has been sent back,
-    # with the same xid.
+    # with the same XID.
     self.assertEqual('\x01\x01\x00\x14\x00\x00\x00\x04'
                      '\x00\x01' '\x00\x01'
                      '\x01\x05\x00\x08\x00\x00\x00\x04',

@@ -1,3 +1,11 @@
+2011-02-17  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* docs/controller.rst, src/openfaucet/oferror.py,
+	src/openfaucet/ofmatch.py, src/openfaucet/ofproto.py,
+	src/openfaucet/ofprotoops.py, src/openfaucet/test_ofcontroller.py,
+	src/openfaucet/test_ofprotoops.py: Replace id->ID and xid->XID in
+	comments and documentation.
+
 2011-02-16  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/openfaucet/ofcontroller.py (IOpenflowControllerStub): Add

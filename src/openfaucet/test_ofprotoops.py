@@ -65,10 +65,10 @@ class TestOpenflowProtocolOperations(unittest2.TestCase):
 
   def test_connection_made_send_hello_echo_request(self):
     self.proto.connectionMade()
-    # Sent initial OFPT_HELLO with xid 0.
+    # Sent initial OFPT_HELLO with XID 0.
     self.assertEqual('\x01\x00\x00\x08\x00\x00\x00\x00',
                      self._get_next_sent_message())
-    # Sent initial OFPT_ECHO_REQUEST with xid 0.
+    # Sent initial OFPT_ECHO_REQUEST with XID 0.
     self.assertRegexpMatches(
         self._get_next_sent_message(),
         re.compile(r'\x01\x02\x00\x0c\x00\x00\x00\x00'
@@ -79,7 +79,7 @@ class TestOpenflowProtocolOperations(unittest2.TestCase):
     self.proto.connectionMade()
     self._get_next_sent_message()  # Initial OFPT_HELLO.
 
-    # Initial OFPT_ECHO_REQUEST with xid 0.
+    # Initial OFPT_ECHO_REQUEST with XID 0.
     next_msg = self._get_next_sent_message()
     self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x00', next_msg[:8])
     data = next_msg[8:]  # 32-big random data
@@ -118,7 +118,7 @@ class TestOpenflowProtocolOperations(unittest2.TestCase):
             kw={}),
          ], self.reactor.delayed_calls)
 
-    # Next OFPT_ECHO_REQUEST with xid 1.
+    # Next OFPT_ECHO_REQUEST with XID 1.
     self.reactor.increment_time(self.echo_op_period)
     next_msg = self._get_next_sent_message()
     self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x01', next_msg[:8])
@@ -138,7 +138,7 @@ class TestOpenflowProtocolOperations(unittest2.TestCase):
     self.proto.connectionMade()
     self._get_next_sent_message()  # Initial OFPT_HELLO.
 
-    # Initial OFPT_ECHO_REQUEST with xid 0.
+    # Initial OFPT_ECHO_REQUEST with XID 0.
     next_msg = self._get_next_sent_message()
     self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x00', next_msg[:8])
     data = next_msg[8:]  # 32-big random data
@@ -162,7 +162,7 @@ class TestOpenflowProtocolOperations(unittest2.TestCase):
     self.proto.connectionMade()
     self._get_next_sent_message()  # Initial OFPT_HELLO.
 
-    # Initial OFPT_ECHO_REQUEST with xid 0.
+    # Initial OFPT_ECHO_REQUEST with XID 0.
     next_msg = self._get_next_sent_message()
     self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x00', next_msg[:8])
     data = next_msg[8:]  # 32-big random data
@@ -201,7 +201,7 @@ class TestOpenflowProtocolOperations(unittest2.TestCase):
 
     self.proto.dataReceived('\x01\x02\x00\x10\x00\x00\x00\x04abcdefgh')
 
-    # Sent back an OFPT_ECHO_REPLY with same length 8+8, data, and xid 4.
+    # Sent back an OFPT_ECHO_REPLY with same length 8+8, data, and XID 4.
     self.assertEqual('\x01\x03\x00\x10\x00\x00\x00\x04abcdefgh',
                      self._get_next_sent_message())
 

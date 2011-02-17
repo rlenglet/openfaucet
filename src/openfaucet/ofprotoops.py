@@ -68,9 +68,9 @@ class Callback(collections.namedtuple('Callback', (
 # The state of a pending operation, consisting of the following attributes:
 #   cookie: An opaque value given at operation initiation, and that
 #       must be equal to the cookie given at operation
-#       termination. This is used to detect invalid xids in replies,
+#       termination. This is used to detect invalid XIDs in replies,
 #       e.g. replies with a type incompatible with the request sent
-#       with the same xid.
+#       with the same XID.
 #   success_callback: The Callback called when the operation
 #       successfully terminates.
 #   timeout_callback: The Callback called when the operation timeouts.
@@ -136,13 +136,13 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
   # ----------------------------------------------------------------------
 
   def _get_next_xid(self):
-    """Get the next transaction id to send in a request message
+    """Get the next transaction ID to send in a request message
 
     Lock self._pending_ops_lock must be aquired before calling this
     method.
 
     Returns:
-      The next transaction id, to be associated with the sent request,
+      The next transaction ID, to be associated with the sent request,
       as a 32-bit unsigned integer.
     """
     xid = self._next_xid
@@ -173,7 +173,7 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
           OFPT_* request message type. Defaults to None.
 
     Returns:
-      The next transaction id, to be associated with the sent request,
+      The next transaction ID, to be associated with the sent request,
       as a 32-bit unsigned integer.
     """
     xid = None
@@ -200,33 +200,33 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     vendor-specific operations.
 
     Args:
-      xid: The transaction id of the operation.
+      xid: The transaction ID of the operation.
       reply_more: If True, more replies are expected to terminate this
           operation, so keep the status of the operation as
           pending. Defaults to False.
       cookie: An opaque value that must be equal to the cookie given
           at operation initiation for the operation with the same
-          xid. This should typically be the OFPT_* request message
+          XID. This should typically be the OFPT_* request message
           type. Defaults to None.
 
     Returns:
       The Callback to call. None if no pending operation has the given
-      xid, which is interpreted as the operation having already timed
+      XID, which is interpreted as the operation having already timed
       out.
 
     Raises:
-      OpenflowError if the pending operation with the given xid was
+      OpenflowError if the pending operation with the given XID was
       initiated with a different cookie.
     """
     with self._pending_ops_lock:
       pending_op = self._pending_ops.get(xid, None)
-      # If callbacks is None, either the xid is invalid or the
+      # If callbacks is None, either the XID is invalid or the
       # operation already expired. Assume the latter and no nothing.
       if pending_op is not None:
         if pending_op.cookie != cookie:
           # The most meaningful error we can send back in this case is
           # "bad type", meaning that we believe the reply has a valid
-          # xid, but its type is wrong.
+          # XID, but its type is wrong.
           self.logger.error(
               'operation with xid=%i has cookie mistmatch (%r != %r)',
               xid, pending_op.cookie, cookie, extra=self.log_extra)
@@ -244,7 +244,7 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     """Handle an operation's timeout.
 
     Args:
-      xid: The transaction id of the timed out operation.
+      xid: The transaction ID of the timed out operation.
     """
     pending_op = None
     with self._pending_ops_lock:
@@ -252,7 +252,7 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     if pending_op is not None and pending_op.timeout_callback is not None:
       pending_op.timeout_callback.call()
 
-  # TODO(romain): Handle the reception of errors whose xids match
+  # TODO(romain): Handle the reception of errors whose XIDs match
   # pending operations?
 
   # ----------------------------------------------------------------------
@@ -263,10 +263,10 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     """Handle the reception of a OFPT_ECHO_REQUEST message.
 
     Reply to the request by sending back an OFPT_ECHO_REPLY message
-    with the same xid and data.
+    with the same XID and data.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       data: The data attached in the echo request, as a byte buffer.
     """
@@ -276,7 +276,7 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     """Handle the reception of a OFPT_ECHO_REPLY message.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       data: The data attached in the echo reply, as a byte buffer.
     """

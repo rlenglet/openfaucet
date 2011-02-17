@@ -194,13 +194,13 @@ class OpenflowProtocol(object):
   vendor_handlers = property(get_vendor_handlers, set_vendor_handlers)
 
   def get_vendor_handler(self, vendor_id):
-    """Get a vendor handler with a given vendor id.
+    """Get a vendor handler with a given vendor ID.
 
     Args:
-      vendor_id: The vendor id of the handler to return.
+      vendor_id: The vendor ID of the handler to return.
 
     Return:
-      The vendor handler object for the given vendor id, or None if not found.
+      The vendor handler object for the given vendor ID, or None if not found.
     """
     return self._vendor_handlers.get(vendor_id)
 
@@ -272,7 +272,7 @@ class OpenflowProtocol(object):
       except oferror.OpenflowError, e:
         # TODO(romain): Print the stacktrace.
         self.logger.error('openflow error %r', e, extra=self.log_extra)
-        # Always set the xid to the message that failed, as this is
+        # Always set the XID to the message that failed, as this is
         # required for at least some error types.
         self.send_error(e, xid=xid)
       except Exception, e:
@@ -436,7 +436,7 @@ class OpenflowProtocol(object):
     vendor_id = self._buffer.unpack('!L')[0]
     vendor_handler = self._vendor_handlers.get(vendor_id)
     if vendor_handler is None:
-      self.logger.error('OFPT_VENDOR message has unknown vendor id %i',
+      self.logger.error('OFPT_VENDOR message has unknown vendor ID %i',
                         vendor_id, extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_VENDOR)
@@ -738,7 +738,7 @@ class OpenflowProtocol(object):
       vendor_handler = self._vendor_handlers.get(vendor_id)
       if vendor_handler is None:
         self.logger.error(
-            'OFPT_STATS_REQUEST message has unknown vendor id %i',
+            'OFPT_STATS_REQUEST message has unknown vendor ID %i',
             vendor_id, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_VENDOR)
@@ -856,7 +856,7 @@ class OpenflowProtocol(object):
       vendor_handler = self._vendor_handlers.get(vendor_id)
       if vendor_handler is None:
         self.logger.error(
-            'OFPT_STATS_REPLY message has unknown vendor id %i',
+            'OFPT_STATS_REPLY message has unknown vendor ID %i',
             vendor_id, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_LEN)
@@ -926,7 +926,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the erroneous message,
+      xid: The transaction ID associated with the erroneous message,
           as a 32-bit unsigned integer.
       error: The OpenflowError object that describes the error.
     """
@@ -938,7 +938,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       data: The data attached in the echo request, as a byte buffer.
     """
@@ -950,7 +950,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       data: The data attached in the echo reply, as a byte buffer.
     """
@@ -962,7 +962,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
     """
     pass
@@ -973,7 +973,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       switch_features: A SwitchFeatures object containing the switch
           features.
@@ -986,7 +986,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
     """
     pass
@@ -997,7 +997,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       switch_config: A SwitchConfig object containing the switch
           configuration.
@@ -1172,7 +1172,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
     """
     pass
@@ -1185,7 +1185,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       match: A Match object describing the fields of the flows to match.
       table_id: The ID of the table to read, as an 8-bit unsigned
@@ -1203,7 +1203,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       match: A Match object describing the fields of the flows to match.
       table_id: The ID of the table to read, as an 8-bit unsigned
@@ -1221,7 +1221,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
     """
     pass
@@ -1235,7 +1235,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       port_no: The port's unique number, as a 16-bit unsigned
           integer. If OFPP_NONE, stats for all ports are replied.
@@ -1250,7 +1250,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       port_no: The port's unique number, as a 16-bit unsigned
           integer. If OFPP_ALL, stats for all ports are replied.
@@ -1267,7 +1267,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       desc_stats: A DescriptionStats that contains the switch description
           stats.
@@ -1282,7 +1282,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       flow_stats: A tuple of FlowStats objects containing each the
           stats for an individual flow.
@@ -1301,7 +1301,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       packet_count: The number of packets in aggregated flows, as a
           64-bit unsigned integer.
@@ -1320,7 +1320,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       table_stats: A tuple of TableStats objects containing each the
           stats for an individual table.
@@ -1338,7 +1338,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       port_stats: A tuple of PortStats objects containing each the
           stats for an individual port.
@@ -1356,7 +1356,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       queue_stats: A tuple of QueueStats objects containing each the
           stats for an individual queue.
@@ -1372,7 +1372,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
     """
     pass
@@ -1383,7 +1383,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the OFPT_BARRIER_REQUEST
+      xid: The transaction ID associated with the OFPT_BARRIER_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
     """
     pass
@@ -1394,7 +1394,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       port_no: The port's unique number, as a 16-bit unsigned
           integer. This is a valid physical port, i.e. < OFPP_MAX.
@@ -1407,7 +1407,7 @@ class OpenflowProtocol(object):
     This method does nothing and should be redefined in subclasses.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       port_no: The port's unique number, as a 16-bit unsigned
           integer. Must be a valid physical port, i.e. < OFPP_MAX.
@@ -1461,7 +1461,7 @@ class OpenflowProtocol(object):
       vendor_id = buf.unpack('!L')[0]
       vendor_handler = self._vendor_handlers.get(vendor_id)
       if vendor_handler is None:
-        self.logger.error('OFPAT_VENDOR action has unknown vendor id %i',
+        self.logger.error('OFPAT_VENDOR action has unknown vendor ID %i',
                           vendor_id, extra=self.log_extra)
         self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
                                       oferror.OFPBAC_BAD_VENDOR)
@@ -1490,7 +1490,7 @@ class OpenflowProtocol(object):
 
     Args:
       type: The message type, as one of the OFPT_* constants.
-      xid: The transaction id associated with this message, as a
+      xid: The transaction ID associated with this message, as a
           32-bit unsigned integer. Defaults to 0.
       data: The data in the message sent after the header, as a
           sequence of byte buffers. Defaults to an empty sequence.
@@ -1514,7 +1514,7 @@ class OpenflowProtocol(object):
 
     Args:
       error: The OpenflowError object that describes the error.
-      xid: The transaction id associated with the erroneous message,
+      xid: The transaction ID associated with the erroneous message,
           as a 32-bit unsigned integer. Defaults to 0.
     """
     self._log_send_msg('OFPT_ERROR', error=error)
@@ -1525,7 +1525,7 @@ class OpenflowProtocol(object):
     """Send a OFPT_ECHO_REQUEST message.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       data: A sequence of arbitrary byte buffers to send as payload.
     """
@@ -1537,7 +1537,7 @@ class OpenflowProtocol(object):
     """Send a OFPT_ECHO_REPLY message.
 
     Args:
-      xid: The transaction id associated with the OFPT_ECHO_REQUEST
+      xid: The transaction ID associated with the OFPT_ECHO_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       data: The payload received in the OFPT_ECHO_REQUEST message, as
           a sequence of byte buffers.
@@ -1551,7 +1551,7 @@ class OpenflowProtocol(object):
 
     Args:
       vendor_id: The OpenFlow vendor ID, as a 32-bit unsigned integer.
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer. Defaults to 0.
       data: The data in the message sent after the header, as a
           sequence of byte buffers. Defaults to an empty sequence.
@@ -1563,14 +1563,14 @@ class OpenflowProtocol(object):
     all_data.extend(data)
     self._send_message(OFPT_VENDOR, xid=xid, data=all_data)
     # TODO(romain): Support vendor messages that require a new, unique
-    # xid. In that case, generate one and return it. Otherwise, return
+    # XID. In that case, generate one and return it. Otherwise, return
     # None.
 
   def send_features_request(self, xid):
     """Send a OFPT_FEATURES_REQUEST message.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
     """
     self._log_send_msg('OFPT_FEATURES_REQUEST')
@@ -1581,7 +1581,7 @@ class OpenflowProtocol(object):
     """Send a OFPT_FEATURES_REPLY message.
 
     Args:
-      xid: The transaction id associated with the OFPT_FEATURES_REQUEST
+      xid: The transaction ID associated with the OFPT_FEATURES_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       switch_features: A SwitchFeatures object containing the switch features.
     """
@@ -1594,7 +1594,7 @@ class OpenflowProtocol(object):
     """Send a OFPT_GET_CONFIG_REQUEST message.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
     """
     self._log_send_msg('OFPT_GET_CONFIG_REQUEST')
@@ -1605,7 +1605,7 @@ class OpenflowProtocol(object):
     """Send a OFPT_GET_CONFIG_REPLY message.
 
     Args:
-      xid: The transaction id associated with the OFPT_GET_CONFIG_REQUEST
+      xid: The transaction ID associated with the OFPT_GET_CONFIG_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       switch_config: A SwitchConfig object containing the switch configuration.
     """
@@ -1864,7 +1864,7 @@ class OpenflowProtocol(object):
     """Send a OFPT_STATS_REQUEST message to query for stats.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       type: The type of stats requested, either OFPST_DESC,
           OFPST_FLOW, OFPST_AGGREGATE, OFPST_TABLE, OFPST_PORT,
@@ -1888,7 +1888,7 @@ class OpenflowProtocol(object):
     The OFPST_DESC stats contain a description of the OpenFlow switch.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
     """
     self._log_send_msg('OFPT_STATS_REQUEST / OFPST_DESC')
@@ -1901,7 +1901,7 @@ class OpenflowProtocol(object):
     The OFPST_FLOW stats contain individual flow statistics.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       match: A Match object describing the fields of the flows to match.
       table_id: The ID of the table to read, as an 8-bit unsigned
@@ -1923,7 +1923,7 @@ class OpenflowProtocol(object):
     The OFPST_AGGREGATE stats contain aggregate flow statistics.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       match: A Match object describing the fields of the flows to match.
       table_id: The ID of the table to read, as an 8-bit unsigned
@@ -1945,7 +1945,7 @@ class OpenflowProtocol(object):
     The OFPST_TABLE stats contain flow table statistics.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
     """
     self._log_send_msg('OFPT_STATS_REQUEST / OFPST_TABLE')
@@ -1959,7 +1959,7 @@ class OpenflowProtocol(object):
     port_no is OFPP_NONE) or for a single port.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       port_no: The port's unique number, as a 16-bit unsigned
           integer. If OFPP_NONE, stats for all ports are replied.
@@ -1976,7 +1976,7 @@ class OpenflowProtocol(object):
     The OFPST_QUEUE stats contain queue statistics for a queue.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       port_no: The port's unique number, as a 16-bit unsigned
           integer. If OFPP_ALL, stats for all ports are replied.
@@ -1996,7 +1996,7 @@ class OpenflowProtocol(object):
     The OFPST_VENDOR stats contain vendor-specific stats.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       vendor_id: The OpenFlow vendor ID, as a 32-bit unsigned integer.
       data: The data in the message sent after the header, as a
@@ -2013,7 +2013,7 @@ class OpenflowProtocol(object):
     """Send a OFPT_STATS_REPLY message to query for switch stats.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       type: The type of stats replied, either OFPST_DESC,
           OFPST_FLOW, OFPST_AGGREGATE, OFPST_TABLE, OFPST_PORT,
@@ -2039,7 +2039,7 @@ class OpenflowProtocol(object):
     The OFPST_DESC stats contain a description of the OpenFlow switch.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       desc_stats: A DescriptionStats that contains the switch description
           stats.
@@ -2054,7 +2054,7 @@ class OpenflowProtocol(object):
     The OFPST_FLOW stats contain individual flow statistics.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       flow_stats: A sequence of FlowStats objects containing each the
           stats for an individual flow.
@@ -2078,7 +2078,7 @@ class OpenflowProtocol(object):
     The OFPST_AGGREGATE stats contain aggregate flow statistics.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       packet_count: The number of packets in aggregated flows, as a
           64-bit unsigned integer.
@@ -2100,7 +2100,7 @@ class OpenflowProtocol(object):
     The OFPST_TABLE stats contain flow table statistics.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       table_stats: A sequence of TableStats objects containing each the
           stats for an individual table.
@@ -2121,7 +2121,7 @@ class OpenflowProtocol(object):
     The OFPST_PORT stats contain statistics for individual ports.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       port_stats: A sequence of PortStats objects containing each the
           stats for an individual port.
@@ -2142,7 +2142,7 @@ class OpenflowProtocol(object):
     The OFPST_QUEUE stats contain queue statistics for individual queues.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       queue_stats: A sequence of QueueStats objects containing each the
           stats for an individual queue.
@@ -2163,7 +2163,7 @@ class OpenflowProtocol(object):
     The OFPST_VENDOR stats contain vendor-specific stats.
 
     Args:
-      xid: The transaction id associated with the OFPT_STATS_REQUEST
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       vendor_id: The OpenFlow vendor ID, as a 32-bit unsigned integer.
       data: The data in the message sent after the header, as a
@@ -2173,7 +2173,7 @@ class OpenflowProtocol(object):
           the last reply to the request.
 
     Returns:
-      The transaction id associated with the sent request, as a 32-bit
+      The transaction ID associated with the sent request, as a 32-bit
       unsigned integer.
     """
     self._log_send_msg('OFPT_STATS_REPLY / OFPST_VENDOR', vendor_id=vendor_id)
@@ -2187,7 +2187,7 @@ class OpenflowProtocol(object):
     """Send a OFPT_BARRIER_REQUEST message.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
     """
     self._log_send_msg('OFPT_BARRIER_REQUEST')
@@ -2198,7 +2198,7 @@ class OpenflowProtocol(object):
     """Send a OFPT_BARRIER_REPLY message.
 
     Args:
-      xid: The transaction id associated with the OFPT_BARRIER_REQUEST
+      xid: The transaction ID associated with the OFPT_BARRIER_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
     """
     self._log_send_msg('OFPT_BARRIER_REPLY')
@@ -2209,7 +2209,7 @@ class OpenflowProtocol(object):
     """Send a OFPT_QUEUE_GET_CONFIG_REQUEST message.
 
     Args:
-      xid: The transaction id associated with the request, as a 32-bit
+      xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
       port_no: The port's unique number, as a 16-bit unsigned
           integer. Must be a valid physical port, i.e. < OFPP_MAX.
@@ -2225,7 +2225,7 @@ class OpenflowProtocol(object):
     """Send a OFPT_QUEUE_GET_CONFIG_REPLY message.
 
     Args:
-      xid: The transaction id associated with the
+      xid: The transaction ID associated with the
           OFPT_QUEUE_GET_CONFIG_REQUEST message this is a reply to, as
           a 32-bit unsigned integer.
       port_no: The port's unique number, as a 16-bit unsigned

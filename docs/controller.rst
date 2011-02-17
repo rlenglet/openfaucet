@@ -257,7 +257,7 @@ OpenFlow datapath, as defined in interface
 :class:`~openfaucet.ofcontroller.IOpenflowControllerStub`. The stub is
 referenced by a weak reference set in the controller's ``protocol``
 attribute, so it must be retrieved by calling ``self.protocol()``. For
-instance, to print the datapath id once the handshake with the
+instance, to print the datapath ID once the handshake with the
 datapath is terminated::
 
   class MyController(object):

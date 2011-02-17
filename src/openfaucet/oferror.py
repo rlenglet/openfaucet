@@ -84,8 +84,8 @@ OFP_ERROR_MESSAGES = {
   OFPET_BAD_ACTION: ('error in action description', {
     OFPBAC_BAD_TYPE: 'unknown action type',
     OFPBAC_BAD_LEN: 'length problem in actions',
-    OFPBAC_BAD_VENDOR: 'unknown vendor id specified',
-    OFPBAC_BAD_VENDOR_TYPE: 'unknown action type for vendor id',
+    OFPBAC_BAD_VENDOR: 'unknown vendor ID specified',
+    OFPBAC_BAD_VENDOR_TYPE: 'unknown action type for vendor ID',
     OFPBAC_BAD_OUT_PORT: 'problem validating output action',
     OFPBAC_BAD_ARGUMENT: 'bad action argument',
     OFPBAC_EPERM: 'permissions error',

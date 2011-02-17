@@ -127,7 +127,7 @@ class Match(collections.namedtuple('Match', (
     in_port: The input port, as a 16-bit unsigned integer.
     dl_src: The MAC source address, as a binary string.
     dl_dst: The MAC destination address, as a binary string.
-    dl_vlan: The input VLAN id, as a 16-bit unsigned integer.
+    dl_vlan: The input VLAN ID, as a 16-bit unsigned integer.
     dl_vlan_pcp: The input VLAN priority, as a 8-bit unsigned integer.
     dl_type: The Ethernet frame type, as a 16-bit unsigned integer.
     nw_tos: The IP ToS (only the DSCP field's 6 bits), as an 8-bit
