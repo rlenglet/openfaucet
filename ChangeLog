@@ -1,3 +1,12 @@
+2011-02-18  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/ofcontroller.py
+	(IOpenflowControllerStub, IOpenflowController): Remove the 'self'
+	argument from interface methods.
+
+	* docs/controller.rst: Fix the specification of 'features' as an
+	attribute instead of a method.
+
 2011-02-17  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* docs/controller.rst, src/openfaucet/ofcontroller.py: Fix wording

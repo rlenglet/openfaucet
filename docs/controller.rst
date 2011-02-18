@@ -323,7 +323,7 @@ the operation times out.
 
   .. rubric:: Configuration
 
-  .. method:: features()
+  .. attribute:: features
 
     The :class:`~openfaucet.ofconfig.SwitchFeatures` object describing
     the switch features. None if the handshake with the datapath has

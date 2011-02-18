@@ -30,14 +30,14 @@ class IOpenflowController(interface.Interface):
   """A handler of asynchronous messages received from a datapath.
   """
 
-  def connection_made(self):
+  def connection_made():
     """Initialize the resources to manage the newly opened OpenFlow connection.
 
     This is called only after the handshake with the switch is
     completed, i.e. once the switch's features have been received.
     """
 
-  def connection_lost(self, reason):
+  def connection_lost(reason):
     """Release any resources used to manage the connection that was just lost.
 
     Args:
@@ -47,7 +47,7 @@ class IOpenflowController(interface.Interface):
           subclass of one of those).
     """
 
-  def handle_packet_in(self, buffer_id, total_len, in_port, reason, data):
+  def handle_packet_in(buffer_id, total_len, in_port, reason, data):
     """Handle the reception of a OFPT_PACKET_IN message.
 
     Args:
@@ -63,7 +63,7 @@ class IOpenflowController(interface.Interface):
     """
 
   def handle_flow_removed(
-      self, match, cookie, priority, reason, duration_sec, duration_nsec,
+      match, cookie, priority, reason, duration_sec, duration_nsec,
       idle_timeout, packet_count, byte_count):
     """Handle the reception of a OFPT_FLOW_REMOVED message.
 
@@ -88,7 +88,7 @@ class IOpenflowController(interface.Interface):
           unsigned integer.
     """
 
-  def handle_port_status(self, reason, desc):
+  def handle_port_status(reason, desc):
     """Handle the reception of a OFPT_PORT_STATUS message.
 
     Args:
@@ -103,7 +103,7 @@ class IOpenflowControllerStub(interface.Interface):
   """An encoder of messages to a datapath.
   """
 
-  def get_features(self, callback, timeout_callback=None, timeout=None):
+  def get_features(callback, timeout_callback=None, timeout=None):
     """Request the switch features.
 
     This operation is asynchronous: the switch features are passed
@@ -138,7 +138,7 @@ class IOpenflowControllerStub(interface.Interface):
     when any port status changes.
     """)
 
-  def get_config(self, callback, timeout_callback=None, timeout=None):
+  def get_config(callback, timeout_callback=None, timeout=None):
     """Request the switch config.
 
     This operation is asynchronous: the switch config is passed back
@@ -159,14 +159,14 @@ class IOpenflowControllerStub(interface.Interface):
           out. If None, defaults to the default timeout.
     """
 
-  def send_set_config(self, switch_config):
+  def send_set_config(switch_config):
     """Send a OFPT_SET_CONFIG message.
 
     Args:
       switch_config: A SwitchConfig object containing the switch configuration.
     """
 
-  def send_packet_out(self, buffer_id, in_port, actions, data):
+  def send_packet_out(buffer_id, in_port, actions, data):
     """Send a OFPT_PACKET_OUT message.
 
     Args:
@@ -182,7 +182,7 @@ class IOpenflowControllerStub(interface.Interface):
           should be of length >0 otherwise.
     """
 
-  def send_flow_mod(self, match, cookie, command, idle_timeout, hard_timeout,
+  def send_flow_mod(match, cookie, command, idle_timeout, hard_timeout,
                     priority, buffer_id, out_port, send_flow_rem, check_overlap,
                     emerg, actions):
     """Send a OFPT_FLOW_MOD message.
@@ -224,7 +224,7 @@ class IOpenflowControllerStub(interface.Interface):
           to perform on the flow's packets.
     """
 
-  def send_port_mod(self, port_no, hw_addr, config, mask, advertise):
+  def send_port_mod(port_no, hw_addr, config, mask, advertise):
     """Send a OFPT_PORT_MOD message.
 
     The config and mask arguments can be obtained by calling
@@ -247,7 +247,7 @@ class IOpenflowControllerStub(interface.Interface):
           advertised features are not replaced.
     """
 
-  def get_stats_desc(self, callback, timeout_callback=None, timeout=None):
+  def get_stats_desc(callback, timeout_callback=None, timeout=None):
     """Request the switch stats.
 
     This operation is asynchronous: the switch stats are passed back
@@ -267,7 +267,7 @@ class IOpenflowControllerStub(interface.Interface):
           out. If None, defaults to the default timeout.
     """
 
-  def get_stats_flow(self, match, table_id, out_port, callback,
+  def get_stats_flow(match, table_id, out_port, callback,
                      timeout_callback=None, timeout=None):
     """Request individual flow stats.
 
@@ -297,7 +297,7 @@ class IOpenflowControllerStub(interface.Interface):
           out. If None, defaults to the default timeout.
     """
 
-  def get_stats_aggregate(self, match, table_id, out_port, callback,
+  def get_stats_aggregate(match, table_id, out_port, callback,
                           timeout_callback=None, timeout=None):
     """Request aggregate flow stats.
 
@@ -328,7 +328,7 @@ class IOpenflowControllerStub(interface.Interface):
           out. If None, defaults to the default timeout.
     """
 
-  def get_stats_table(self, callback, timeout_callback=None, timeout=None):
+  def get_stats_table(callback, timeout_callback=None, timeout=None):
     """Request table stats.
 
     This operation is asynchronous: the table stats are passed back by
@@ -352,7 +352,7 @@ class IOpenflowControllerStub(interface.Interface):
           out. If None, defaults to the default timeout.
     """
 
-  def get_stats_port(self, port_no, callback, timeout_callback=None,
+  def get_stats_port(port_no, callback, timeout_callback=None,
                      timeout=None):
     """Request port stats.
 
@@ -379,7 +379,7 @@ class IOpenflowControllerStub(interface.Interface):
           out. If None, defaults to the default timeout.
     """
 
-  def get_stats_queue(self, port_no, queue_id, callback, timeout_callback=None,
+  def get_stats_queue(port_no, queue_id, callback, timeout_callback=None,
                       timeout=None):
     """Request queue stats.
 
@@ -408,7 +408,7 @@ class IOpenflowControllerStub(interface.Interface):
           out. If None, defaults to the default timeout.
     """
 
-  def barrier(self, callback, timeout_callback=None, timeout=None):
+  def barrier(callback, timeout_callback=None, timeout=None):
     """Request a synchronization barrier.
 
     This operation is asynchronous: the given callback is called when
@@ -424,7 +424,7 @@ class IOpenflowControllerStub(interface.Interface):
           out. If None, defaults to the default timeout.
     """
 
-  def get_queue_config(self, port_no, callback, timeout_callback=None,
+  def get_queue_config(port_no, callback, timeout_callback=None,
                        timeout=None):
     """Request a port's queues configs.
 
