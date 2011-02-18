@@ -58,11 +58,11 @@ object that is an instance of a class implementing the
       of available bytes, or if some elements cannot be deserialized.
 
 The following action classes implement that interface and can be used
-to encode and decode standard OpenFlow actions. All those classes are
-named tuple classes (cf. Python's :mod:`collections`), i.e. actions
-are tuples that each correspond to an attribute. To create an action,
-its attributes can be given in positional order, or using keywords,
-i.e.::
+to encode and decode standard OpenFlow actions. All these classes are
+named tuple classes (cf. Python's :mod:`collections`), i.e. action
+objects are also tuples which elements each correspond to an
+attribute. To create an action object, its attributes can be given in
+positional order, or using keywords, i.e.::
 
   from openfaucet import ofaction
   action = ofaction.ActionOutput(12, 128)
@@ -80,7 +80,12 @@ is equivalent to::
 
   port = action.port
 
-Attribute access by name is recommended for clarity.
+Attribute access by name is recommended for readability. Every action
+object, just like any tuple, is immutable and hashable. A copy of an
+existing action object with some of its attributes modified can be
+created by calling :meth:`_replace`, for instance::
+
+ new_action = action._replace(port=42)
 
 .. rubric:: Output and QoS
 
