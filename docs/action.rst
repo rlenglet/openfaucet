@@ -60,7 +60,7 @@ object that is an instance of a class implementing the
 The following action classes implement that interface and can be used
 to encode and decode standard OpenFlow actions. All these classes are
 named tuple classes (cf. Python's :mod:`collections`), i.e. action
-objects are also tuples which elements each correspond to an
+objects are also tuples whose elements each correspond to an
 attribute. To create an action object, its attributes can be given in
 positional order, or using keywords, i.e.::
 

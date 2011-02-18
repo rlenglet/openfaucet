@@ -1,5 +1,11 @@
 2011-02-18  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* src/openfaucet/ofconfig.py: Fix documentation details.
+
+	* docs/config.rst, docs/Makefile.am, docs/index.rst,
+	docs/controller.rst: Add documentation for switch configuration
+	classes.
+
 	* docs/action.rst: Clarify the properties of action objects and
 	named tuples.
 

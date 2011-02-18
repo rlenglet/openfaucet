@@ -17,19 +17,21 @@
 SPHINXDATA = \
 	index.rst \
 	controller.rst \
+	config.rst \
 	action.rst
 
 dist_noinst_DATA = $(SPHINXDATA)
 
-SPHINXOPTS     = -q -N
+SPHINXOPTS     = -q -N -n
 PAPEROPT       = -D latex_paper_size=a4
 ALLSPHINXOPTS  = -d $(builddir) $(PAPEROPT) $(SPHINXOPTS)
 
-installdirs-local: installdirs-html-local installdirs-pdf-local
+installdirs-local: installdirs-html-local
 
 HTMLDATA = \
 	html/index.html \
 	html/controller.html \
+	html/config.html \
 	html/action.html \
 	html/genindex.html \
 	html/search.html \
@@ -50,6 +52,7 @@ CLEANFILES = \
 	environment.pickle \
 	index.doctree \
 	controller.doctree \
+	config.doctree \
 	action.doctree
 
 clean-local:

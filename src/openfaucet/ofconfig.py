@@ -260,11 +260,11 @@ class PhyPort(collections.namedtuple('PhyPort', (
         integer. Must be between 1 and OFPP_MAX.
     hw_addr: The port's MAC address, as a binary string.
     name: The port's human-readable name, limited to 16 characters.
-    config: A PortConfig object indicating the configuration of the port:
+    config: A PortConfig object indicating the configuration of the port.
     state_*: Flags and values to indicate the current state of the port:
         state_link_down: A boolean value indicating that no physical link is
             present.
-        state_stp: Indicate the STP state, either
+        state_stp: Indicates the STP state, either
             OFPPS_STP_LISTEN (not learning or relaying frames),
             OFPPS_STP_LEARN (learning but not relaying frames),
             OFPPS_STP_FORWARD (learning and relaying frames),
@@ -458,8 +458,9 @@ class SwitchConfig(collections.namedtuple('SwitchConfig', (
         OFPC_FRAG_NORMAL (no special handling for fragments),
         OFPC_FRAG_DROP (drop fragments),
         or OFPC_FRAG_REASM (reassemble, only if supported).
-    miss_send_len: The maximum number of bytes of new flow that the
-        datapath should send to the controller.
+    miss_send_len: The maximum number of bytes of new flow packets
+        that the datapath should send to the controller in
+        OFPT_PACKET_IN messages.
   """
 
   __slots__ = ()
