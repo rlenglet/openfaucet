@@ -1,5 +1,12 @@
 2011-02-18  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* src/openfaucet/ofaction.py: Define interface IAction and have
+	all action classes implement it.
+
+	* docs/action.rst, docs/Makefile.am, docs/index.rst,
+	docs/controller.rst: Add documentation for standard port numbers,
+	for interface IAction, and for standard action classes.
+
 	* src/openfaucet/ofcontroller.py
 	(IOpenflowControllerStub, IOpenflowController): Remove the 'self'
 	argument from interface methods.

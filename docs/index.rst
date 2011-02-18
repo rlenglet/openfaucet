@@ -25,6 +25,7 @@ Contents:
   :maxdepth: 2
 
   controller
+  action
 
 
 Indices and tables

@@ -16,7 +16,8 @@
 
 SPHINXDATA = \
 	index.rst \
-	controller.rst
+	controller.rst \
+	action.rst
 
 dist_noinst_DATA = $(SPHINXDATA)
 
@@ -29,6 +30,7 @@ installdirs-local: installdirs-html-local installdirs-pdf-local
 HTMLDATA = \
 	html/index.html \
 	html/controller.html \
+	html/action.html \
 	html/genindex.html \
 	html/search.html \
 	html/searchindex.js \
@@ -47,7 +49,8 @@ HTMLDATA = \
 CLEANFILES = \
 	environment.pickle \
 	index.doctree \
-	controller.doctree
+	controller.doctree \
+	action.doctree
 
 clean-local:
 	-rm -rf $(builddir)/html

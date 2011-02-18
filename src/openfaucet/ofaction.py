@@ -19,6 +19,7 @@
 
 import collections
 import struct
+from zope import interface
 
 from openfaucet import buffer
 
@@ -37,6 +38,48 @@ OFPAT_SET_TP_SRC = 9
 OFPAT_SET_TP_DST = 10
 OFPAT_ENQUEUE = 11
 OFPAT_VENDOR = 12
+
+
+class IAction(interface.Interface):
+  """An OpenFlow action."""
+
+  type = interface.Attribute(
+    """The type of the action, as one of OFPAT_* constants.
+    """)
+
+  format_length = interface.Attribute(
+    """The length of the data in the encoded action.
+
+    This length doesn't count the ofp_action_header information.
+    """)
+
+  def serialize():
+    """Serialize this action object into an OpenFlow action.
+
+    The returned string can be passed to deserialize() to recreate a
+    copy of this action object.
+
+    Returns:
+      A binary string that is a serialized form of this action object
+      into an OpenFlow action. The ofp_action_header structure is not
+      included in the generated strings.
+    """
+
+  def deserialize(buf):
+    """Returns an action object deserialized from a sequence of bytes.
+
+    Args:
+      buf: A ReceiveBuffer object that contains the bytes that are the
+          serialized form of the action, after the ofp_action_header
+          structure.
+
+    Returns:
+      A new action object deserialized from the buffer.
+
+    Raises:
+      ValueError if the buffer has an invalid number of available
+      bytes, or if some elements cannot be deserialized.
+    """
 
 
 def __action(type_name, action_type, format, field_names, verbose=False):
@@ -63,6 +106,7 @@ def __action(type_name, action_type, format, field_names, verbose=False):
   format_length = struct.calcsize(format)
   template = '''class %(type_name)s(_collections.namedtuple(
       '%(type_name)s', %(field_names)s)):\n
+      _interface.implements(_iaction)
       type = %(action_type)d\n
       format_length = %(format_length)d\n
       def serialize(self):
@@ -75,7 +119,8 @@ def __action(type_name, action_type, format, field_names, verbose=False):
     print template
 
   namespace = dict(__name__='action_%s' % type_name, _property=property,
-                   _collections=collections, _struct=struct)
+                   _collections=collections, _struct=struct,
+                   _interface=interface, _iaction=IAction)
   try:
     exec template in namespace
   except SyntaxError, e:

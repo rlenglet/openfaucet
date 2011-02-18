@@ -216,7 +216,7 @@ callback methods:
     :type reason: integer
 
     :param duration_sec: Time the flow was alive in seconds.
-    :type duration_sec: 32-bit unsigned integer.
+    :type duration_sec: 32-bit unsigned integer
 
     :param duration_nsec: Time flow was alive in nanoseconds beyond
       duration_sec.
@@ -475,11 +475,13 @@ the operation times out.
 
     :param in_port: The port from which the frame is to be
       sent. :const:`~openfaucet.ofproto.OFPP_NONE` if none.
+      :const:`~openfaucet.ofproto.OFPP_TABLE` to perform the actions
+      defined in the flow table.
     :type in_port: integer
 
-    :param actions: The sequence of action objects (see
-      :mod:`~openfaucet.ofaction`) specifying the actions to perform
-      on the frame.
+    :param actions: The sequence of action objects (implementing
+      :mod:`~openfaucet.ofaction.IAction`) specifying the actions to
+      perform on the frame.
 
     :param data: The entire Ethernet frame, as a sequence of byte
       buffers. Should be of length 0 if buffer_id is -1, and should be
