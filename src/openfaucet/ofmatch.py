@@ -160,7 +160,7 @@ class Match(collections.namedtuple('Match', (
     """Create a new Match with flow attributes wildcarded unless specified.
 
     Returns:
-      A new Match object which attributes are set to the given values,
+      A new Match object whose attributes are set to the given values,
       or None (i.e. wildcarded) if not specified.
     """
     return Match(in_port=in_port, dl_src=dl_src, dl_dst=dl_dst,

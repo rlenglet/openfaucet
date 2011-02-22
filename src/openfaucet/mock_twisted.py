@@ -119,7 +119,7 @@ class MockReactorTime(object):
   January 1, 1970, that is initially set to zero.  This clock must be
   explicitly incremented by clients, by calling increment_time(), to
   simulate the passing of time in the Memcached server.  Calling
-  increment_time() triggers delayed calls which triggering times are
+  increment_time() triggers delayed calls whose triggering times are
   lower or equal to the new clock value.
   """
 
