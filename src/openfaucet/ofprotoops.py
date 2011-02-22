@@ -268,7 +268,7 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     Args:
       xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
-      data: The data attached in the echo request, as a byte buffer.
+      data: The data attached in the echo request, as a binary string.
     """
     self.send_echo_reply(xid, (data,))
 
@@ -278,7 +278,7 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     Args:
       xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
-      data: The data attached in the echo reply, as a byte buffer.
+      data: The data attached in the echo reply, as a binary string.
     """
     success_callable = self.terminate_operation(
         xid, cookie=ofproto.OFPT_ECHO_REQUEST)
@@ -304,8 +304,8 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     request. Schedule the next operation.
 
     Args:
-      data: The data attached in the echo reply, as a byte buffer.
-      sent_data: The data that was sent in the echo request, as a byte buffer.
+      data: The data attached in the echo reply, as a binary string.
+      sent_data: The data that was sent in the echo request, as a binary string.
     """
     if data != sent_data:
       self.logger.error('echo reply with invalid data', extra=self.log_extra)

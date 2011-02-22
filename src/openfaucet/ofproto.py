@@ -940,7 +940,7 @@ class OpenflowProtocol(object):
     Args:
       xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
-      data: The data attached in the echo request, as a byte buffer.
+      data: The data attached in the echo request, as a binary string.
     """
     pass
 
@@ -952,7 +952,7 @@ class OpenflowProtocol(object):
     Args:
       xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
-      data: The data attached in the echo reply, as a byte buffer.
+      data: The data attached in the echo reply, as a binary string.
     """
     pass
 
@@ -1028,7 +1028,7 @@ class OpenflowProtocol(object):
       reason: The reason why the frame is being sent, either
           OFPR_NO_MATCH (no matching flow) or OFPR_ACTION (action
           explicitly output to controller).
-      data: The Ethernet frame, as a byte buffer.
+      data: The Ethernet frame, as a binary string.
     """
     pass
 
@@ -1087,8 +1087,8 @@ class OpenflowProtocol(object):
           if none.
       actions: The tuple of Action* objects specifying the actions to
           perform on the frame.
-      data: The entire Ethernet frame, as a sequence of byte
-          buffers. Should be of length 0 if buffer_id is -1, and
+      data: The entire Ethernet frame, as a sequence of binary
+          strings. Should be of length 0 if buffer_id is -1, and
           should be of length >0 otherwise.
     """
     pass
@@ -1423,7 +1423,7 @@ class OpenflowProtocol(object):
       a: The Action* object to serialize into data.
 
     Returns:
-      The sequence of byte buffers representing the serialized action,
+      The sequence of binary strings representing the serialized action,
       including the ofp_action_header.
     """
     a_ser = a.serialize()
@@ -1493,7 +1493,7 @@ class OpenflowProtocol(object):
       xid: The transaction ID associated with this message, as a
           32-bit unsigned integer. Defaults to 0.
       data: The data in the message sent after the header, as a
-          sequence of byte buffers. Defaults to an empty sequence.
+          sequence of binary strings. Defaults to an empty sequence.
     """
     length = OFP_HEADER_LENGTH + sum(len(d) for d in data)
     header = struct.pack(OFP_HEADER_FORMAT,
@@ -1527,7 +1527,7 @@ class OpenflowProtocol(object):
     Args:
       xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer.
-      data: A sequence of arbitrary byte buffers to send as payload.
+      data: A sequence of arbitrary binary strings to send as payload.
     """
     self._log_send_msg('OFPT_ECHO_REQUEST', data=data)
 
@@ -1540,7 +1540,7 @@ class OpenflowProtocol(object):
       xid: The transaction ID associated with the OFPT_ECHO_REQUEST
           message this is a reply to, as a 32-bit unsigned integer.
       data: The payload received in the OFPT_ECHO_REQUEST message, as
-          a sequence of byte buffers.
+          a sequence of binary strings.
     """
     self._log_send_msg('OFPT_ECHO_REPLY', data=data)
 
@@ -1554,7 +1554,7 @@ class OpenflowProtocol(object):
       xid: The transaction ID associated with the request, as a 32-bit
           unsigned integer. Defaults to 0.
       data: The data in the message sent after the header, as a
-          sequence of byte buffers. Defaults to an empty sequence.
+          sequence of binary strings. Defaults to an empty sequence.
     """
     self._log_send_msg('OFPT_VENDOR', vendor_id=vendor_id)
 
@@ -1636,7 +1636,7 @@ class OpenflowProtocol(object):
       reason: The reason why the frame is being sent, either
           OFPR_NO_MATCH (no matching flow) or OFPR_ACTION (action
           explicitly output to controller).
-      data: The Ethernet frame, as a sequence of byte buffers. The
+      data: The Ethernet frame, as a sequence of binary strings. The
           total length must 2 bytes minimum.
     """
     self._log_send_msg(
@@ -1723,8 +1723,8 @@ class OpenflowProtocol(object):
           if none.
       actions: The sequence of Action* objects specifying the actions
           to perform on the frame.
-      data: The entire Ethernet frame, as a sequence of byte
-          buffers. Should be of length 0 if buffer_id is -1, and
+      data: The entire Ethernet frame, as a sequence of binary
+          strings. Should be of length 0 if buffer_id is -1, and
           should be of length >0 otherwise.
     """
     self._log_send_msg(
@@ -1870,7 +1870,7 @@ class OpenflowProtocol(object):
           OFPST_FLOW, OFPST_AGGREGATE, OFPST_TABLE, OFPST_PORT,
           OFPST_QUEUE, or OFPST_VENDOR.
       data: The data in the message sent after the header, as a
-          sequence of byte buffers. Defaults to an empty sequence.
+          sequence of binary strings. Defaults to an empty sequence.
     """
     if type not in (OFPST_DESC, OFPST_FLOW, OFPST_AGGREGATE, OFPST_TABLE,
                     OFPST_PORT, OFPST_QUEUE, OFPST_VENDOR):
@@ -2000,7 +2000,7 @@ class OpenflowProtocol(object):
           unsigned integer.
       vendor_id: The OpenFlow vendor ID, as a 32-bit unsigned integer.
       data: The data in the message sent after the header, as a
-          sequence of byte buffers. Defaults to an empty sequence.
+          sequence of binary strings. Defaults to an empty sequence.
     """
     self._log_send_msg('OFPT_STATS_REQUEST / OFPST_VENDOR',
                        vendor_id=vendor_id)
@@ -2022,7 +2022,7 @@ class OpenflowProtocol(object):
           this one to completely reply the request. If False, this is
           the last reply to the request.
       data: The data in the message sent after the header, as a
-          sequence of byte buffers. Defaults to an empty sequence.
+          sequence of binary strings. Defaults to an empty sequence.
     """
     if type not in (OFPST_DESC, OFPST_FLOW, OFPST_AGGREGATE, OFPST_TABLE,
                     OFPST_PORT, OFPST_QUEUE, OFPST_VENDOR):
@@ -2167,7 +2167,7 @@ class OpenflowProtocol(object):
           message this is a reply to, as a 32-bit unsigned integer.
       vendor_id: The OpenFlow vendor ID, as a 32-bit unsigned integer.
       data: The data in the message sent after the header, as a
-          sequence of byte buffers. Defaults to an empty sequence.
+          sequence of binary strings. Defaults to an empty sequence.
       reply_more: If True, more OFPT_STATS_REPLY will be sent after
           this one to completely reply the request. If False, this is
           the last reply to the request.

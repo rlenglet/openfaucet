@@ -126,7 +126,7 @@ class OpenflowError(Exception):
       error_type: The error type, as one of the OFPET_* constants.
       error_code: The error code, as one of the OFP* error code constants.
       data: The data attached in the error message, as a sequence of
-          byte buffers.
+          binary strings.
     """
     Exception.__init__(self, error_type, error_code, data)
     error_type_data = OFP_ERROR_MESSAGES.get(error_type)

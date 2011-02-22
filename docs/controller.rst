@@ -189,8 +189,8 @@ callback methods:
       output to controller).
     :type reason: integer
 
-    :param data: The Ethernet frame, as a byte buffer.
-    :type data: byte buffer
+    :param data: The Ethernet frame.
+    :type data: binary string
 
   .. method:: handle_flow_removed(match, cookie, priority, reason, duration_sec, duration_nsec, idle_timeout, packet_count, byte_count)
 
@@ -483,8 +483,8 @@ the operation times out.
       :mod:`~openfaucet.ofaction.IAction`) specifying the actions to
       perform on the frame.
 
-    :param data: The entire Ethernet frame, as a sequence of byte
-      buffers. Should be of length 0 if buffer_id is -1, and should be
+    :param data: The entire Ethernet frame, as a sequence of binary
+      strings. Should be of length 0 if buffer_id is -1, and should be
       of length >0 otherwise.
 
   .. method:: send_flow_mod(match, cookie, command, idle_timeout, hard_timeout, priority, buffer_id, out_port, send_flow_rem, check_overlap, emerg, actions)

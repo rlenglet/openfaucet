@@ -1,3 +1,11 @@
+2011-02-22  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* docs/controller.rst, src/openfaucet/ofcontroller.py,
+	src/openfaucet/oferror.py, src/openfaucet/ofproto.py,
+	src/openfaucet/ofprotoops.py: Consistently use "binary string"
+	instead of "byte buffer" in all documentation, to avoid any
+	confusion with ReceiveBuffer.
+
 2011-02-18  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/openfaucet/ofconfig.py: Fix documentation details.

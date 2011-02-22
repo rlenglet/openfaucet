@@ -59,7 +59,7 @@ class IOpenflowController(interface.Interface):
       reason: The reason why the frame is being sent, either
           OFPR_NO_MATCH (no matching flow) or OFPR_ACTION (action
           explicitly output to controller).
-      data: The Ethernet frame, as a byte buffer.
+      data: The Ethernet frame, as a binary string.
     """
 
   def handle_flow_removed(
