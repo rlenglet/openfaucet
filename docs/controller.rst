@@ -496,7 +496,9 @@ the operation times out.
       describing the fields of the flow.
 
     :param cookie: An opaque value issued by the
-      controller. 0xffffffffffffffff is reserved and must not be used.
+      controller. 0xffffffffffffffff is reserved and must not be
+      used. Ignored for :const:`~openfaucet.ofproto.OFPFC_DELETE` and
+      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
     :type cookie: 64-bit unsigned integer
 
     :param command: The action to perform by the datapath, either
@@ -509,10 +511,15 @@ the operation times out.
       (delete flows strictly matching wildcards).
     :type command: integer
 
-    :param idle_timeout: The idle time in seconds before discarding.
+    :param idle_timeout: The idle time in seconds before
+      discarding. Ignored for
+      :const:`~openfaucet.ofproto.OFPFC_DELETE` and
+      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
     :type idle_timeout: 16-bit unsigned integer
 
-    :param hard_timeout: The maximum time before discarding in seconds.
+    :param hard_timeout: The maximum time before discarding in
+      seconds. Ignored for :const:`~openfaucet.ofproto.OFPFC_DELETE`
+      and :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
     :type hard_timeout: 16-bit unsigned integer
 
     :param priority: The priority level of the flow entry.
@@ -520,35 +527,46 @@ the operation times out.
 
     :param buffer_id: The buffer ID assigned by the datapath of a
       buffered packet to apply the flow to. If 0xffffffff, no buffered
-      packet is to be applied the flow actions. Not meaningful for
+      packet is to be applied the flow actions. Ignored for
       :const:`~openfaucet.ofproto.OFPFC_DELETE` and
       :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
     :type buffer_id: 32-bit unsigned integer
 
     :param out_port: For :const:`~openfaucet.ofproto.OFPFC_DELETE` and
       :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands, an
-      output port that is required to be included in matching
-      flows. If :const:`~openfaucet.ofproto.OFPP_NONE`, no restriction
-      applies in matching. For other commands, this is ignored.
+      output port that is required to be included in matching flows'
+      output actions. If :const:`~openfaucet.ofproto.OFPP_NONE`, no
+      restriction applies in matching. Ignored for
+      :const:`~openfaucet.ofproto.OFPFC_ADD`,
+      :const:`~openfaucet.ofproto.OFPFC_MODIFY`, and
+      :const:`~openfaucet.ofproto.OFPFC_MODIFY_STRICT` commands.
     :type out_port: integer
 
     :param send_flow_rem: If True, send a ``OFPT_FLOW_REMOVED``
-      message when the flow expires or is deleted.
+      message when the flow expires or is deleted. Ignored for
+      :const:`~openfaucet.ofproto.OFPFC_DELETE` and
+      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
     :type send_flow_rem: bool
 
     :param check_overlap: If True, check for overlapping entries
       first, i.e. if there are conflicting entries with the same
-      priority, the flow is not added and the modification fails.
+      priority, the flow is not added and the modification
+      fails. Ignored for :const:`~openfaucet.ofproto.OFPFC_DELETE` and
+      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
     :type check_overlap: bool
 
     :param emerg: if True, the switch must consider this flow entry as
       an emergency entry, and only use it for forwarding when
-      disconnected from the controller.
+      disconnected from the controller. Ignored for
+      :const:`~openfaucet.ofproto.OFPFC_DELETE` and
+      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
     :type emerg: bool
 
     :param actions: The sequence of action objects (see
       :mod:`~openfaucet.ofaction`) specifying the actions to perform
-      on the flow's packets.
+      on the flow's packets. Ignored for
+      :const:`~openfaucet.ofproto.OFPFC_DELETE` and
+      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
 
   .. method:: barrier(callback[, timeout_callback, timeout])
 

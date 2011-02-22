@@ -191,7 +191,7 @@ class IOpenflowControllerStub(interface.Interface):
       match: A Match object describing the fields of the flow.
       cookie: An opaque 64-bit unsigned integer issued by the
           controller. 0xffffffffffffffff is reserved and must not be
-          used.
+          used. Ignored for OFPFC_DELETE* commands.
       command: The action to perform by the datapath, either
           OFPFC_ADD (add a new flow),
           OFPFC_MODIFY (modify all matching flows),
@@ -199,29 +199,34 @@ class IOpenflowControllerStub(interface.Interface):
           OFPFC_DELETE (delete all matching flows),
           or OFPFC_DELETE_STRICT (delete flows strictly matching wildcards).
       idle_timeout: The idle time in seconds before discarding, as a
-          16-bit unsigned integer.
+          16-bit unsigned integer. Ignored for OFPFC_DELETE* commands.
       hard_timeout: The maximum time before discarding in seconds, as
-          a 16-bit unsigned integer.
+          a 16-bit unsigned integer. Ignored for OFPFC_DELETE*
+          commands.
       priority: The priority level of the flow entry, as a 16-bit
           unsigned integer.
       buffer_id: The buffer ID assigned by the datapath of a buffered
           packet to apply the flow to, as a 32-bit unsigned
           integer. If 0xffffffff, no buffered packet is to be applied
-          the flow actions. Not meaningful for OFPFC_DELETE* commands.
+          the flow actions. Ignored for OFPFC_DELETE* commands.
       out_port: For OFPFC_DELETE* commands, an output port that is
-          required to be included in matching flows. If OFPP_NONE, no
-          restriction applies in matching. For other commands, this is
-          ignored.
+          required to be included in matching flows' output
+          actions. If OFPP_NONE, no restriction applies in
+          matching. Ignored for OFPC_ADD and OFPFC_MODIFY* commands.
       send_flow_rem: If True, send a OFPT_FLOW_REMOVED message when
-          the flow expires or is deleted.
+          the flow expires or is deleted. Ignored for OFPFC_DELETE*
+          commands.
       check_overlap: If True, check for overlapping entries first,
           i.e. if there are conflicting entries with the same
-          priority, the flow is not added and the modification fails.
+          priority, the flow is not added and the modification
+          fails. Ignored for OFPFC_DELETE* commands.
       emerg: if True, the switch must consider this flow entry as an
           emergency entry, and only use it for forwarding when
-          disconnected from the controller.
+          disconnected from the controller. Ignored for OFPFC_DELETE*
+          commands.
       actions: The sequence of Action* objects specifying the actions
-          to perform on the flow's packets.
+          to perform on the flow's packets. Ignored for OFPFC_DELETE*
+          commands.
     """
 
   def send_port_mod(port_no, hw_addr, config, mask, advertise):
