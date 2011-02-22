@@ -207,7 +207,7 @@ class IOpenflowControllerStub(interface.Interface):
       buffer_id: The buffer ID assigned by the datapath of a buffered
           packet to apply the flow to, as a 32-bit unsigned
           integer. If 0xffffffff, no buffered packet is to be applied
-          the flow actions.
+          the flow actions. Not meaningful for OFPFC_DELETE* commands.
       out_port: For OFPFC_DELETE* commands, an output port that is
           required to be included in matching flows. If OFPP_NONE, no
           restriction applies in matching. For other commands, this is

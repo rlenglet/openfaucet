@@ -520,7 +520,9 @@ the operation times out.
 
     :param buffer_id: The buffer ID assigned by the datapath of a
       buffered packet to apply the flow to. If 0xffffffff, no buffered
-      packet is to be applied the flow actions.
+      packet is to be applied the flow actions. Not meaningful for
+      :const:`~openfaucet.ofproto.OFPFC_DELETE` and
+      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
     :type buffer_id: 32-bit unsigned integer
 
     :param out_port: For :const:`~openfaucet.ofproto.OFPFC_DELETE` and
