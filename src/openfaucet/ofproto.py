@@ -615,9 +615,19 @@ class OpenflowProtocol(object):
         idle_timeout=idle_timeout, hard_timeout=hard_timeout, priority=priority,
         buffer_id=buffer_id, out_port=out_port, send_flow_rem=send_flow_rem,
         check_overlap=check_overlap, emerg=emerg, actions=actions)
-    self.handle_flow_mod(match, cookie, command, idle_timeout, hard_timeout,
-                         priority, buffer_id, out_port, send_flow_rem,
-                         check_overlap, emerg, actions)
+
+    if command == OFPFC_ADD:
+      self.handle_flow_mod_add(
+          match, cookie, idle_timeout, hard_timeout, priority, buffer_id,
+          send_flow_rem, check_overlap, emerg, actions)
+    elif command in (OFPFC_MODIFY, OFPFC_MODIFY_STRICT):
+      strict = (command == OFPFC_MODIFY_STRICT)
+      self.handle_flow_mod_modify(
+          strict, match, cookie, idle_timeout, hard_timeout, priority,
+          buffer_id, send_flow_rem, check_overlap, emerg, actions)
+    else:
+      strict = (command == OFPFC_DELETE_STRICT)
+      self.handle_flow_mod_delete(strict, match, priority, out_port)
 
   def _handle_port_mod(self, msg_length, xid):
     if msg_length != 32:
@@ -1093,10 +1103,10 @@ class OpenflowProtocol(object):
     """
     pass
 
-  def handle_flow_mod(
-      self, match, cookie, command, idle_timeout, hard_timeout, priority,
-      buffer_id, out_port, send_flow_rem, check_overlap, emerg, actions):
-    """Handle the reception of a OFPT_FLOW_MOD message.
+  def handle_flow_mod_add(
+      self, match, cookie, idle_timeout, hard_timeout, priority, buffer_id,
+      send_flow_rem, check_overlap, emerg, actions):
+    """Handle the reception of a OFPT_FLOW_MOD message to add a flow.
 
     This method does nothing and should be redefined in subclasses.
 
@@ -1104,42 +1114,89 @@ class OpenflowProtocol(object):
       match: A Match object describing the fields of the flow.
       cookie: An opaque 64-bit unsigned integer issued by the
           controller. 0xffffffffffffffff is reserved and must not be
-          used. Ignored for OFPFC_DELETE* commands.
-      command: The action to perform by the datapath, either
-          OFPFC_ADD (add a new flow),
-          OFPFC_MODIFY (modify all matching flows),
-          OFPFC_MODIFY_STRICT (modify flows strictly matching wildcards),
-          OFPFC_DELETE (delete all matching flows),
-          or OFPFC_DELETE_STRICT (delete flows strictly matching wildcards).
+          used.
       idle_timeout: The idle time in seconds before discarding, as a
-          16-bit unsigned integer. Ignored for OFPFC_DELETE* commands.
+          16-bit unsigned integer.
       hard_timeout: The maximum time before discarding in seconds, as
-          a 16-bit unsigned integer. Ignored for OFPFC_DELETE*
-          commands.
+          a 16-bit unsigned integer.
       priority: The priority level of the flow entry, as a 16-bit
           unsigned integer.
       buffer_id: The buffer ID assigned by the datapath of a buffered
           packet to apply the flow to, as a 32-bit unsigned
           integer. If 0xffffffff, no buffered packet is to be applied
-          the flow actions. Ignored for OFPFC_DELETE* commands.
-      out_port: For OFPFC_DELETE* commands, an output port that is
-          required to be included in matching flows' output
-          actions. If OFPP_NONE, no restriction applies in
-          matching. Ignored for OFPC_ADD and OFPFC_MODIFY* commands.
+          the flow actions.
       send_flow_rem: If True, send a OFPT_FLOW_REMOVED message when
-          the flow expires or is deleted. Ignored for OFPFC_DELETE*
-          commands.
+          the flow expires or is deleted.
       check_overlap: If True, check for overlapping entries first,
           i.e. if there are conflicting entries with the same
           priority, the flow is not added and the modification
-          fails. Ignored for OFPFC_DELETE* commands.
+          fails.
       emerg: if True, the switch must consider this flow entry as an
           emergency entry, and only use it for forwarding when
-          disconnected from the controller. Ignored for OFPFC_DELETE*
-          commands.
+          disconnected from the controller.
       actions: The sequence of Action* objects specifying the actions
-          to perform on the flow's packets. Ignored for OFPFC_DELETE*
-          commands.
+          to perform on the flow's packets.
+    """
+    pass
+
+  def handle_flow_mod_modify(
+      self, strict, match, cookie, idle_timeout, hard_timeout, priority,
+      buffer_id, send_flow_rem, check_overlap, emerg, actions):
+    """Handle the reception of a OFPT_FLOW_MOD message to modify a flow.
+
+    This method does nothing and should be redefined in subclasses.
+
+    Args:
+      strict: If True, all args, including the wildcards and priority,
+          are strictly matched against the entry, and only an
+          identical flow is modified. If False, a match will occur
+          when a flow entry exactly matches or is more specific than
+          the given match and priority.
+      match: A Match object describing the fields of the flow.
+      cookie: An opaque 64-bit unsigned integer issued by the
+          controller. 0xffffffffffffffff is reserved and must not be
+          used.
+      idle_timeout: The idle time in seconds before discarding, as a
+          16-bit unsigned integer.
+      hard_timeout: The maximum time before discarding in seconds, as
+          a 16-bit unsigned integer.
+      priority: The priority level of the flow entry, as a 16-bit
+          unsigned integer.
+      buffer_id: The buffer ID assigned by the datapath of a buffered
+          packet to apply the flow to, as a 32-bit unsigned
+          integer. If 0xffffffff, no buffered packet is to be applied
+          the flow actions.
+      send_flow_rem: If True, send a OFPT_FLOW_REMOVED message when
+          the flow expires or is deleted.
+      check_overlap: If True, check for overlapping entries first,
+          i.e. if there are conflicting entries with the same
+          priority, the flow is not modified and the modification
+          fails.
+      emerg: if True, the switch must consider this flow entry as an
+          emergency entry, and only use it for forwarding when
+          disconnected from the controller.
+      actions: The sequence of Action* objects specifying the actions
+          to perform on the flow's packets.
+    """
+    pass
+
+  def handle_flow_mod_delete(self, strict, match, priority, out_port):
+    """Handle the reception of a OFPT_FLOW_MOD message to delete a flow.
+
+    This method does nothing and should be redefined in subclasses.
+
+    Args:
+      strict: If True, all args, including the wildcards and priority,
+          are strictly matched against the entry, and only an
+          identical flow is deleted. If False, a match will occur when
+          a flow entry exactly matches or is more specific than
+          the given match and priority.
+      match: A Match object describing the fields of the flow.
+      priority: The priority level of the flow entry, as a 16-bit
+          unsigned integer.
+      out_port: An output port that is required to be included in
+          matching flows' output actions. If OFPP_NONE, no restriction
+          applies in matching.
     """
     pass
 
@@ -1758,9 +1815,9 @@ class OpenflowProtocol(object):
     all_data.extend(data)
     self._send_message(OFPT_PACKET_OUT, data=all_data)
 
-  def send_flow_mod(self, match, cookie, command, idle_timeout, hard_timeout,
-                    priority, buffer_id, out_port, send_flow_rem, check_overlap,
-                    emerg, actions):
+  def _send_flow_mod(
+      self, match, cookie, command, idle_timeout, hard_timeout, priority,
+      buffer_id, out_port, send_flow_rem, check_overlap, emerg, actions):
     """Send a OFPT_FLOW_MOD message.
 
     Args:
@@ -1830,6 +1887,107 @@ class OpenflowProtocol(object):
     for a in actions:
       all_data.extend(self.serialize_action(a))
     self._send_message(OFPT_FLOW_MOD, data=all_data)
+
+  def send_flow_mod_add(
+      self, match, cookie, idle_timeout, hard_timeout, priority, buffer_id,
+      send_flow_rem, check_overlap, emerg, actions):
+    """Send a OFPT_FLOW_MOD message to add a flow.
+
+    Args:
+      match: A Match object describing the fields of the flow.
+      cookie: An opaque 64-bit unsigned integer issued by the
+          controller. 0xffffffffffffffff is reserved and must not be
+          used.
+      idle_timeout: The idle time in seconds before discarding, as a
+          16-bit unsigned integer.
+      hard_timeout: The maximum time before discarding in seconds, as
+          a 16-bit unsigned integer.
+      priority: The priority level of the flow entry, as a 16-bit
+          unsigned integer.
+      buffer_id: The buffer ID assigned by the datapath of a buffered
+          packet to apply the flow to, as a 32-bit unsigned
+          integer. If 0xffffffff, no buffered packet is to be applied
+          the flow actions.
+      send_flow_rem: If True, send a OFPT_FLOW_REMOVED message when
+          the flow expires or is deleted.
+      check_overlap: If True, check for overlapping entries first,
+          i.e. if there are conflicting entries with the same
+          priority, the flow is not added and the modification
+          fails.
+      emerg: if True, the switch must consider this flow entry as an
+          emergency entry, and only use it for forwarding when
+          disconnected from the controller.
+      actions: The sequence of Action* objects specifying the actions
+          to perform on the flow's packets.
+    """
+    self._send_flow_mod(
+        match, cookie, OFPFC_ADD, idle_timeout, hard_timeout, priority,
+        buffer_id, OFPP_NONE, send_flow_rem, check_overlap, emerg, actions)
+
+  def send_flow_mod_modify(
+      self, strict, match, cookie, idle_timeout, hard_timeout, priority,
+      buffer_id, send_flow_rem, check_overlap, emerg, actions):
+    """Send a OFPT_FLOW_MOD message to modify a flow.
+
+    Args:
+      strict: If True, all args, including the wildcards and priority,
+          are strictly matched against the entry, and only an
+          identical flow is modified. If False, a match will occur
+          when a flow entry exactly matches or is more specific than
+          the given match and priority.
+      match: A Match object describing the fields of the flow.
+      cookie: An opaque 64-bit unsigned integer issued by the
+          controller. 0xffffffffffffffff is reserved and must not be
+          used.
+      idle_timeout: The idle time in seconds before discarding, as a
+          16-bit unsigned integer.
+      hard_timeout: The maximum time before discarding in seconds, as
+          a 16-bit unsigned integer.
+      priority: The priority level of the flow entry, as a 16-bit
+          unsigned integer.
+      buffer_id: The buffer ID assigned by the datapath of a buffered
+          packet to apply the flow to, as a 32-bit unsigned
+          integer. If 0xffffffff, no buffered packet is to be applied
+          the flow actions.
+      send_flow_rem: If True, send a OFPT_FLOW_REMOVED message when
+          the flow expires or is deleted.
+      check_overlap: If True, check for overlapping entries first,
+          i.e. if there are conflicting entries with the same
+          priority, the flow is not modified and the modification
+          fails.
+      emerg: if True, the switch must consider this flow entry as an
+          emergency entry, and only use it for forwarding when
+          disconnected from the controller.
+      actions: The sequence of Action* objects specifying the actions
+          to perform on the flow's packets.
+    """
+    command = OFPFC_MODIFY_STRICT if strict else OFPFC_MODIFY
+    self._send_flow_mod(
+        match, cookie, command, idle_timeout, hard_timeout, priority, buffer_id,
+        OFPP_NONE, send_flow_rem, check_overlap, emerg, actions)
+
+  def send_flow_mod_delete(self, strict, match, priority, out_port):
+    """Send a OFPT_FLOW_MOD message to delete a flow.
+
+    Args:
+      strict: If True, all args, including the wildcards and priority,
+          are strictly matched against the entry, and only an
+          identical flow is deleted. If False, a match will occur when
+          a flow entry exactly matches or is more specific than
+          the given match and priority.
+      match: A Match object describing the fields of the flow.
+      priority: The priority level of the flow entry, as a 16-bit
+          unsigned integer.
+      out_port: An output port that is required to be included in
+          matching flows' output actions. If OFPP_NONE, no restriction
+          applies in matching.
+    """
+    command = OFPFC_DELETE_STRICT if strict else OFPFC_DELETE
+    # Set all fields to zeros, except match, priority, and
+    # out_port. Set the buffer_id to 0xffffffff, which is the magic
+    # value for "no buffered packet".
+    self._send_flow_mod(match, 0, command, 0, 0, priority, 0xffffffff, out_port,
+                        False, False, False, ())
 
   def send_port_mod(self, port_no, hw_addr, config, mask, advertise):
     """Send a OFPT_PORT_MOD message.

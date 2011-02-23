@@ -1,3 +1,11 @@
+2011-02-23  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/ofproto.py, src/openfaucet/ofcontroller.py,
+	src/openfaucet/test_ofproto.py, docs/controller.rst,
+	docs/action.rst: Split send_flow_mod() and handle_flow_mod() into
+	one method for each command (add, remove, and delete) with
+	command-specific signatures.
+
 2011-02-22  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/openfaucet/ofmatch.py, src/openfaucet/mock_twisted.py: Fix

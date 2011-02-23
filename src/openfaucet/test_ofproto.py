@@ -129,13 +129,24 @@ class MockOpenflowProtocolSubclass(ofproto.OpenflowProtocol):
     self.calls_made.append(('handle_packet_out', buffer_id, in_port, actions,
                             data))
 
-  def handle_flow_mod(
-      self, match, cookie, command, idle_timeout, hard_timeout, priority,
-      buffer_id, out_port, send_flow_rem, check_overlap, emerg, actions):
+  def handle_flow_mod_add(
+      self, match, cookie, idle_timeout, hard_timeout, priority, buffer_id,
+      send_flow_rem, check_overlap, emerg, actions):
     self.calls_made.append((
-        'handle_flow_mod', match, cookie, command, idle_timeout, hard_timeout,
-        priority, buffer_id, out_port, send_flow_rem, check_overlap, emerg,
+        'handle_flow_mod_add', match, cookie, idle_timeout, hard_timeout,
+        priority, buffer_id, send_flow_rem, check_overlap, emerg, actions))
+
+  def handle_flow_mod_modify(
+      self, strict, match, cookie, idle_timeout, hard_timeout, priority, buffer_id,
+      send_flow_rem, check_overlap, emerg, actions):
+    self.calls_made.append((
+        'handle_flow_mod_modify', strict, match, cookie, idle_timeout,
+        hard_timeout, priority, buffer_id, send_flow_rem, check_overlap, emerg,
         actions))
+
+  def handle_flow_mod_delete(self, strict, match, priority, out_port):
+    self.calls_made.append(('handle_flow_mod_delete', strict, match, priority,
+                            out_port))
 
   def handle_port_mod(self, port_no, hw_addr, config, mask, advertise):
     self.calls_made.append(('handle_port_mod', port_no, hw_addr, config, mask,
@@ -741,75 +752,140 @@ class TestOpenflowProtocol(unittest2.TestCase):
                            MockVendorAction(dummy=0x15263748))],
                          self.vendor_handler.calls_made)
 
-  def test_send_flow_mod(self):
+  def test_send_flow_mod_add(self):
     self.proto.connectionMade()
 
-    self.proto.send_flow_mod(
-        self.match1, 0x12345678, ofproto.OFPFC_MODIFY, 0x4231, 0, 0x1000,
-        0x01010101, 0xabcd, True, False, False, (
+    self.proto.send_flow_mod_add(
+        self.match1, 0x12345678, 0x4231, 0, 0x1000, 0x01010101,
+        True, False, False, (
             ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
             ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
     self.assertEqual('\x01\x0e\x00\x60\x00\x00\x00\x00'
                      + self.match1.serialize()
                      + '\x00\x00\x00\x00\x12\x34\x56\x78'
-                     '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
-                     '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01'
+                     '\x00\x00' '\x42\x31\x00\x00' '\x10\x00'
+                     '\x01\x01\x01\x01' '\xff\xff' '\x00\x01'
                      '\x00\x00\x00\x08'
                          '\x12\x34\x9a\xbc'
                      '\x00\x05\x00\x10'
                          '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00',
                      self._get_next_sent_message())
 
-  def test_send_flow_mod_invalid_cookie_minus1(self):
+  def test_send_flow_mod_modify(self):
+    self.proto.connectionMade()
+
+    self.proto.send_flow_mod_modify(
+        False, self.match1, 0x12345678, 0x4231, 0, 0x1000, 0x01010101,
+        True, False, False, (
+            ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+            ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
+    self.assertEqual('\x01\x0e\x00\x60\x00\x00\x00\x00'
+                     + self.match1.serialize()
+                     + '\x00\x00\x00\x00\x12\x34\x56\x78'
+                     '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
+                     '\x01\x01\x01\x01' '\xff\xff' '\x00\x01'
+                     '\x00\x00\x00\x08'
+                         '\x12\x34\x9a\xbc'
+                     '\x00\x05\x00\x10'
+                         '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00',
+                     self._get_next_sent_message())
+
+  def test_send_flow_mod_modify_strict(self):
+    self.proto.connectionMade()
+
+    self.proto.send_flow_mod_modify(
+        True, self.match1, 0x12345678, 0x4231, 0, 0x1000, 0x01010101,
+        True, False, False, (
+            ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
+            ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))
+    self.assertEqual('\x01\x0e\x00\x60\x00\x00\x00\x00'
+                     + self.match1.serialize()
+                     + '\x00\x00\x00\x00\x12\x34\x56\x78'
+                     '\x00\x02' '\x42\x31\x00\x00' '\x10\x00'
+                     '\x01\x01\x01\x01' '\xff\xff' '\x00\x01'
+                     '\x00\x00\x00\x08'
+                         '\x12\x34\x9a\xbc'
+                     '\x00\x05\x00\x10'
+                         '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00',
+                     self._get_next_sent_message())
+
+  def test_send_flow_mod_delete(self):
+    self.proto.connectionMade()
+
+    self.proto.send_flow_mod_delete(
+        False, self.match1, 0x1000, 0xabcd)
+    self.assertEqual('\x01\x0e\x00\x48\x00\x00\x00\x00'
+                     + self.match1.serialize()
+                     + '\x00\x00\x00\x00\x00\x00\x00\x00'
+                     '\x00\x03' '\x00\x00\x00\x00' '\x10\x00'
+                     '\xff\xff\xff\xff' '\xab\xcd' '\x00\x00',
+                     self._get_next_sent_message())
+
+  def test_send_flow_mod_delete_strict(self):
+    self.proto.connectionMade()
+
+    self.proto.send_flow_mod_delete(
+        True, self.match1, 0x1000, 0xabcd)
+    self.assertEqual('\x01\x0e\x00\x48\x00\x00\x00\x00'
+                     + self.match1.serialize()
+                     + '\x00\x00\x00\x00\x00\x00\x00\x00'
+                     '\x00\x04' '\x00\x00\x00\x00' '\x10\x00'
+                     '\xff\xff\xff\xff' '\xab\xcd' '\x00\x00',
+                     self._get_next_sent_message())
+
+  def test_send_flow_mod_add_invalid_cookie_minus1(self):
     self.proto.connectionMade()
 
     with self.assertRaises(ValueError):
-      self.proto.send_flow_mod(
-          self.match1, 0xffffffffffffffff, ofproto.OFPFC_MODIFY, 0x4231, 0,
-          0x1000, 0x01010101, 0xabcd, True, False, False, ())
+      self.proto.send_flow_mod_add(self.match1, 0xffffffffffffffff, 0x4231, 0,
+                                   0x1000, 0x01010101, True, False, False, ())
     self.assertIsNone(self._get_next_sent_message())
 
-  def test_send_flow_mod_invalid_command_5(self):
-    self.proto.connectionMade()
-
-    with self.assertRaises(ValueError):
-      self.proto.send_flow_mod(
-          self.match1, 0x12345678, 5, 0x4231, 0, 0x1000,
-          0x01010101, 0xabcd, True, False, False, ())
-    self.assertIsNone(self._get_next_sent_message())
-
-  def test_handle_flow_mod_two_actions(self):
+  def test_handle_flow_mod_add_two_actions(self):
     self.proto.connectionMade()
 
     self.proto.dataReceived(
         '\x01\x0e\x00\x60\x00\x00\x00\x00'
         + self.match1.serialize()
         + '\x00\x00\x00\x00\x12\x34\x56\x78'
-        '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
-        '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01'
+        '\x00\x00' '\x42\x31\x00\x00' '\x10\x00'
+        '\x01\x01\x01\x01' '\xff\xff' '\x00\x01'
         '\x00\x00\x00\x08'
             '\x12\x34\x9a\xbc'
         '\x00\x05\x00\x10'
             '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00')
     self.assertListEqual(
-        [('handle_flow_mod', self.match1, 0x12345678, ofproto.OFPFC_MODIFY,
-          0x4231, 0, 0x1000, 0x01010101, 0xabcd, True, False, False, (
+        [('handle_flow_mod_add', self.match1, 0x12345678, 0x4231, 0, 0x1000,
+          0x01010101, True, False, False, (
               ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
               ofaction.ActionSetDlDst(dl_addr='\x12\x34\x56\x78\xab\xcd')))],
         self.proto.calls_made)
 
-  def test_handle_flow_mod_no_actions(self):
+  def test_handle_flow_mod_modify_strict_no_actions(self):
     self.proto.connectionMade()
 
     self.proto.dataReceived(
         '\x01\x0e\x00\x48\x00\x00\x00\x00'
         + self.match1.serialize()
         + '\x00\x00\x00\x00\x12\x34\x56\x78'
-        '\x00\x01' '\x42\x31\x00\x00' '\x10\x00'
-        '\x01\x01\x01\x01' '\xab\xcd' '\x00\x01')
+        '\x00\x02' '\x42\x31\x00\x00' '\x10\x00'
+        '\x01\x01\x01\x01' '\xff\xff' '\x00\x01')
     self.assertListEqual(
-        [('handle_flow_mod', self.match1, 0x12345678, ofproto.OFPFC_MODIFY,
-          0x4231, 0, 0x1000, 0x01010101, 0xabcd, True, False, False, ())],
+        [('handle_flow_mod_modify', True, self.match1, 0x12345678, 0x4231, 0,
+          0x1000, 0x01010101, True, False, False, ())],
+        self.proto.calls_made)
+
+  def test_handle_flow_mod_delete(self):
+    self.proto.connectionMade()
+
+    self.proto.dataReceived(
+        '\x01\x0e\x00\x48\x00\x00\x00\x00'
+        + self.match1.serialize()
+        + '\x00\x00\x00\x00\x00\x00\x00\x00'
+        '\x00\x03' '\x00\x00\x00\x00' '\x10\x00'
+        '\xff\xff\xff\xff' '\xab\xcd' '\x00\x00')
+    self.assertListEqual(
+        [('handle_flow_mod_delete', False, self.match1, 0x1000, 0xabcd)],
         self.proto.calls_made)
 
   def test_handle_flow_mod_invalid_cookie_minus1(self):

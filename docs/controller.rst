@@ -487,39 +487,24 @@ the operation times out.
       strings. Should be of length 0 if buffer_id is -1, and should be
       of length >0 otherwise.
 
-  .. method:: send_flow_mod(match, cookie, command, idle_timeout, hard_timeout, priority, buffer_id, out_port, send_flow_rem, check_overlap, emerg, actions)
+  .. method:: send_flow_mod_add(match, cookie, idle_timeout, hard_timeout, priority, buffer_id, send_flow_rem, check_overlap, emerg, actions)
 
-    Send a ``OFPT_FLOW_MOD`` message to add, modify, or delete a flow
-    in the datapath.
+    Send a ``OFPT_FLOW_MOD`` message to add a flow into the datapath.
 
     :param match: A :class:`~openfaucet.ofmatch.Match` object
       describing the fields of the flow.
 
     :param cookie: An opaque value issued by the
       controller. 0xffffffffffffffff is reserved and must not be
-      used. Ignored for :const:`~openfaucet.ofproto.OFPFC_DELETE` and
-      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
+      used.
     :type cookie: 64-bit unsigned integer
 
-    :param command: The action to perform by the datapath, either
-      :const:`~openfaucet.ofproto.OFPFC_ADD` (add a new flow),
-      :const:`~openfaucet.ofproto.OFPFC_MODIFY` (modify all matching
-      flows), :const:`~openfaucet.ofproto.OFPFC_MODIFY_STRICT` (modify
-      flows strictly matching wildcards),
-      :const:`~openfaucet.ofproto.OFPFC_DELETE` (delete all matching
-      flows), or :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT`
-      (delete flows strictly matching wildcards).
-    :type command: integer
-
     :param idle_timeout: The idle time in seconds before
-      discarding. Ignored for
-      :const:`~openfaucet.ofproto.OFPFC_DELETE` and
-      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
+      discarding.
     :type idle_timeout: 16-bit unsigned integer
 
     :param hard_timeout: The maximum time before discarding in
-      seconds. Ignored for :const:`~openfaucet.ofproto.OFPFC_DELETE`
-      and :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
+      seconds.
     :type hard_timeout: 16-bit unsigned integer
 
     :param priority: The priority level of the flow entry.
@@ -527,46 +512,104 @@ the operation times out.
 
     :param buffer_id: The buffer ID assigned by the datapath of a
       buffered packet to apply the flow to. If 0xffffffff, no buffered
-      packet is to be applied the flow actions. Ignored for
-      :const:`~openfaucet.ofproto.OFPFC_DELETE` and
-      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
+      packet is to be applied the flow actions.
     :type buffer_id: 32-bit unsigned integer
 
-    :param out_port: For :const:`~openfaucet.ofproto.OFPFC_DELETE` and
-      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands, an
-      output port that is required to be included in matching flows'
-      output actions. If :const:`~openfaucet.ofproto.OFPP_NONE`, no
-      restriction applies in matching. Ignored for
-      :const:`~openfaucet.ofproto.OFPFC_ADD`,
-      :const:`~openfaucet.ofproto.OFPFC_MODIFY`, and
-      :const:`~openfaucet.ofproto.OFPFC_MODIFY_STRICT` commands.
-    :type out_port: integer
-
     :param send_flow_rem: If True, send a ``OFPT_FLOW_REMOVED``
-      message when the flow expires or is deleted. Ignored for
-      :const:`~openfaucet.ofproto.OFPFC_DELETE` and
-      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
+      message when the flow expires or is deleted.
     :type send_flow_rem: bool
 
     :param check_overlap: If True, check for overlapping entries
       first, i.e. if there are conflicting entries with the same
       priority, the flow is not added and the modification
-      fails. Ignored for :const:`~openfaucet.ofproto.OFPFC_DELETE` and
-      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
+      fails.
     :type check_overlap: bool
 
     :param emerg: if True, the switch must consider this flow entry as
       an emergency entry, and only use it for forwarding when
-      disconnected from the controller. Ignored for
-      :const:`~openfaucet.ofproto.OFPFC_DELETE` and
-      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
+      disconnected from the controller.
     :type emerg: bool
 
     :param actions: The sequence of action objects (see
       :mod:`~openfaucet.ofaction`) specifying the actions to perform
-      on the flow's packets. Ignored for
-      :const:`~openfaucet.ofproto.OFPFC_DELETE` and
-      :const:`~openfaucet.ofproto.OFPFC_DELETE_STRICT` commands.
+      on the flow's packets.
+
+  .. method:: send_flow_mod_modify(strict, match, cookie, idle_timeout, hard_timeout, priority, buffer_id, send_flow_rem, check_overlap, emerg, actions)
+
+    Send a ``OFPT_FLOW_MOD`` message to modify a flow in the datapath.
+
+    :param strict: If True, all args, including the wildcards and
+      priority, are strictly matched against the entry, and only an
+      identical flow is modified. If False, a match will occur when a
+      flow entry exactly matches or is more specific than the given
+      match and priority.
+    :type strict: bool
+
+    :param match: A :class:`~openfaucet.ofmatch.Match` object
+      describing the fields of the flow.
+
+    :param cookie: An opaque value issued by the
+      controller. 0xffffffffffffffff is reserved and must not be
+      used.
+    :type cookie: 64-bit unsigned integer
+
+    :param idle_timeout: The idle time in seconds before
+      discarding.
+    :type idle_timeout: 16-bit unsigned integer
+
+    :param hard_timeout: The maximum time before discarding in
+      seconds.
+    :type hard_timeout: 16-bit unsigned integer
+
+    :param priority: The priority level of the flow entry.
+    :type priority: 16-bit unsigned integer
+
+    :param buffer_id: The buffer ID assigned by the datapath of a
+      buffered packet to apply the flow to. If 0xffffffff, no buffered
+      packet is to be applied the flow actions.
+    :type buffer_id: 32-bit unsigned integer
+
+    :param send_flow_rem: If True, send a ``OFPT_FLOW_REMOVED``
+      message when the flow expires or is deleted.
+    :type send_flow_rem: bool
+
+    :param check_overlap: If True, check for overlapping entries
+      first, i.e. if there are conflicting entries with the same
+      priority, the flow is not added and the modification
+      fails.
+    :type check_overlap: bool
+
+    :param emerg: if True, the switch must consider this flow entry as
+      an emergency entry, and only use it for forwarding when
+      disconnected from the controller.
+    :type emerg: bool
+
+    :param actions: The sequence of action objects (see
+      :mod:`~openfaucet.ofaction`) specifying the actions to perform
+      on the flow's packets.
+
+  .. method:: send_flow_mod_delete(strict, match, priority, out_port)
+
+    Send a ``OFPT_FLOW_MOD`` message to delete a flow from the datapath.
+
+    :param strict: If True, all args, including the wildcards and
+      priority, are strictly matched against the entry, and only an
+      identical flow is deleted. If False, a match will occur when a
+      flow entry exactly matches or is more specific than the given
+      match and priority.
+    :type strict: bool
+
+    :param match: A :class:`~openfaucet.ofmatch.Match` object
+      describing the fields of the flow.
+
+    :param priority: The priority level of the flow entry.
+    :type priority: 16-bit unsigned integer
+
+    :param out_port: An output port that is required to be included in
+      matching flows' output actions. If
+      :const:`~openfaucet.ofproto.OFPP_NONE`, no restriction applies
+      in matching.
+    :type out_port: integer
 
   .. method:: barrier(callback[, timeout_callback, timeout])
 

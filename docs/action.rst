@@ -19,7 +19,9 @@ OpenFlow actions
 
 Flows are defined by an OpenFlow controller by sending
 ``OFPT_FLOW_MOD`` messages to the datapath, by calling method
-:meth:`~openfaucet.ofcontroller.IOpenflowControllerStub.send_flow_mod`
+:meth:`~openfaucet.ofcontroller.IOpenflowControllerStub.send_flow_mod_add`
+or
+:meth:`~openfaucet.ofcontroller.IOpenflowControllerStub.send_flow_mod_modify`
 on the controller stub. A flow definition includes the actions to
 perform on the packet in the flow. Every action is represented by an
 object that is an instance of a class implementing the
