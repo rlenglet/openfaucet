@@ -1,5 +1,13 @@
 2011-02-23  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* src/openfaucet/ofproto.py: Add comments into the
+	serialize_action() / deserialize_action() methods to justify the
+	design decision to keep them in the OpenflowProtocol class.
+
+	* src/openfaucet/ofproto.py, src/openfaucet/test_ofproto.py: Add a
+	serialize_vendor_action() vendor handler callback, to make it
+	easier to encode / decode vendor actions with subtypes.
+
 	* src/openfaucet/ofproto.py, src/openfaucet/ofcontroller.py,
 	src/openfaucet/test_ofproto.py, docs/controller.rst,
 	docs/action.rst: Split send_flow_mod() and handle_flow_mod() into

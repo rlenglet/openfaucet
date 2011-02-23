@@ -1478,27 +1478,47 @@ class OpenflowProtocol(object):
     """
     pass
 
-  def serialize_action(self, a):
+  def serialize_action(self, action):
     """Serialize a single action.
 
     Args:
-      a: The Action* object to serialize into data.
+      action: The Action* object to serialize into data.
 
     Returns:
       The sequence of binary strings representing the serialized action,
       including the ofp_action_header.
     """
-    a_ser = a.serialize()
-    if a.type == ofaction.OFPAT_VENDOR:
-      # If the actions is a OFPAT_VENDOR action, generate an
-      # ofp_action_vendor_header for the action.
-      header = struct.pack('!HHL', a.type, 8+len(a_ser), a.vendor_id)
+    # Action serialization is specific to this protocol instance,
+    # since the serialization of vendor actions depends on the
+    # specific set of vendor handlers associated with it. So the
+    # dispatch on vendor id and serialization is done in this method,
+    # instead of being done in the ofaction module.
+
+    # If the actions is a OFPAT_VENDOR action, generate an
+    # ofp_action_vendor_header for the action.
+    if action.type == ofaction.OFPAT_VENDOR:
+      vendor_id = action.vendor_id
+      vendor_handler = self._vendor_handlers.get(vendor_id)
+      if vendor_handler is None:
+        raise ValueError('OFPAT_VENDOR action has unknown vendor ID',
+                         vendor_id)
+      a_ser = vendor_handler.serialize_vendor_action(action)
+      length = 8 + sum(len(d) for d in a_ser)
+      header = struct.pack('!HHL', ofaction.OFPAT_VENDOR, length, vendor_id)
+      header_action = [header]
+      header_action.extend(a_ser)
+
+    # Otherwise, generate an ofp_action_header for the action.
     else:
-      # Otherwise, generate an ofp_action_header for the action.
-      header = struct.pack('!HH', a.type, 4+len(a_ser))
-    if (len(header) + len(a_ser)) % 8 != 0:
+      a_ser = action.serialize()
+      header = struct.pack('!HH', action.type, 4 + len(a_ser))
+      header_action = (header, a_ser)
+
+    total_length = sum(len(d) for d in header_action)
+    if total_length % 8 != 0:
       raise ValueError('action length not a multiple of 8', a)
-    return (header, a_ser)
+
+    return header_action
 
   def deserialize_action(self, buf):
     """Deserialize a single action from a buffer.
@@ -1510,6 +1530,12 @@ class OpenflowProtocol(object):
     Returns:
       A new Action* object deserialized from the buffer
     """
+    # Action deserialization is specific to this protocol instance,
+    # since the deserialization of vendor actions depends on the
+    # specific set of vendor handlers associated with it. So the
+    # dispatch on vendor id and deserialization is done in this
+    # method, instead of being done in the ofaction module.
+
     action_type, action_length = buf.unpack('!HH')
     if action_length < 8:
       self.logger.error('action is too short with length %i',

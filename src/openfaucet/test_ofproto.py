@@ -211,8 +211,9 @@ class MockOpenflowProtocolSubclass(ofproto.OpenflowProtocol):
                             queues))
 
 
-MockVendorAction = ofaction.vendor_action('MockVendorAction', 0x4242,
-                                          '!L4x', ('dummy',))
+class MockVendorAction(ofaction.vendor_action('MockVendorAction', 0x4242,
+                                              '!2xL', ('dummy',))):
+  subtype = 0x1664
 
 
 class MockVendorHandler(object):
@@ -236,7 +237,18 @@ class MockVendorHandler(object):
     self.calls_made.append(('handle_vendor_message', msg_length, xid,
                             bytes))
 
+  def serialize_vendor_action(self, action):
+    self.calls_made.append(('serialize_vendor_action', action))
+    subtype = action.subtype
+    if subtype != MockVendorAction.subtype:
+      raise ValueError('wrong vendor action subtype', subtype)
+    header = struct.pack('!H', subtype)
+    return (header, action.serialize())
+
   def deserialize_vendor_action(self, action_length, buffer):
+    subtype = buffer.unpack('!H')[0]
+    if subtype != MockVendorAction.subtype:
+      raise ValueError('wrong vendor action subtype', subtype)
     a = MockVendorAction.deserialize(buffer)
     self.calls_made.append(('deserialize_vendor_action', action_length, a))
     return a
@@ -667,7 +679,7 @@ class TestOpenflowProtocol(unittest2.TestCase):
     self.assertEqual('\x01\x0d\x00\x2a\x00\x00\x00\x00'
                      '\xff\xff\xff\xff\xab\xcd\x00\x01'
                      '\x00\x0c\x00\x10' '\x00\x00\x42\x42'
-                         '\x15\x26\x37\x48' '\x00\x00\x00\x00'
+                         '\x16\x64\x00\x00' '\x15\x26\x37\x48'
                      'helloworld',
                      self._get_next_sent_message())
 
@@ -743,7 +755,7 @@ class TestOpenflowProtocol(unittest2.TestCase):
     self.proto.dataReceived('\x01\x0d\x00\x2a\x00\x00\x00\x00'
                             '\xff\xff\xff\xff\xab\xcd\x00\x01'
                             '\x00\x0c\x00\x10' '\x00\x00\x42\x42'
-                                '\x15\x26\x37\x48' '\x00\x00\x00\x00'
+                                '\x16\x64\x00\x00' '\x15\x26\x37\x48'
                             'helloworld')
     self.assertListEqual([('handle_packet_out', 0xffffffff, 0xabcd,
                            (MockVendorAction(dummy=0x15263748),), 'helloworld')],
