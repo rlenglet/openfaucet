@@ -1,5 +1,8 @@
 2011-03-02  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* docs/Makefile.am (SPHINXOPTS): Remove the -n flag for
+	compatibility with older versions of sphinx-build.
+
 	* src/openfaucet/ofprotoops.py, src/openfaucet/ofcontroller.py,
 	src/openfaucet/test_ofcontroller.py, docs/controller.rst: Rename
 	class Callback into Callable. Make its instances directly

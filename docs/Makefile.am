@@ -22,7 +22,7 @@ SPHINXDATA = \
 
 dist_noinst_DATA = $(SPHINXDATA)
 
-SPHINXOPTS     = -q -N -n
+SPHINXOPTS     = -q -N
 PAPEROPT       = -D latex_paper_size=a4
 ALLSPHINXOPTS  = -d $(builddir) $(PAPEROPT) $(SPHINXOPTS)
 
