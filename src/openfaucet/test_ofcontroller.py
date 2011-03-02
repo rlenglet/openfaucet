@@ -182,7 +182,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     def _callback(switch_features, callbacks_made=self.callbacks_made):
       callbacks_made.append(('get_features', switch_features))
 
-    self.proto.get_features(ofprotoops.Callback.make_callback(_callback))
+    self.proto.get_features(_callback)
 
     # Sent OFPT_FEATURES_REQUEST with XID 2.
     self.assertEqual('\x01\x05\x00\x08\x00\x00\x00\x02',
@@ -204,7 +204,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     def _callback(switch_config, callbacks_made=self.callbacks_made):
       callbacks_made.append(('get_config', switch_config))
 
-    self.proto.get_config(ofprotoops.Callback.make_callback(_callback))
+    self.proto.get_config(_callback)
 
     # Sent OFPT_GET_CONFIG_REQUEST with XID 2.
     self.assertEqual('\x01\x07\x00\x08\x00\x00\x00\x02',
@@ -227,7 +227,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     def _callback(desc_stats, callbacks_made=self.callbacks_made):
       callbacks_made.append(('get_stats_desc', desc_stats))
 
-    self.proto.get_stats_desc(ofprotoops.Callback.make_callback(_callback))
+    self.proto.get_stats_desc(_callback)
 
     # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x02'
@@ -257,8 +257,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     def _callback(flow_stats, reply_more, callbacks_made=self.callbacks_made):
       callbacks_made.append(('get_stats_flow', flow_stats, reply_more))
 
-    self.proto.get_stats_flow(self.match1, 0x0a, 0xabcd,
-                              ofprotoops.Callback.make_callback(_callback))
+    self.proto.get_stats_flow(self.match1, 0x0a, 0xabcd, _callback)
 
     # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x02'
@@ -300,8 +299,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
       callbacks_made.append(('get_stats_aggregate', packet_count, byte_count,
                              flow_count))
 
-    self.proto.get_stats_aggregate(self.match1, 0x0a, 0xabcd,
-                                   ofprotoops.Callback.make_callback(_callback))
+    self.proto.get_stats_aggregate(self.match1, 0x0a, 0xabcd, _callback)
 
     # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x38\x00\x00\x00\x02'
@@ -329,7 +327,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     def _callback(table_stats, reply_more, callbacks_made=self.callbacks_made):
       callbacks_made.append(('get_stats_table', table_stats, reply_more))
 
-    self.proto.get_stats_table(ofprotoops.Callback.make_callback(_callback))
+    self.proto.get_stats_table(_callback)
 
     # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x0c\x00\x00\x00\x02'
@@ -371,8 +369,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     def _callback(port_stats, reply_more, callbacks_made=self.callbacks_made):
       callbacks_made.append(('get_stats_port', port_stats, reply_more))
 
-    self.proto.get_stats_port(ofproto.OFPP_NONE,
-                              ofprotoops.Callback.make_callback(_callback))
+    self.proto.get_stats_port(ofproto.OFPP_NONE, _callback)
 
     # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x02'
@@ -411,8 +408,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     def _callback(queue_stats, reply_more, callbacks_made=self.callbacks_made):
       callbacks_made.append(('get_stats_queue', queue_stats, reply_more))
 
-    self.proto.get_stats_queue(ofproto.OFPP_ALL, ofproto.OFPQ_ALL,
-                              ofprotoops.Callback.make_callback(_callback))
+    self.proto.get_stats_queue(ofproto.OFPP_ALL, ofproto.OFPQ_ALL, _callback)
 
     # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x02'
@@ -447,8 +443,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     def _callback(queue_stats, reply_more, callbacks_made=self.callbacks_made):
       callbacks_made.append(('get_stats_queue', queue_stats, reply_more))
 
-    self.proto.get_stats_queue(ofproto.OFPP_ALL, ofproto.OFPQ_ALL,
-                              ofprotoops.Callback.make_callback(_callback))
+    self.proto.get_stats_queue(ofproto.OFPP_ALL, ofproto.OFPQ_ALL, _callback)
 
     # Sent OFPT_STATS_REQUEST with XID 2.
     self.assertEqual('\x01\x10\x00\x14\x00\x00\x00\x02'
@@ -494,7 +489,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     def _callback(callbacks_made=self.callbacks_made):
       callbacks_made.append(('barrier',))
 
-    self.proto.barrier(ofprotoops.Callback.make_callback(_callback))
+    self.proto.barrier(_callback)
 
     # Sent OFPT_BARRIER_REQUEST with XID 2.
     self.assertEqual('\x01\x12\x00\x08\x00\x00\x00\x02',
@@ -514,8 +509,7 @@ class TestOpenflowControllerStub(unittest2.TestCase):
     def _callback(port_no, queues, callbacks_made=self.callbacks_made):
       callbacks_made.append(('get_queue_config', port_no, queues))
 
-    self.proto.get_queue_config(0xabcd,
-                                ofprotoops.Callback.make_callback(_callback))
+    self.proto.get_queue_config(0xabcd, _callback)
 
     # Sent OFPT_GET_CONFIG_REQUEST with XID 2.
     self.assertEqual('\x01\x14\x00\x0c\x00\x00\x00\x02'

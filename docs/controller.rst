@@ -267,42 +267,40 @@ datapath is terminated::
           print 'connected to datapath', dp_id
 
 The controller stub provides several asynchronous methods for request
-/ reply operations with the datapath. Those methods take
-:class:`~openfaucet.ofprotoops.Callback` objects as arguments to
-specify callbacks to be made when the operation's reply is received or
-the operation times out.
+/ reply operations with the datapath. Those methods take callables as
+arguments to specify callbacks to be made when the operation's reply
+is received or the operation times out.
 
-.. class:: openfaucet.ofprotoops.Callback
+If a callable needs to get additional positional or keyword arguments
+in addition to the arguments passed by the protocol object, the caller
+must wrap the callable into a :class:`~openfaucet.ofprotoops.Callable`
+object.
 
-  A namedtuple object specifying a callback to be made, and the
-  additional arguments to be passed in the callback. The preferred way
-  to create a :class:`~openfaucet.ofprotoops.Callback` is by calling
-  :meth:`~openfaucet.ofprotoops.Callback.make_callback`:
+.. class:: openfaucet.ofprotoops.Callable
 
-  .. classmethod:: make_callback(callable[, *args, **kwargs])
+  A namedtuple object that decorates a callable to pass additional
+  arguments to it when called. The additional arguments to the
+  callable are passed in addition to the arguments given by the
+  caller. The preferred way to create a
+  :class:`~openfaucet.ofprotoops.Callable` is by calling
+  :meth:`~openfaucet.ofprotoops.Callable.make_callable`:
 
-    Create a callback with the given callable and args.
+  .. classmethod:: make_callable(callable[, *args, **kwargs])
+
+    Create a :class:`~openfaucet.ofprotoops.Callable` with the given
+    callable and args.
 
     :param callable: A callable.
     :param args: The (possibly empty) sequence of additional
-      positional arguments to pass to the callback.
-    :param kwargs: The (possibly empty) dict of keyword arguments.
+      positional arguments to pass to the callable.
+    :param kwargs: The (possibly empty) dict of additional keyword
+      arguments to pass to the callable.
 
-  A callable object can then be called by calling:
-
-  .. method:: call([*first_args])
-
-    Call this callable with the given args and additional args.
-
-    :param first_args: The sequence of the first positional args to
-      pass the callable, before this object's args and
-      kwargs. Defaults to an empty sequence.
-
-  The positional arguments given to
-  :meth:`~openfaucet.ofprotoops.Callback.call` correspond to the
-  signature of the method expected by the caller. The additional
-  positional and keyword arguments given to
-  :meth:`~openfaucet.ofprotoops.Callback.make_callback` can be used to
+  A callable object can then be called directly, possibly with
+  positional and keyword arguments. The positional arguments given to
+  the call correspond to the signature of the method expected by the
+  caller. The additional positional and keyword arguments given to
+  :meth:`~openfaucet.ofprotoops.Callable.make_callable` can be used to
   pass context information to the callable, for example::
 
     from openfaucet import ofprotoops
@@ -312,9 +310,9 @@ the operation times out.
 
     def call_me_back(callback):
         data = 'world'
-        callback.call(data)
+        callback(data)
 
-    callback= ofprotoops.Callback.make_callback(log_prefix='hello')
+    callback= ofprotoops.Callable.make_callable(log_prefix='hello')
     call_me_back(callback)
 
 .. class:: OpenflowControllerStub
@@ -337,12 +335,10 @@ the operation times out.
 
     Request the switch features.
 
-    :param callback: The :class:`~openfaucet.ofprotoops.Callback` to
-      be called with the replied data.
+    :param callback: The callable to be called with the replied data.
 
-    :param timeout_callback: The
-      :class:`~openfaucet.ofprotoops.Callback` to be called in case
-      the operation times out.
+    :param timeout_callback: The callable to be called in case the
+      operation times out.
 
     :param timeout: The period, in seconds, before the operation times
       out. If None, defaults to the default timeout.
@@ -358,7 +354,7 @@ the operation times out.
     This operation is asynchronous: the switch features are passed
     back by calling the given ``callback`` as:
 
-    .. function:: callback.callable(switch_features[, *callback.args, **callback.kwargs])
+    .. function:: callback(switch_features)
 
       :param switch_features: A
         :class:`~openfaucet.ofconfig.SwitchFeatures` object containing
@@ -368,11 +364,13 @@ the operation times out.
     the ``timeout`` period, and if ``timeout_callback`` is not None,
     ``timeout_callback`` is called as:
 
-    .. function:: timeout_callback.callable([*timeout_callback.args, **timeout_callback.kwargs])
+    .. function:: timeout_callback()
 
-    ``callback`` and / or ``timeout_callback`` may be None, if no
+    ``callback`` and / or ``timeout_callback`` must be None if no
     callback must be made when the reply is received and / or the
-    operation times out.
+    operation times out. They may also be
+    :class:`~openfaucet.ofprotoops.Callable` objects to pass
+    additional arguments to the callables.
 
   .. method:: get_config(callback[, timeout_callback, timeout])
 
@@ -382,7 +380,7 @@ the operation times out.
     ``timeout_callback``, and ``timeout`` are similar as in
     :meth:`get_features`, and ``callback`` is called as:
 
-    .. function:: callback.callable(switch_config[, *callback.args, **callback.kwargs])
+    .. function:: callback(switch_config)
 
       :param switch_config: A
         :class:`~openfaucet.ofconfig.SwitchConfig` object containing
@@ -452,7 +450,7 @@ the operation times out.
     ``timeout_callback``, and ``timeout`` are similar as in
     :meth:`get_features`, and ``callback`` is called as:
 
-    .. function:: callback.callable(port_no, queues[, *callback.args, **callback.kwargs])
+    .. function:: callback(port_no, queues)
 
       :param port_no: The port's unique number. Must be a valid
         physical port, i.e. < :const:`~openfaucet.ofproto.OFPP_MAX`.
@@ -619,7 +617,7 @@ the operation times out.
     ``timeout_callback``, and ``timeout`` are similar as in
     :meth:`get_features`, and ``callback`` is called as:
 
-    .. function:: callback.callable([*callback.args, **callback.kwargs])
+    .. function:: callback()
 
     The callback is called when the barrier has been reached, i.e. any
     message sent before the barrier has been completely processed by
@@ -635,7 +633,7 @@ the operation times out.
     ``timeout_callback``, and ``timeout`` are similar as in
     :meth:`get_features`, and ``callback`` is called as:
 
-    .. function:: callback.callable(desc_stats[, *callback.args, **callback.kwargs])
+    .. function:: callback(desc_stats)
 
       :param desc_stats: A
         :class:`~openfaucet.ofconfig.DescriptionStats` that contains
@@ -664,7 +662,7 @@ the operation times out.
     ``timeout_callback``, and ``timeout`` are similar as in
     :meth:`get_features`, and ``callback`` is called as:
 
-    .. function:: callback.callable(flow_stats, reply_more[, *callback.args, **callback.kwargs])
+    .. function:: callback(flow_stats, reply_more)
 
       :param flow_stats: A tuple of
         :class:`~openfaucet.ofstats.FlowStats` objects each containing
@@ -695,7 +693,7 @@ the operation times out.
     ``timeout_callback``, and ``timeout`` are similar as in
     :meth:`get_features`, and ``callback`` is called as:
 
-    .. function:: callback.callable(packet_count, byte_count, flow_count[, *callback.args, **callback.kwargs])
+    .. function:: callback(packet_count, byte_count, flow_count)
 
       :param packet_count: The number of packets in aggregated flows.
       :type packet_count: 64-bit unsigned integer
@@ -712,7 +710,7 @@ the operation times out.
     ``timeout_callback``, and ``timeout`` are similar as in
     :meth:`get_features`, and ``callback`` is called as:
 
-    .. function:: callback.callable(table_stats, reply_more[, *callback.args, **callback.kwargs])
+    .. function:: callback(table_stats, reply_more)
 
       :param table_stats: A tuple of
         :class:`~openfaucet.ofstats.TableStats` objects containing
@@ -734,7 +732,7 @@ the operation times out.
     ``timeout_callback``, and ``timeout`` are similar as in
     :meth:`get_features`, and ``callback`` is called as:
 
-    .. function:: callback.callable(port_stats, reply_more[, *callback.args, **callback.kwargs])
+    .. function:: callback(port_stats, reply_more)
 
       :param port_stats: A tuple of
         :class:`~openfaucet.ofstats.PortStats` objects containing
@@ -761,7 +759,7 @@ the operation times out.
     ``timeout_callback``, and ``timeout`` are similar as in
     :meth:`get_features`, and ``callback`` is called as:
 
-    .. function:: callback.callable(queue_stats, reply_more[, *callback.args, **callback.kwargs])
+    .. function:: callback(queue_stats, reply_more)
 
       :param queue_stats: A tuple of
         :class:`~openfaucet.ofstats.QueueStats` objects containing

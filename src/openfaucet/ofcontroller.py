@@ -109,8 +109,7 @@ class IOpenflowControllerStub(interface.Interface):
     This operation is asynchronous: the switch features are passed
     back by calling the given callback as:
 
-    callback.callable(switch_features, *callback.args,
-                      **callback.kwargs)
+    callback(switch_features)
 
     with arguments:
       switch_features: A SwitchFeatures object containing the switch
@@ -121,8 +120,8 @@ class IOpenflowControllerStub(interface.Interface):
     by controllers.
 
     Args:
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default timeout.
@@ -144,16 +143,15 @@ class IOpenflowControllerStub(interface.Interface):
     This operation is asynchronous: the switch config is passed back
     by calling the given callback as:
 
-    callback.callable(switch_config, *callback.args,
-                      **callback.kwargs)
+    callback(switch_config)
 
     with arguments:
       switch_config: A SwitchConfig object containing the switch
           configuration.
 
     Args:
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default timeout.
@@ -299,15 +297,15 @@ class IOpenflowControllerStub(interface.Interface):
     This operation is asynchronous: the switch stats are passed back
     by calling the given callback as:
 
-    callback.callable(desc_stats, *callback.args, **callback.kwargs)
+    callback(desc_stats)
 
     with arguments:
       desc_stats: A DescriptionStats that contains the switch description
           stats.
 
     Args:
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default timeout.
@@ -320,8 +318,7 @@ class IOpenflowControllerStub(interface.Interface):
     This operation is asynchronous: the flow stats are passed back by
     calling the given callback as:
 
-    callback.callable(flow_stats, reply_more, *callback.args,
-                      **callback.kwargs)
+    callback(flow_stats, reply_more)
 
     with arguments:
       flow_stats: A tuple of FlowStats objects containing each the
@@ -336,8 +333,8 @@ class IOpenflowControllerStub(interface.Interface):
           integer. 0xff for all tables or 0xfe for emergency.
       out_port: Require matching flows to include this as an output
           port. A value of OFPP_NONE indicates no restriction.
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default timeout.
@@ -350,8 +347,7 @@ class IOpenflowControllerStub(interface.Interface):
     This operation is asynchronous: the aggregate flow stats are
     passed back by calling the given callback as:
 
-    callback.callable(packet_count, byte_count, flow_count,
-                      *callback.args, **callback.kwargs)
+    callback(packet_count, byte_count, flow_count)
 
     with arguments:
       packet_count: The number of packets in aggregated flows, as a
@@ -367,8 +363,8 @@ class IOpenflowControllerStub(interface.Interface):
           integer. 0xff for all tables or 0xfe for emergency.
       out_port: Require matching flows to include this as an output
           port. A value of OFPP_NONE indicates no restriction.
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default timeout.
@@ -380,8 +376,7 @@ class IOpenflowControllerStub(interface.Interface):
     This operation is asynchronous: the table stats are passed back by
     calling the given callback as:
 
-    callback.callable(table_stats, reply_more, *callback.args,
-                      **callback.kwargs)
+    callback(table_stats, reply_more)
 
     with arguments:
       table_stats: A tuple of TableStats objects containing each the
@@ -391,8 +386,8 @@ class IOpenflowControllerStub(interface.Interface):
           False, this is the last callback in this operation.
 
     Args:
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default timeout.
@@ -405,8 +400,7 @@ class IOpenflowControllerStub(interface.Interface):
     This operation is asynchronous: the port stats are passed back by
     calling the given callback as:
 
-    callback.callable(port_stats, reply_more, *callback.args,
-                      **callback.kwargs)
+    callback(port_stats, reply_more)
 
     with arguments:
       port_stats: A tuple of PortStats objects containing each the
@@ -418,8 +412,8 @@ class IOpenflowControllerStub(interface.Interface):
     Args:
       port_no: The port's unique number, as a 16-bit unsigned
           integer. If OFPP_NONE, stats for all ports are replied.
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default timeout.
@@ -432,8 +426,7 @@ class IOpenflowControllerStub(interface.Interface):
     This operation is asynchronous: the queue stats are passed back by
     calling the given callback as:
 
-    callback.callable(queue_stats, reply_more, *callback.args,
-                      **callback.kwargs)
+    callback(queue_stats, reply_more)
 
     with arguments:
       queue_stats: A tuple of QueueStats objects containing each the
@@ -447,8 +440,8 @@ class IOpenflowControllerStub(interface.Interface):
           integer. If OFPP_ALL, stats for all ports are replied.
       queue_id: The queue's ID. If OFPQ_ALL, stats for all queues are
           replied.
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default timeout.
@@ -460,11 +453,11 @@ class IOpenflowControllerStub(interface.Interface):
     This operation is asynchronous: the given callback is called when
     the barrier is reached as:
 
-    callback.callable(*callback.args, **callback.kwargs)
+    callback()
 
     Args:
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default timeout.
@@ -477,8 +470,7 @@ class IOpenflowControllerStub(interface.Interface):
     This operation is asynchronous: the port's queues configs are
     passed back by calling the given callback as:
 
-    callback.callable(port_no, queues, *callback.args,
-                      **callback.kwargs)
+    callback(port_no, queues)
 
     with arguments:
       port_no: The port's unique number, as a 16-bit unsigned
@@ -489,8 +481,8 @@ class IOpenflowControllerStub(interface.Interface):
     Args:
       port_no: The port's unique number, as a 16-bit unsigned
           integer. Must be a valid physical port, i.e. < OFPP_MAX.
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default timeout.
@@ -565,16 +557,15 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     This operation is asynchronous: the switch features are passed
     back by calling the given callback as:
 
-    callback.callable(switch_features, *callback.args,
-                      **callback.kwargs)
+    callback(switch_features)
 
     with arguments:
       switch_features: A SwitchFeatures object containing the switch
           features.
 
     Args:
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default_op_timeout.
@@ -589,16 +580,15 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     This operation is asynchronous: the switch config is passed back
     by calling the given callback as:
 
-    callback.callable(switch_config, *callback.args,
-                      **callback.kwargs)
+    callback(switch_config)
 
     with arguments:
       switch_config: A SwitchConfig object containing the switch
           configuration.
 
     Args:
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default_op_timeout.
@@ -613,15 +603,15 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     This operation is asynchronous: the switch stats are passed back
     by calling the given callback as:
 
-    callback.callable(desc_stats, *callback.args, **callback.kwargs)
+    callback(desc_stats)
 
     with arguments:
       desc_stats: A DescriptionStats that contains the switch description
           stats.
 
     Args:
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default_op_timeout passed to
@@ -639,8 +629,7 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     This operation is asynchronous: the flow stats are passed back by
     calling the given callback as:
 
-    callback.callable(flow_stats, reply_more, *callback.args,
-                      **callback.kwargs)
+    callback(flow_stats, reply_more)
 
     with arguments:
       flow_stats: A tuple of FlowStats objects containing each the
@@ -655,8 +644,8 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
           integer. 0xff for all tables or 0xfe for emergency.
       out_port: Require matching flows to include this as an output
           port. A value of OFPP_NONE indicates no restriction.
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default_op_timeout passed to
@@ -674,8 +663,7 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     This operation is asynchronous: the aggregate flow stats are
     passed back by calling the given callback as:
 
-    callback.callable(packet_count, byte_count, flow_count,
-                      *callback.args, **callback.kwargs)
+    callback(packet_count, byte_count, flow_count)
 
     with arguments:
       packet_count: The number of packets in aggregated flows, as a
@@ -691,8 +679,8 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
           integer. 0xff for all tables or 0xfe for emergency.
       out_port: Require matching flows to include this as an output
           port. A value of OFPP_NONE indicates no restriction.
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default_op_timeout passed to
@@ -709,8 +697,7 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     This operation is asynchronous: the table stats are passed back by
     calling the given callback as:
 
-    callback.callable(table_stats, reply_more, *callback.args,
-                      **callback.kwargs)
+    callback(table_stats, reply_more)
 
     with arguments:
       table_stats: A tuple of TableStats objects containing each the
@@ -720,8 +707,8 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
           False, this is the last callback in this operation.
 
     Args:
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default_op_timeout passed to
@@ -739,8 +726,7 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     This operation is asynchronous: the port stats are passed back by
     calling the given callback as:
 
-    callback.callable(port_stats, reply_more, *callback.args,
-                      **callback.kwargs)
+    callback(port_stats, reply_more)
 
     with arguments:
       port_stats: A tuple of PortStats objects containing each the
@@ -752,8 +738,8 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     Args:
       port_no: The port's unique number, as a 16-bit unsigned
           integer. If OFPP_NONE, stats for all ports are replied.
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default_op_timeout passed to
@@ -771,8 +757,7 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     This operation is asynchronous: the queue stats are passed back by
     calling the given callback as:
 
-    callback.callable(queue_stats, reply_more, *callback.args,
-                      **callback.kwargs)
+    callback(queue_stats, reply_more)
 
     with arguments:
       queue_stats: A tuple of QueueStats objects containing each the
@@ -786,8 +771,8 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
           integer. If OFPP_ALL, stats for all ports are replied.
       queue_id: The queue's ID. If OFPQ_ALL, stats for all queues are
           replied.
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default_op_timeout passed to
@@ -804,11 +789,11 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     This operation is asynchronous: the given callback is called when
     the barrier is reached as:
 
-    callback.callable(*callback.args, **callback.kwargs)
+    callback()
 
     Args:
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default_op_timeout passed to
@@ -825,8 +810,7 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     This operation is asynchronous: the port's queues configs are
     passed back by calling the given callback as:
 
-    callback.callable(port_no, queues, *callback.args,
-                      **callback.kwargs)
+    callback(port_no, queues)
 
     with arguments:
       port_no: The port's unique number, as a 16-bit unsigned
@@ -837,8 +821,8 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     Args:
       port_no: The port's unique number, as a 16-bit unsigned
           integer. Must be a valid physical port, i.e. < OFPP_MAX.
-      callback: The Callback to be called with the replied data.
-      timeout_callback: The Callback to be called in case the
+      callback: The callable to be called with the replied data.
+      timeout_callback: The callable to be called in case the
           operation times out.
       timeout: The period, in seconds, before the operation times
           out. If None, defaults to the default_op_timeout passed to
@@ -869,66 +853,66 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
       self._features = switch_features
 
     if success_callable is not None:
-      success_callable.call(switch_features)
+      success_callable(switch_features)
 
   def handle_get_config_reply(self, xid, switch_config):
     success_callable = self.terminate_operation(
         xid, cookie=ofproto.OFPT_GET_CONFIG_REQUEST)
     if success_callable is not None:
-      success_callable.call(switch_config)
+      success_callable(switch_config)
 
   def handle_stats_reply_desc(self, xid, desc_stats):
     success_callable = self.terminate_operation(
         xid, cookie=(ofproto.OFPT_STATS_REQUEST, ofproto.OFPST_DESC))
     if success_callable is not None:
-      success_callable.call(desc_stats)
+      success_callable(desc_stats)
 
   def handle_stats_reply_flow(self, xid, flow_stats, reply_more):
     success_callable = self.terminate_operation(
         xid, reply_more=reply_more,
         cookie=(ofproto.OFPT_STATS_REQUEST, ofproto.OFPST_FLOW))
     if success_callable is not None:
-      success_callable.call(flow_stats, reply_more)
+      success_callable(flow_stats, reply_more)
 
   def handle_stats_reply_aggregate(self, xid, packet_count, byte_count,
                                    flow_count):
     success_callable = self.terminate_operation(
         xid, cookie=(ofproto.OFPT_STATS_REQUEST, ofproto.OFPST_AGGREGATE))
     if success_callable is not None:
-      success_callable.call(packet_count, byte_count, flow_count)
+      success_callable(packet_count, byte_count, flow_count)
 
   def handle_stats_reply_table(self, xid, table_stats, reply_more):
     success_callable = self.terminate_operation(
         xid, reply_more=reply_more,
         cookie=(ofproto.OFPT_STATS_REQUEST, ofproto.OFPST_TABLE))
     if success_callable is not None:
-      success_callable.call(table_stats, reply_more)
+      success_callable(table_stats, reply_more)
 
   def handle_stats_reply_port(self, xid, port_stats, reply_more):
     success_callable = self.terminate_operation(
         xid, reply_more=reply_more,
         cookie=(ofproto.OFPT_STATS_REQUEST, ofproto.OFPST_PORT))
     if success_callable is not None:
-      success_callable.call(port_stats, reply_more)
+      success_callable(port_stats, reply_more)
 
   def handle_stats_reply_queue(self, xid, queue_stats, reply_more):
     success_callable = self.terminate_operation(
         xid, reply_more=reply_more,
         cookie=(ofproto.OFPT_STATS_REQUEST, ofproto.OFPST_QUEUE))
     if success_callable is not None:
-      success_callable.call(queue_stats, reply_more)
+      success_callable(queue_stats, reply_more)
 
   def handle_barrier_reply(self, xid):
     success_callable = self.terminate_operation(
         xid, cookie=ofproto.OFPT_BARRIER_REQUEST)
     if success_callable is not None:
-      success_callable.call()
+      success_callable()
 
   def handle_queue_get_config_reply(self, xid, port_no, queues):
     success_callable = self.terminate_operation(
         xid, cookie=ofproto.OFPT_QUEUE_GET_CONFIG_REQUEST)
     if success_callable is not None:
-      success_callable.call(port_no, queues)
+      success_callable(port_no, queues)
 
   # ----------------------------------------------------------------------
   # Internal handling of asynchronous operations by calling back the

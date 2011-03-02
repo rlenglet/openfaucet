@@ -1,3 +1,11 @@
+2011-03-02  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/ofprotoops.py, src/openfaucet/ofcontroller.py,
+	src/openfaucet/test_ofcontroller.py, docs/controller.rst: Rename
+	class Callback into Callable. Make its instances directly
+	callable. Document that class as a decorator of a callable to pass
+	additional arguments.
+
 2011-02-23  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/openfaucet/ofproto.py: Add comments into the

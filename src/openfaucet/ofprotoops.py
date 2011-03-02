@@ -26,34 +26,46 @@ from openfaucet import oferror
 from openfaucet import ofproto
 
 
-class Callback(collections.namedtuple('Callback', (
+class Callable(collections.namedtuple('Callable', (
     'callable', 'args', 'kwargs'))):
-  """A callable and its arguments.
+  """A decorator of a callable to pass additional arguments to it when called.
 
-  The callable arguments are:
-    args: The (possibly empty) sequence of positional arguments.
-    kwargs: The (possibly empty) dict of keyword arguments. If None,
-        no keyword arguments are passed, equivalent to an empty dict.
+  The additional arguments to the callable are passed in addition to
+  the arguments given by the caller, and are set as attributes of this
+  object:
+    args: The (possibly empty) sequence of additional positional
+        arguments.
+    kwargs: The (possibly empty) dict of additional keyword
+        arguments. If None, no keyword arguments are passed,
+        equivalent to an empty dict.
   """
 
   @classmethod
-  def make_callback(cls, callable, *args, **kwargs):
-    """Create a Callback with the given callable and args.
+  def make_callable(cls, callable, *args, **kwargs):
+    """Create a Callable with the given callable and additional args.
 
     Args:
       callable: A callable.
-      args: The (possibly empty) sequence of positional arguments.
-      kwargs: The (possibly empty) dict of keyword arguments.
+      args: The (possibly empty) sequence of additional positional
+          arguments.
+      kwargs: The (possibly empty) dict of additional keyword
+          arguments.
     """
-    return Callback(callable, args, kwargs)
+    return Callable(callable, args, kwargs)
 
-  def call(self, *first_args):
+  def __call__(self, *first_args, **first_kwargs):
     """Call this callable with the given args and additional args.
 
     Args:
-      first_args: The sequence of the first positional args to pass
-          the callable, before this Callback's args and
-          kwargs. Defaults to an empty sequence.
+      first_args: The sequence of the first positional args to pass in
+          the call, before this Callable's additional args and
+          keyword arguments. Defaults to an empty sequence.
+      first_kwargs: The dict of keyword arguments to pass in the call,
+          in addition to this Callable's additional keyword
+          arguments. Defaults to an empty dict. If this dict and this
+          Callable's additional arg dict have identical keys, the
+          items in the additional arg dict with those keys are
+          ignored.
     """
     if not self.args:
       args = first_args
@@ -62,7 +74,15 @@ class Callback(collections.namedtuple('Callback', (
     else:
       args = first_args + self.args
 
-    self.callable(*args, **self.kwargs)
+    if not self.kwargs:
+      kwargs = first_kwargs
+    elif not first_kwargs:
+      kwargs = self.kwargs
+    else:
+      kwargs = self.kwargs.copy()
+      kwargs.update(first_kwargs)
+
+    self.callable(*args, **kwargs)
 
 
 # The state of a pending operation, consisting of the following attributes:
@@ -71,9 +91,9 @@ class Callback(collections.namedtuple('Callback', (
 #       termination. This is used to detect invalid XIDs in replies,
 #       e.g. replies with a type incompatible with the request sent
 #       with the same XID.
-#   success_callback: The Callback called when the operation
+#   success_callback: The callable called when the operation
 #       successfully terminates.
-#   timeout_callback: The Callback called when the operation timeouts.
+#   timeout_callback: The callable called when the operation timeouts.
 #   timeout_delayed_call: The DelayedCall to trigger the operation's
 #       timeout.
 PendingOperation = collections.namedtuple('PendingOperation', (
@@ -158,13 +178,10 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     vendor-specific operations.
 
     Args:
-      success_callback: The Callback to call when the operation's
-          reply is received, and its extra args. The positional and
-          keyword arguments in the Callback are passed in addition to
-          the positional args that are specific to the type of
-          request. The handling of this callable must be done in each
-          reply-specific handler.
-      timeout_callback: The Callback to call if the operation times
+      success_callback: The callable to call when the operation's
+          reply is received, and its extra args.The handling of this
+          callable must be done in each reply-specific handler.
+      timeout_callback: The callable to call if the operation times
           out.
       timeout: The period, in seconds, before the operation times
           out. If None (default), defaults to the default_op_timeout.
@@ -210,7 +227,7 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
           type. Defaults to None.
 
     Returns:
-      The Callback to call. None if no pending operation has the given
+      The callable to call. None if no pending operation has the given
       XID, which is interpreted as the operation having already timed
       out.
 
@@ -250,7 +267,7 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     with self._pending_ops_lock:
       pending_op = self._pending_ops.pop(xid, None)
     if pending_op is not None and pending_op.timeout_callback is not None:
-      pending_op.timeout_callback.call()
+      pending_op.timeout_callback()
 
   # TODO(romain): Handle the reception of errors whose XIDs match
   # pending operations?
@@ -283,7 +300,7 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     success_callable = self.terminate_operation(
         xid, cookie=ofproto.OFPT_ECHO_REQUEST)
     if success_callable is not None:
-      success_callable.call(data)
+      success_callable(data)
 
   def _echo(self):
     """Initiate an echo operation.
@@ -292,8 +309,8 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     """
     sent_data = struct.pack('!L', random.getrandbits(32))
     xid = self.initiate_operation(
-        Callback.make_callback(self._handle_echo_termination, sent_data),
-        Callback.make_callback(self._handle_echo_timeout),
+        Callable.make_callable(self._handle_echo_termination, sent_data),
+        self._handle_echo_timeout,
         timeout=None, cookie=ofproto.OFPT_ECHO_REQUEST)
     self.send_echo_request(xid, sent_data)
 
