@@ -44,7 +44,7 @@ UNITTESTS = \
 # TESTS = $(UNITTESTS), run them all as a single test suite.
 TESTS = test_all.py
 CLEANFILES = test_all.py
-EXTRADIST = test_all.py.in
+EXTRA_DIST = test_all.py.in $(UNITTESTS)
 test_all.py: test_all.py.in $(UNITTESTS)
 	@echo generating test suite $@
 	@unittest_files="$(UNITTESTS)"; modules=;\

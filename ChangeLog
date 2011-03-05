@@ -1,5 +1,8 @@
 2011-03-05  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* src/Makefile.am (EXTRA_DIST): Fix the distribution of
+	test_all.py.in and all unittest modules.
+
 	* src/openfaucet/test_ofproto.py,
 	src/openfaucet/mock_ofcontroller.py,
 	src/openfaucet/mock_ofproto.py, src/openfaucet/mock_vendor.py,
