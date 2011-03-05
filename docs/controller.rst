@@ -91,7 +91,8 @@ constructor:
 
     :param default_op_timeout: The default period, in seconds, before
       an operation times out. This is also used as the timeout for
-      echo operations. Defaults to 3.0 (seconds).
+      echo operations, and as the timeout for initial
+      handshakes. Defaults to 3.0 (seconds).
     :type default_op_timeout: float
 
     :param echo_op_period: The period, in seconds, between two echo
@@ -151,7 +152,8 @@ callback methods:
     Initialize the resources to manage the newly opened OpenFlow
     connection. This callback is made once the handshake is completed
     with the switch, i.e. once the description of the switch's
-    features have been received.
+    features have been received. This callback is never made in case
+    the handshake times out, in which case the connection is closed.
 
     .. TODO(romain): Link to the description of how to get those
     .. switch features.

@@ -516,7 +516,12 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     """
     ofprotoops.OpenflowProtocolOperations.connectionMade(self)
     self._features = None
-    self.get_features(None)  # No callback.
+
+    # At handshake completion, call back the controller's
+    # connection_made() callback, which is done in
+    # handle_features_reply(). In case the handshake times out, close
+    # the connection.
+    self.get_features(None, timeout_callback=self.transport.loseConnection)
 
   def connectionLost(self, reason):
     """Release any resources used to manage the connection that was just lost.

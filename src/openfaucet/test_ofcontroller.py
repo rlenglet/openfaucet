@@ -173,6 +173,12 @@ class TestOpenflowControllerStub(unittest2.TestCase):
 
     self.assertTupleEqual(self.features1, self.proto.features)
 
+  def test_handshake_timeout_lose_connection(self):
+    self.proto.connectionMade()
+    self.assertTrue(self.transport.open)
+    self.reactor.increment_time(self.default_op_timeout)
+    self.assertFalse(self.transport.open)
+
   def test_get_features(self):
     self.proto.connectionMade()
     self._get_next_sent_message()  # Initial OFPT_HELLO.
