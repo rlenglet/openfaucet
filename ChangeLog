@@ -1,5 +1,9 @@
 2011-03-05  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* src/openfaucet/ofprotoops.py, src/openfaucet/test_ofprotoops.py,
+	src/openfaucet/ofcontroller.py, docs/controller.rst: Silently
+	cancel all pending operations when the connection is lost.
+
 	* src/openfaucet/ofcontroller.py,
 	src/openfaucet/test_ofcontroller.py, docs/controller.rst: Close
 	the tranport connection if the handshake times out.

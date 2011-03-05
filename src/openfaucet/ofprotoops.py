@@ -142,13 +142,24 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     self.send_hello()
     self._echo()
 
-  # TODO(romain): Notify the callback that the connection has been
-  # made.
+  def connectionLost(self, reason):
+    """Release any resources used to manage the connection that was just lost.
 
-  # TODO(romain): Notify the callback that the connection has been
-  # lost.
+    Silently cancel all pending operations.
 
-  # TODO(romain): Make all operations time out in connectionLost().
+    Args:
+      reason: A twisted.python.failure.Failure that wraps a
+          twisted.internet.error.ConnectionDone or
+          twisted.internet.error.ConnectionLost instance (or a
+          subclass of one of those).
+    """
+    ofproto.OpenflowProtocol.connectionLost(self, reason)
+
+    with self._pending_ops_lock:
+      for pending_op in self._pending_ops.itervalues():
+        _, _, _, timeout_delayed_call = pending_op
+        timeout_delayed_call.cancel()
+      self._pending_ops.clear()
 
   # ----------------------------------------------------------------------
   # Generic request handling API. Those methods should be called by

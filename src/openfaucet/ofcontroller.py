@@ -40,6 +40,9 @@ class IOpenflowController(interface.Interface):
   def connection_lost(reason):
     """Release any resources used to manage the connection that was just lost.
 
+    All operations that are still pending when this method is called
+    back are cancelled silently.
+
     Args:
       reason: A twisted.python.failure.Failure that wraps a
           twisted.internet.error.ConnectionDone or

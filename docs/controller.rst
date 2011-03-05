@@ -163,6 +163,9 @@ callback methods:
     Release any resources used to manage the connection that was just
     lost.
 
+    All operations that are still pending when this method is called
+    back are cancelled silently.
+
     :param reason: The reason why the connection was lost, as a
       :class:`~twisted.python.failure.Failure` that wraps a
       :class:`~twisted.internet.error.ConnectionDone` or
@@ -271,7 +274,7 @@ datapath is terminated::
 The controller stub provides several asynchronous methods for request
 / reply operations with the datapath. Those methods take callables as
 arguments to specify callbacks to be made when the operation's reply
-is received or the operation times out.
+is received or when the operation times out.
 
 If a callable needs to get additional positional or keyword arguments
 in addition to the arguments passed by the protocol object, the caller

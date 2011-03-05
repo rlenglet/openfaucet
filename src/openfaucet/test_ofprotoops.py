@@ -19,6 +19,8 @@ import struct
 import unittest2
 import weakref
 import twisted.internet.address
+import twisted.internet.error
+import twisted.python.failure
 
 from openfaucet import ofproto
 from openfaucet import ofprotoops
@@ -74,6 +76,44 @@ class TestOpenflowProtocolOperations(unittest2.TestCase):
         re.compile(r'\x01\x02\x00\x0c\x00\x00\x00\x00'
                    '....',  # 32-bit random data
                    re.DOTALL))
+
+  def test_connection_lost_ops_timeout(self):
+    self.proto.connectionMade()
+    self._get_next_sent_message()  # Initial OFPT_HELLO.
+    self._get_next_sent_message()  # Initial OFPT_ECHO_REQUEST.
+    # Send 2 more echo requests.
+    self.proto._echo()
+    self.proto._echo()
+    self.assertItemsEqual(
+        [mock_twisted.MockDelayedCall(
+            reactor_time=self.reactor,
+            time=self.default_op_timeout,
+            already_cancelled=False,
+            already_called=False,
+            callable=self.proto._timeout_operation,
+            args=(0,),
+            kw={}),
+         mock_twisted.MockDelayedCall(
+            reactor_time=self.reactor,
+            time=self.default_op_timeout,
+            already_cancelled=False,
+            already_called=False,
+            callable=self.proto._timeout_operation,
+            args=(1,),
+            kw={}),
+         mock_twisted.MockDelayedCall(
+            reactor_time=self.reactor,
+            time=self.default_op_timeout,
+            already_cancelled=False,
+            already_called=False,
+            callable=self.proto._timeout_operation,
+            args=(2,),
+            kw={}),
+         ], self.reactor.delayed_calls)
+    
+    self.proto.connectionLost(twisted.python.failure.Failure(
+        twisted.internet.error.ConnectionLost()))
+    self.assertItemsEqual([], self.reactor.delayed_calls)
 
   def test_echo_op_periodic(self):
     self.proto.connectionMade()
