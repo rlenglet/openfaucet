@@ -23,7 +23,10 @@ nobase_python_PYTHON = \
 	openfaucet/ofproto.py \
 	openfaucet/ofprotoops.py \
 	openfaucet/ofstats.py \
-	openfaucet/mock_twisted.py
+	openfaucet/mock_ofcontroller.py \
+	openfaucet/mock_ofproto.py \
+	openfaucet/mock_twisted.py \
+	openfaucet/mock_vendor.py
 
 # Distribute unittests but don't install them.
 UNITTESTS = \

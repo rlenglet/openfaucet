@@ -14,7 +14,6 @@
 
 # Unittests for ofproto.py.
 
-import struct
 import unittest2
 import weakref
 import twisted.internet.address
@@ -28,6 +27,10 @@ from openfaucet import oferror
 from openfaucet import ofmatch
 from openfaucet import ofproto
 from openfaucet import ofstats
+
+from openfaucet import mock_ofproto
+from openfaucet import mock_twisted
+from openfaucet import mock_vendor
 
 
 def _create_port_config(
@@ -52,226 +55,13 @@ def _create_port_features(
       pause=pause, pause_asym=pause_asym)
 
 
-# TODO(romain): Move mock types below into their own module.
-
-
-class MockTransport(object):
-  """A basic mock of Twisted's ITransport interface.
-  """
-
-  __slots__ = ('open', 'buffer')
-
-  def __init__(self):
-    self.open = True
-    self.buffer = buffer.ReceiveBuffer()
-
-  def write(self, data):
-    self.writeSequence((data,))
-
-  def writeSequence(self, data):
-    if not self.open:
-      raise ValueError('connection closed')
-    for buf in data:
-      self.buffer.append(buf)
-
-  def loseConnection(self):
-    self.open = False
-
-
-class MockOpenflowProtocolSubclass(ofproto.OpenflowProtocol):
-
-  def __init__(self):
-    ofproto.OpenflowProtocol.__init__(self)
-    self.calls_made = []
-
-  def handle_hello(self):
-    self.calls_made.append(('handle_hello',))
-
-  def handle_error(self, xid, error):
-    self.calls_made.append(('handle_error', xid, error))
-
-  def handle_echo_request(self, xid, data):
-    self.calls_made.append(('handle_echo_request', xid, data))
-
-  def handle_echo_reply(self, xid, data):
-    self.calls_made.append(('handle_echo_reply', xid, data))
-
-  def handle_features_request(self, xid):
-    self.calls_made.append(('handle_features_request', xid))
-
-  def handle_features_reply(self, xid, switch_features):
-    self.calls_made.append(('handle_features_reply', xid, switch_features))
-
-  def handle_get_config_request(self, xid):
-    self.calls_made.append(('handle_get_config_request', xid))
-
-  def handle_get_config_reply(self, xid, switch_config):
-    self.calls_made.append(('handle_get_config_reply', xid, switch_config))
-
-  def handle_set_config(self, switch_config):
-    self.calls_made.append(('handle_set_config', switch_config))
-
-  def handle_packet_in(self, buffer_id, total_len, in_port, reason, data):
-    self.calls_made.append(('handle_packet_in', buffer_id, total_len, in_port,
-                            reason, data))
-
-  def handle_flow_removed(
-      self, match, cookie, priority, reason, duration_sec, duration_nsec,
-      idle_timeout, packet_count, byte_count):
-    self.calls_made.append((
-        'handle_flow_removed', match, cookie, priority, reason, duration_sec,
-        duration_nsec, idle_timeout, packet_count, byte_count))
-
-  def handle_port_status(self, reason, desc):
-    self.calls_made.append(('handle_port_status', reason, desc))
-
-  def handle_packet_out(self, buffer_id, in_port, actions, data):
-    self.calls_made.append(('handle_packet_out', buffer_id, in_port, actions,
-                            data))
-
-  def handle_flow_mod_add(
-      self, match, cookie, idle_timeout, hard_timeout, priority, buffer_id,
-      send_flow_rem, check_overlap, emerg, actions):
-    self.calls_made.append((
-        'handle_flow_mod_add', match, cookie, idle_timeout, hard_timeout,
-        priority, buffer_id, send_flow_rem, check_overlap, emerg, actions))
-
-  def handle_flow_mod_modify(
-      self, strict, match, cookie, idle_timeout, hard_timeout, priority, buffer_id,
-      send_flow_rem, check_overlap, emerg, actions):
-    self.calls_made.append((
-        'handle_flow_mod_modify', strict, match, cookie, idle_timeout,
-        hard_timeout, priority, buffer_id, send_flow_rem, check_overlap, emerg,
-        actions))
-
-  def handle_flow_mod_delete(self, strict, match, priority, out_port):
-    self.calls_made.append(('handle_flow_mod_delete', strict, match, priority,
-                            out_port))
-
-  def handle_port_mod(self, port_no, hw_addr, config, mask, advertise):
-    self.calls_made.append(('handle_port_mod', port_no, hw_addr, config, mask,
-                            advertise))
-
-  def handle_stats_request_desc(self, xid):
-    self.calls_made.append(('handle_stats_request_desc', xid))
-
-  def handle_stats_request_flow(self, xid, match, table_id, out_port):
-    self.calls_made.append(('handle_stats_request_flow', xid, match, table_id,
-                            out_port))
-
-  def handle_stats_request_aggregate(self, xid, match, table_id, out_port):
-    self.calls_made.append(('handle_stats_request_aggregate', xid, match,
-                            table_id, out_port))
-
-  def handle_stats_request_table(self, xid):
-    self.calls_made.append(('handle_stats_request_table', xid))
-
-  def handle_stats_request_port(self, xid, port_no):
-    self.calls_made.append(('handle_stats_request_port', xid, port_no))
-
-  def handle_stats_request_queue(self, xid, port_no, queue_id):
-    self.calls_made.append(('handle_stats_request_queue', xid, port_no,
-                            queue_id))
-
-  def handle_stats_reply_desc(self, xid, desc_stats):
-    self.calls_made.append(('handle_stats_reply_desc', xid, desc_stats))
-
-  def handle_stats_reply_flow(self, xid, flow_stats, reply_more):
-    self.calls_made.append(('handle_stats_reply_flow', xid, flow_stats,
-                            reply_more))
-
-  def handle_stats_reply_aggregate(self, xid, packet_count, byte_count,
-                                   flow_count):
-    self.calls_made.append(('handle_stats_reply_aggregate', xid, packet_count,
-                            byte_count, flow_count))
-
-  def handle_stats_reply_table(self, xid, table_stats, reply_more):
-    self.calls_made.append(('handle_stats_reply_table', xid, table_stats,
-                            reply_more))
-
-  def handle_stats_reply_port(self, xid, port_stats, reply_more):
-    self.calls_made.append(('handle_stats_reply_port', xid, port_stats,
-                            reply_more))
-
-  def handle_stats_reply_queue(self, xid, queue_stats, reply_more):
-    self.calls_made.append(('handle_stats_reply_queue', xid, queue_stats,
-                            reply_more))
-
-  def handle_barrier_request(self, xid):
-    self.calls_made.append(('handle_barrier_request', xid))
-
-  def handle_barrier_reply(self, xid):
-    self.calls_made.append(('handle_barrier_reply', xid))
-
-  def handle_queue_get_config_request(self, xid, port_no):
-    self.calls_made.append(('handle_queue_get_config_request', xid, port_no))
-
-  def handle_queue_get_config_reply(self, xid, port_no, queues):
-    self.calls_made.append(('handle_queue_get_config_reply', xid, port_no,
-                            queues))
-
-
-class MockVendorAction(ofaction.vendor_action('MockVendorAction', 0x4242,
-                                              '!2xL', ('dummy',))):
-  subtype = 0x1664
-
-
-class MockVendorHandler(object):
-  """A mock vendor extension implementation.
-  """
-
-  def __init__(self):
-    # A list of tuples representing calls.
-    self.calls_made = []
-
-  vendor_id = 0x4242
-
-  def connection_made(self):
-    pass
-
-  def connection_lost(self, reason):
-    pass
-
-  def handle_vendor_message(self, msg_length, xid, buffer):
-    bytes = buffer.read_bytes(msg_length - 12)  # Consume the remaining bytes.
-    self.calls_made.append(('handle_vendor_message', msg_length, xid,
-                            bytes))
-
-  def serialize_vendor_action(self, action):
-    self.calls_made.append(('serialize_vendor_action', action))
-    subtype = action.subtype
-    if subtype != MockVendorAction.subtype:
-      raise ValueError('wrong vendor action subtype', subtype)
-    header = struct.pack('!H', subtype)
-    return (header, action.serialize())
-
-  def deserialize_vendor_action(self, action_length, buffer):
-    subtype = buffer.unpack('!H')[0]
-    if subtype != MockVendorAction.subtype:
-      raise ValueError('wrong vendor action subtype', subtype)
-    a = MockVendorAction.deserialize(buffer)
-    self.calls_made.append(('deserialize_vendor_action', action_length, a))
-    return a
-
-  def handle_vendor_stats_request(self, msg_length, xid, buffer):
-    bytes = buffer.read_bytes(msg_length - 16)  # Consume the remaining bytes.
-    self.calls_made.append(('handle_vendor_stats_request', msg_length,
-                            xid, bytes))
-
-  def handle_vendor_stats_reply(self, msg_length, xid, buffer,
-                                reply_more):
-    bytes = buffer.read_bytes(msg_length - 16)  # Consume the remaining bytes.
-    self.calls_made.append(('handle_vendor_stats_reply', msg_length,
-                            xid, bytes, reply_more))
-
-
 class TestOpenflowProtocol(unittest2.TestCase):
 
   def setUp(self):
-    self.transport = MockTransport()
-    self.vendor_handler = MockVendorHandler()
+    self.transport = mock_twisted.MockTransport()
+    self.vendor_handler = mock_vendor.MockVendorHandler()
 
-    self.proto = MockOpenflowProtocolSubclass()
+    self.proto = mock_ofproto.MockOpenflowProtocolHandler()
     self.proto.vendor_handlers = (self.vendor_handler,)
     self.proto.transport = self.transport
 
@@ -674,7 +464,7 @@ class TestOpenflowProtocol(unittest2.TestCase):
     self.proto.connectionMade()
 
     self.proto.send_packet_out(
-        0xffffffff, 0xabcd, (MockVendorAction(dummy=0x15263748),),
+        0xffffffff, 0xabcd, (mock_vendor.MockVendorAction(dummy=0x15263748),),
         ('helloworld',))
     self.assertEqual('\x01\x0d\x00\x2a\x00\x00\x00\x00'
                      '\xff\xff\xff\xff\xab\xcd\x00\x01'
@@ -758,10 +548,11 @@ class TestOpenflowProtocol(unittest2.TestCase):
                                 '\x16\x64\x00\x00' '\x15\x26\x37\x48'
                             'helloworld')
     self.assertListEqual([('handle_packet_out', 0xffffffff, 0xabcd,
-                           (MockVendorAction(dummy=0x15263748),), 'helloworld')],
+                           (mock_vendor.MockVendorAction(dummy=0x15263748),),
+                           'helloworld')],
                           self.proto.calls_made)
     self.assertListEqual([('deserialize_vendor_action', 8+8,
-                           MockVendorAction(dummy=0x15263748))],
+                           mock_vendor.MockVendorAction(dummy=0x15263748))],
                          self.vendor_handler.calls_made)
 
   def test_send_flow_mod_add(self):
@@ -1504,7 +1295,7 @@ class TestOpenflowProtocol(unittest2.TestCase):
 class TestOpenflowProtocolFactory(unittest2.TestCase):
 
   def setUp(self):
-    self.vendor_handler_classes = (MockVendorHandler,)
+    self.vendor_handler_classes = (mock_vendor.MockVendorHandler,)
     self.factory = ofproto.OpenflowProtocolFactory(
         protocol=ofproto.OpenflowProtocol, error_data_bytes=64,
         vendor_handlers=self.vendor_handler_classes)

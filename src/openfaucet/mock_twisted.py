@@ -18,6 +18,7 @@ import collections
 
 import twisted.internet.error
 
+from openfaucet import buffer
 
 class MockDelayedCall(object):
   """A mock implementation of the IDelayedCall interface.
@@ -191,3 +192,29 @@ class MockReactorTime(object):
         else:
           active_delayed_calls.append(delayed_call)
     self.delayed_calls = active_delayed_calls
+
+
+class MockTransport(object):
+  """A mock implementation of the ITransport interface.
+
+  All written data is appended into the ReceiveBuffer object in
+  attribute buffer.
+  """
+
+  __slots__ = ('open', 'buffer')
+
+  def __init__(self):
+    self.open = True
+    self.buffer = buffer.ReceiveBuffer()
+
+  def write(self, data):
+    self.writeSequence((data,))
+
+  def writeSequence(self, data):
+    if not self.open:
+      raise ValueError('connection closed')
+    for buf in data:
+      self.buffer.append(buf)
+
+  def loseConnection(self):
+    self.open = False

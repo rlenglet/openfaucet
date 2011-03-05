@@ -26,6 +26,7 @@ from openfaucet import ofproto
 from openfaucet import ofprotoops
 
 from openfaucet import mock_twisted
+from openfaucet import mock_vendor
 # TODO(romain): Move mock types in test_ofproto into their own module.
 from openfaucet import test_ofproto
 
@@ -33,9 +34,9 @@ from openfaucet import test_ofproto
 class TestOpenflowProtocolOperations(unittest2.TestCase):
 
   def setUp(self):
-    self.transport = test_ofproto.MockTransport()
+    self.transport = mock_twisted.MockTransport()
     self.reactor = mock_twisted.MockReactorTime()
-    self.vendor_handler = test_ofproto.MockVendorHandler()
+    self.vendor_handler = mock_vendor.MockVendorHandler()
     self.default_op_timeout = 3
     self.echo_op_period = 5
 
@@ -249,7 +250,7 @@ class TestOpenflowProtocolOperations(unittest2.TestCase):
 class TestOpenflowProtocolOperationsFactory(unittest2.TestCase):
 
   def setUp(self):
-    self.vendor_handler_classes = (test_ofproto.MockVendorHandler,)
+    self.vendor_handler_classes = (mock_vendor.MockVendorHandler,)
     self.reactor = mock_twisted.MockReactorTime()
     self.factory = ofprotoops.OpenflowProtocolOperationsFactory(
         protocol=ofprotoops.OpenflowProtocolOperations,

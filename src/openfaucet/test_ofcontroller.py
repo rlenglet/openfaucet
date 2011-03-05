@@ -29,51 +29,22 @@ from openfaucet import ofproto
 from openfaucet import ofprotoops
 from openfaucet import ofstats
 
+from openfaucet import mock_ofcontroller
 from openfaucet import mock_twisted
-# TODO(romain): Move mock types in test_ofproto into their own module.
+from openfaucet import mock_vendor
+# TODO(romain): Move mock classes out of test_ofproto.
 from openfaucet import test_ofproto
-
-
-class MockOpenflowController(object):
-  """A basic mock of the IOpenflowController interface.
-  """
-
-  zope.interface.implements(ofcontroller.IOpenflowController)
-
-  def __init__(self):
-    self.calls_made = []
-
-  def connection_made(self):
-    pass
-
-  def connection_lost(self, reason):
-    pass
-
-  def handle_packet_in(self, buffer_id, total_len, in_port, reason, data):
-    self.calls_made.append(
-        ('handle_packet_in', buffer_id, total_len, in_port, reason, data))
-
-  def handle_flow_removed(
-      self, match, cookie, priority, reason, duration_sec, duration_nsec,
-      idle_timeout, packet_count, byte_count):
-    self.calls_made.append(
-        ('handle_flow_removed', match, cookie, priority, reason, duration_sec,
-         duration_nsec, idle_timeout, packet_count, byte_count))
-
-  def handle_port_status(self, reason, desc):
-    self.calls_made.append(
-        ('handle_port_status', reason, desc))
 
 
 class TestOpenflowControllerStub(unittest2.TestCase):
 
   def setUp(self):
-    self.transport = test_ofproto.MockTransport()
+    self.transport = mock_twisted.MockTransport()
     self.reactor = mock_twisted.MockReactorTime()
-    self.vendor_handler = test_ofproto.MockVendorHandler()
+    self.vendor_handler = mock_vendor.MockVendorHandler()
     self.default_op_timeout = 3
     self.echo_op_period = 5
-    self.controller = MockOpenflowController()
+    self.controller = mock_ofcontroller.MockOpenflowController()
 
     self.proto = ofcontroller.OpenflowControllerStub()
     self.proto.vendor_handlers = (self.vendor_handler,)
@@ -659,10 +630,10 @@ class TestOpenflowControllerStub(unittest2.TestCase):
 class TestOpenflowControllerStubFactory(unittest2.TestCase):
 
   def setUp(self):
-    self.vendor_handler_classes = (test_ofproto.MockVendorHandler,)
+    self.vendor_handler_classes = (mock_vendor.MockVendorHandler,)
     self.reactor = mock_twisted.MockReactorTime()
     self.factory = ofcontroller.OpenflowControllerStubFactory(
-        controller=MockOpenflowController,
+        controller=mock_ofcontroller.MockOpenflowController,
         protocol=ofcontroller.OpenflowControllerStub,
         error_data_bytes=64, vendor_handlers=self.vendor_handler_classes,
         reactor=self.reactor, default_op_timeout=4.0, echo_op_period=6.0)
@@ -673,7 +644,8 @@ class TestOpenflowControllerStubFactory(unittest2.TestCase):
   def test_build_protocol_controller(self):
     self.factory.doStart()
     proto = self.factory.buildProtocol(self.addr)
-    self.assertEqual(MockOpenflowController, proto.controller.__class__)
+    self.assertEqual(mock_ofcontroller.MockOpenflowController,
+                     proto.controller.__class__)
     self.assertEqual(proto, proto.controller.protocol())
     self.factory.doStop()
 

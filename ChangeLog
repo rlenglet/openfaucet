@@ -1,5 +1,15 @@
 2011-03-05  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* src/openfaucet/test_ofproto.py,
+	src/openfaucet/mock_ofcontroller.py,
+	src/openfaucet/mock_ofproto.py, src/openfaucet/mock_vendor.py,
+	src/openfaucet/mock_twisted.py, src/openfaucet/test_ofprotoops.py,
+	src/openfaucet/test_ofcontroller.py, src/Makefile.am: Move classes
+	MockVendorAction and MockVendorHandler into new module
+	mock_vendor. Move class MockTransport into module
+	mock_twisted. Move class MockOpenflowController into new module
+	mock_ofcontroller.
+
 	* src/openfaucet/test_ofcontroller.py,
 	src/openfaucet/test_ofproto.py, src/openfaucet/test_ofprotoops.py:
 	Simplify logging setup in unittests.
