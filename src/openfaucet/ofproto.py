@@ -270,15 +270,14 @@ class OpenflowProtocol(object):
       try:
         self._handle_message()
       except oferror.OpenflowError, e:
-        # TODO(romain): Print the stacktrace.
-        self.logger.error('openflow error %r', e, extra=self.log_extra)
+        self.logger.error('openflow error while decoding message:',
+                          exc_info=True, extra=self.log_extra)
         # Always set the XID to the message that failed, as this is
         # required for at least some error types.
         self.send_error(e, xid=xid)
       except Exception, e:
-        # TODO(romain): Print the stacktrace.
-        self.logger.error('message decoding error %r', e,
-                          extra=self.log_extra)
+        self.logger.error('error while decoding message:',
+                          exc_info=True, extra=self.log_extra)
 
       if self._buffer.message_bytes_left > 0:
         self.logger.error('message not completely decoded, %i bytes left',
@@ -289,7 +288,7 @@ class OpenflowProtocol(object):
   def raise_error_with_request(self, error_type, error_code):
     raise oferror.OpenflowError(
         error_type, error_code,
-        (self._buffer.get_first_message_bytes(self.error_data_bytes),))
+        (str(self._buffer.get_first_message_bytes(self.error_data_bytes)),))
 
   def _log_handle_msg(self, msg_type_str, **kwargs):
     """Log a message handling debug message.
@@ -299,7 +298,7 @@ class OpenflowProtocol(object):
       kwargs: The dict of args passed to the handle_* method.
     """
     if self.logger.isEnabledFor(logging.DEBUG):
-      msg = ['handle message of type %s' % msg_type_str]
+      msg = ['handling message of type %s' % msg_type_str]
       msg.extend(['%s=%r' % (k, v) for k, v in kwargs.iteritems()])
       self.logger.debug(', '.join(msg), extra=self.log_extra)
 
@@ -311,7 +310,7 @@ class OpenflowProtocol(object):
       kwargs: The dict of args passed to the send_* method.
     """
     if self.logger.isEnabledFor(logging.DEBUG):
-      msg = ['send message of type %s' % msg_type_str]
+      msg = ['sending message of type %s' % msg_type_str]
       msg.extend(['%s=%r' % (k, v) for k, v in kwargs.iteritems()])
       self.logger.debug(', '.join(msg), extra=self.log_extra)
 
@@ -408,6 +407,8 @@ class OpenflowProtocol(object):
     error = oferror.OpenflowError.deserialize(self._buffer)
     # TODO(romain): Handle error decoding errors.
     self._log_handle_msg('OFPT_ERROR', error=error)
+    self.logger.error('received openflow error: %s', error,
+                      extra=self.log_extra)
     self.handle_error(xid, error)
 
   def _handle_echo_request(self, msg_length, xid):

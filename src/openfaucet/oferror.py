@@ -14,7 +14,6 @@
 
 # Representations and encoding/decoding of OpenFlow 1.0.0 errors.
 
-import binascii
 import struct
 
 from openfaucet import buffer
@@ -144,9 +143,9 @@ class OpenflowError(Exception):
     self.data = data
 
   def __str__(self):
-    return 'error type %i (%s) code %i (%s) with data %s' % (
+    return 'error type %i (%s) code %i (%s) with data %r' % (
         self.error_type, self.error_type_txt, self.error_code,
-        self.error_code_txt, binascii.b2a_hex(self.data))
+        self.error_code_txt, ''.join(self.data))
 
   def __cmp__(self, other):
     return cmp(self.args, other.args)
@@ -188,11 +187,11 @@ class OpenflowError(Exception):
 
     if error_type == OFPET_HELLO_FAILED:
       if buf.message_bytes_left > 0:
-        data = (buf.read_bytes(buf.message_bytes_left),)
+        data = (str(buf.read_bytes(buf.message_bytes_left)),)
     elif error_type in (OFPET_BAD_REQUEST, OFPET_BAD_ACTION,
                         OFPET_FLOW_MOD_FAILED, OFPET_PORT_MOD_FAILED,
                         OFPET_QUEUE_OP_FAILED):
-      data = (buf.read_bytes(buf.message_bytes_left),)
+      data = (str(buf.read_bytes(buf.message_bytes_left)),)
     elif buf.message_bytes_left > 0:
       # Be liberal. Ignore data if none should have been sent.
       buf.skip_bytes(buf.message_bytes_left)

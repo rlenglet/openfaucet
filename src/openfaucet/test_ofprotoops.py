@@ -283,8 +283,7 @@ class TestOpenflowProtocolOperationsFactory(unittest2.TestCase):
 if __name__ == '__main__':
   # Disable logging during unittests.
   import logging
-  logging.getLogger('').setLevel(logging.CRITICAL)
-  #logging.getLogger('').setLevel(logging.DEBUG)
+  logging.basicConfig(level=logging.CRITICAL)
   #logging.basicConfig(level=logging.DEBUG,
   #                    format='%(asctime)s %(levelname)s %(message)s',
   #                    filename='unittest.log',

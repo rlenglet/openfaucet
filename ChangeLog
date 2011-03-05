@@ -1,5 +1,15 @@
 2011-03-05  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* src/openfaucet/test_ofcontroller.py,
+	src/openfaucet/test_ofproto.py, src/openfaucet/test_ofprotoops.py:
+	Simplify logging setup in unittests.
+
+	* src/openfaucet/ofproto.py: Print backtraces in the logs. Improve
+	logging wording.
+
+	* src/openfaucet/oferror.py: Fix printing of OpenflowError
+	exceptions.
+
 	* src/openfaucet/ofprotoops.py, src/openfaucet/test_ofprotoops.py,
 	src/openfaucet/ofcontroller.py, docs/controller.rst: Silently
 	cancel all pending operations when the connection is lost.
