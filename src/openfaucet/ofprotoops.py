@@ -96,6 +96,12 @@ class Callable(collections.namedtuple('Callable', (
 #   timeout_callback: The callable called when the operation timeouts.
 #   timeout_delayed_call: The DelayedCall to trigger the operation's
 #       timeout.
+#
+# Note: Operations are directly associated with callables, and not
+# Twisted Deferred objects, since a Deferred can be called back at
+# most once, and thus can't be used to perform linked replies,
+# i.e. multiple calls to the same callable, as must be done for
+# instance in get_stats_port operations in ofcontroller.py.
 PendingOperation = collections.namedtuple('PendingOperation', (
     'cookie', 'success_callback', 'timeout_callback', 'timeout_delayed_call'))
 

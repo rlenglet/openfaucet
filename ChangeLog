@@ -1,3 +1,8 @@
+2011-03-06  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/ofprotoops.py: Document why we directly use
+	callables instead of Deferred objects.
+
 2011-03-05  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/Makefile.am (EXTRA_DIST): Fix the distribution of
