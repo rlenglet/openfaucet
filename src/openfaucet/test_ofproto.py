@@ -468,7 +468,7 @@ class TestOpenflowProtocol(unittest2.TestCase):
         ('helloworld',))
     self.assertEqual('\x01\x0d\x00\x2a\x00\x00\x00\x00'
                      '\xff\xff\xff\xff\xab\xcd\x00\x01'
-                     '\x00\x0c\x00\x10' '\x00\x00\x42\x42'
+                     '\xff\xff\x00\x10' '\x00\x00\x42\x42'
                          '\x16\x64\x00\x00' '\x15\x26\x37\x48'
                      'helloworld',
                      self._get_next_sent_message())
@@ -544,7 +544,7 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
     self.proto.dataReceived('\x01\x0d\x00\x2a\x00\x00\x00\x00'
                             '\xff\xff\xff\xff\xab\xcd\x00\x01'
-                            '\x00\x0c\x00\x10' '\x00\x00\x42\x42'
+                            '\xff\xff\x00\x10' '\x00\x00\x42\x42'
                                 '\x16\x64\x00\x00' '\x15\x26\x37\x48'
                             'helloworld')
     self.assertListEqual([('handle_packet_out', 0xffffffff, 0xabcd,

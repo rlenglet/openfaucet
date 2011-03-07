@@ -188,6 +188,13 @@ class TestActions(unittest2.TestCase):
     self.assertTupleEqual((0x1234, 0x13243546,),
                           ofaction.ActionEnqueue.deserialize(self.buf))
 
+  def test_serialize_mido_action_tcp_flags(self):
+    a = ofaction.MidoActionCheckTCPFlags(
+            subtype=ofaction.MIDO_ACTION_CHECK_TCP_FLAGS,
+            tcp_flags=0x0a)
+    self.assertEqual(0xffff, a.type)
+    self.assertEqual('\xff\xff\x00\x10\x00\xac\xca\xba\x00\x00\x0a'
+                     '\x00\x00\x00\x00\x00', a.serialize())
 
 if __name__ == '__main__':
   unittest2.main()

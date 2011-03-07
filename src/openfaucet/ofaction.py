@@ -37,7 +37,7 @@ OFPAT_SET_NW_TOS = 8
 OFPAT_SET_TP_SRC = 9
 OFPAT_SET_TP_DST = 10
 OFPAT_ENQUEUE = 11
-OFPAT_VENDOR = 12
+OFPAT_VENDOR = 0xffff
 
 
 class IAction(interface.Interface):
@@ -246,9 +246,21 @@ ActionSetTpDst = __action('ActionSetTpDst', OFPAT_SET_TP_DST,
 ActionEnqueue = __action('ActionEnqueue', OFPAT_ENQUEUE,
                          '!H2xL', ('port', 'queue_id'))
 
-
 # Mapping of all OFPAT_* action types (except OFPAT_VENDOR) to Action* types.
 ACTION_CLASSES = dict((action_type.type, action_type) for action_type in (
     ActionOutput, ActionSetVlanVid, ActionSetVlanPcp, ActionStripVlan,
     ActionSetDlSrc, ActionSetDlDst, ActionSetNwSrc, ActionSetNwDst,
     ActionSetNwTos, ActionSetTpSrc, ActionSetTpDst, ActionEnqueue))
+
+# Midokura vendor actions
+MIDOKURA_VENDOR_ID = 0x00ACCABA
+MIDO_ACTION_CHECK_TCP_FLAGS = 0
+MIDO_ACTION_CHECK_ACK_SEQ_NUM = 1
+
+MidoActionCheckTCPFlags = vendor_action('MidoActionCheckTCPFlags',
+                                         MIDOKURA_VENDOR_ID, '!HB',
+                                         ('subtype', 'tcp_flags'))
+
+MidoActionCheckAckSeqNum = vendor_action('MidoActionCheckAckSeqNum',
+                                         MIDOKURA_VENDOR_ID, '!H2xI',
+                                         ('subtype', 'ack_seq_num'))
