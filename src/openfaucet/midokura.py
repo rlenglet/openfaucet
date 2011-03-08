@@ -45,4 +45,11 @@ class MidokuraVendorHandler(object):
     header = struct.pack('!H', action.subtype)
     return (header, action.serialize())
 
-  
+  @staticmethod
+  def deserialize_vendor_action(length, buffer):
+    subtype = buffer.unpack('!H')[0]
+    if subtype == MIDO_ACTION_CHECK_TCP_FLAGS:
+      return MidoActionCheckTCPFlags.deserialize(buffer)
+    if subtype == MIDO_ACTION_CHECK_ACK_SEQ_NUM:
+      return MidoActionCheckAckSeqNum.deserialize(buffer)
+    raise ValueError('unknown Midokura extension action subtype', subtype)

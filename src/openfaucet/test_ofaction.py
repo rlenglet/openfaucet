@@ -200,6 +200,13 @@ class TestActions(unittest2.TestCase):
     self.assertEqual('\xff\xff\x00\x10\x00\xac\xca\xba\x00\x00\x0a'
                      '\x00\x00\x00\x00\x00', ''.join(dummy.serialize_action(a)))
 
+  def test_deserialize_mido_action_tcp_flags(self):
+    self.buf.append('\x00\x00\x0a\x00\x00\x00\x00\x00')
+    self.buf.set_message_boundaries(8)
+    self.assertTupleEqual(midokura.MidoActionCheckTCPFlags(tcp_flags=0x0a),
+        midokura.MidokuraVendorHandler.deserialize_vendor_action(len(self.buf),
+                                                                 self.buf))
+
   def test_serialize_mido_action_ack_seq_num(self):
     dummy = ofproto.OpenflowProtocol()
     dummy._vendor_handlers = { 
