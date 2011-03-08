@@ -18,6 +18,8 @@ import unittest2
 
 from openfaucet import ofaction
 from openfaucet import buffer
+from openfaucet import midokura
+from openfaucet import ofproto
 
 
 class TestActions(unittest2.TestCase):
@@ -189,12 +191,14 @@ class TestActions(unittest2.TestCase):
                           ofaction.ActionEnqueue.deserialize(self.buf))
 
   def test_serialize_mido_action_tcp_flags(self):
-    a = ofaction.MidoActionCheckTCPFlags(
-            subtype=ofaction.MIDO_ACTION_CHECK_TCP_FLAGS,
-            tcp_flags=0x0a)
+    dummy = ofproto.OpenflowProtocol()
+    dummy._vendor_handlers = { 
+        midokura.MIDOKURA_VENDOR_ID: midokura.MidokuraVendorHandler }
+    a = midokura.MidoActionCheckTCPFlags(tcp_flags=0x0a)
     self.assertEqual(0xffff, a.type)
+    self.assertEqual(0, a.subtype)
     self.assertEqual('\xff\xff\x00\x10\x00\xac\xca\xba\x00\x00\x0a'
-                     '\x00\x00\x00\x00\x00', a.serialize())
+                     '\x00\x00\x00\x00\x00', ''.join(dummy.serialize_action(a)))
 
 if __name__ == '__main__':
   unittest2.main()

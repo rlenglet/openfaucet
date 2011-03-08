@@ -1517,7 +1517,7 @@ class OpenflowProtocol(object):
 
     total_length = sum(len(d) for d in header_action)
     if total_length % 8 != 0:
-      raise ValueError('action length not a multiple of 8', a)
+      raise ValueError('action length %d not a multiple of 8' % total_length, action)
 
     return header_action
 
