@@ -200,5 +200,16 @@ class TestActions(unittest2.TestCase):
     self.assertEqual('\xff\xff\x00\x10\x00\xac\xca\xba\x00\x00\x0a'
                      '\x00\x00\x00\x00\x00', ''.join(dummy.serialize_action(a)))
 
+  def test_serialize_mido_action_ack_seq_num(self):
+    dummy = ofproto.OpenflowProtocol()
+    dummy._vendor_handlers = { 
+        midokura.MIDOKURA_VENDOR_ID: midokura.MidokuraVendorHandler }
+    a = midokura.MidoActionCheckAckSeqNum(ack_seq_num=0x12345678)
+    self.assertEqual(0xffff, a.type)
+    self.assertEqual(1, a.subtype)
+    self.assertEqual('\xff\xff\x00\x10\x00\xac\xca\xba\x00\x01'
+                     '\x00\x00\x12\x34\x56\x78',
+                     ''.join(dummy.serialize_action(a)))
+
 if __name__ == '__main__':
   unittest2.main()
