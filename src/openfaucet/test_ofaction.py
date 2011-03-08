@@ -192,7 +192,7 @@ class TestActions(unittest2.TestCase):
 
   def test_serialize_mido_action_tcp_flags(self):
     dummy = ofproto.OpenflowProtocol()
-    dummy._vendor_handlers = { 
+    dummy._vendor_handlers = {
         midokura.MIDOKURA_VENDOR_ID: midokura.MidokuraVendorHandler }
     a = midokura.MidoActionCheckTCPFlags(tcp_flags=0x0a)
     self.assertEqual(0xffff, a.type)
@@ -209,7 +209,7 @@ class TestActions(unittest2.TestCase):
 
   def test_serialize_mido_action_ack_seq_num(self):
     dummy = ofproto.OpenflowProtocol()
-    dummy._vendor_handlers = { 
+    dummy._vendor_handlers = {
         midokura.MIDOKURA_VENDOR_ID: midokura.MidokuraVendorHandler }
     a = midokura.MidoActionCheckAckSeqNum(ack_seq_num=0x12345678)
     self.assertEqual(0xffff, a.type)
