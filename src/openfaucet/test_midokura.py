@@ -22,6 +22,7 @@ from openfaucet import ofproto
 
 
 class TestMidokura(unittest2.TestCase):
+
   def setUp(self):
     self.buf = buffer.ReceiveBuffer()
 
@@ -38,9 +39,10 @@ class TestMidokura(unittest2.TestCase):
   def test_deserialize_mido_action_tcp_flags(self):
     self.buf.append('\x00\x00\x0a\x00\x00\x00\x00\x00')
     self.buf.set_message_boundaries(8)
+    mvh = midokura.MidokuraVendorHandler()
     self.assertTupleEqual(midokura.MidoActionCheckTCPFlags(tcp_flags=0x0a),
-        midokura.MidokuraVendorHandler.deserialize_vendor_action(len(self.buf),
-                                                                 self.buf))
+                          mvh.deserialize_vendor_action(len(self.buf), self.buf)
+                         )
 
   def test_serialize_mido_action_ack_seq_num(self):
     dummy = ofproto.OpenflowProtocol()
@@ -56,10 +58,11 @@ class TestMidokura(unittest2.TestCase):
   def test_deserialize_mido_action_ack_seq_num(self):
     self.buf.append('\x00\x01\x00\x00\x12\x34\x56\x79')
     self.buf.set_message_boundaries(8)
+    mvh = midokura.MidokuraVendorHandler()
     self.assertTupleEqual(midokura.MidoActionCheckAckSeqNum(
                               ack_seq_num=0x12345679),
-        midokura.MidokuraVendorHandler.deserialize_vendor_action(len(self.buf),
-                                                                 self.buf))
+                          mvh.deserialize_vendor_action(len(self.buf), self.buf)
+                         )
 
 
 if __name__ == '__main__':
