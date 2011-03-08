@@ -218,5 +218,13 @@ class TestActions(unittest2.TestCase):
                      '\x00\x00\x12\x34\x56\x78',
                      ''.join(dummy.serialize_action(a)))
 
+  def test_deserialize_mido_action_ack_seq_num(self):
+    self.buf.append('\x00\x01\x00\x00\x12\x34\x56\x78')
+    self.buf.set_message_boundaries(8)
+    self.assertTupleEqual(midokura.MidoActionCheckAckSeqNum(
+                              ack_seq_num=0x12345678),
+        midokura.MidokuraVendorHandler.deserialize_vendor_action(len(self.buf),
+                                                                 self.buf))
+
 if __name__ == '__main__':
   unittest2.main()
