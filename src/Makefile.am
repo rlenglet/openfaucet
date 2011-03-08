@@ -23,6 +23,7 @@ nobase_python_PYTHON = \
 	openfaucet/ofproto.py \
 	openfaucet/ofprotoops.py \
 	openfaucet/ofstats.py \
+        openfaucet/midokura.py \
 	openfaucet/mock_ofcontroller.py \
 	openfaucet/mock_ofproto.py \
 	openfaucet/mock_twisted.py \
@@ -38,7 +39,8 @@ UNITTESTS = \
 	openfaucet/test_ofmatch.py \
 	openfaucet/test_ofproto.py \
 	openfaucet/test_ofprotoops.py \
-	openfaucet/test_ofstats.py
+	openfaucet/test_ofstats.py \
+        openfaucet/test_midokura.py
 
 # Instead of running every unittest module by setting
 # TESTS = $(UNITTESTS), run them all as a single test suite.

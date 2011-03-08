@@ -17,6 +17,7 @@
 import struct
 
 from openfaucet import ofaction
+from openfaucet import oferror
 
 MIDOKURA_VENDOR_ID = 0x00ACCABA
 MIDO_ACTION_CHECK_TCP_FLAGS = 0
@@ -28,11 +29,26 @@ class MidoActionCheckTCPFlags(ofaction.vendor_action('MidoActionCheckTCPFlags',
                                                      ('tcp_flags',))):
   subtype = MIDO_ACTION_CHECK_TCP_FLAGS
 
+  # Required methods
+  def connection_made(self):
+    pass
 
-class MidoActionCheckAckSeqNum(ofaction.vendor_action('MidoActionCheckAckSeqNum',
-                                                      MIDOKURA_VENDOR_ID, '!2xI',
-                                                      ('ack_seq_num',))):
+  def connection_lost(self, reason):
+    pass
+
+
+
+class MidoActionCheckAckSeqNum(
+          ofaction.vendor_action('MidoActionCheckAckSeqNum', MIDOKURA_VENDOR_ID,
+                                 '!2xI', ('ack_seq_num',))):
   subtype = MIDO_ACTION_CHECK_ACK_SEQ_NUM
+
+  # Required methods
+  def connection_made(self):
+    pass
+
+  def connection_lost(self, reason):
+    pass
 
 
 class MidokuraVendorHandler(object):
@@ -52,4 +68,19 @@ class MidokuraVendorHandler(object):
       return MidoActionCheckTCPFlags.deserialize(buffer)
     if subtype == MIDO_ACTION_CHECK_ACK_SEQ_NUM:
       return MidoActionCheckAckSeqNum.deserialize(buffer)
-    raise ValueError('unknown Midokura extension action subtype', subtype)
+    raise oferror.OpenflowError(oferror.OFPET_BAD_ACTION,
+                                oferror.OFPBAC_BAD_VENDOR_TYPE)
+
+  # Unsupported handler methods
+  def handle_vendor_message(self, msg_length, xid, buffer):
+    self.protocol().raise_error_with_request(
+        oferror.OFPET_BAD_REQUEST, oferror.OFPBRC_BAD_SUBTYPE)
+
+  def handle_vendor_stats_request(self, msg_length, xid, buffer):
+    self.protocol().raise_error_with_request(
+        oferror.OFPET_BAD_REQUEST, oferror.OFPBRC_BAD_SUBTYPE)
+
+  def handle_vendor_stats_reply(self, msg_length, xid, buffer,
+                                reply_more):
+    self.protocol().raise_error_with_request(
+        oferror.OFPET_BAD_REQUEST, oferror.OFPBRC_BAD_SUBTYPE)
