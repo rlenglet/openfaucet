@@ -7,7 +7,7 @@
 	src/openfaucet/test_ofproto.py: Fix value of OFPAT_VENDOR.
 
 	* src/openfaucet/ofproto.py: Fix bad-action-length raise.
- 
+
 2011-03-06  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/openfaucet/ofprotoops.py: Document why we directly use
