@@ -1,3 +1,11 @@
+2011-03-14  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* configure.ac: Replace the bug report email address by
+	openfaucet-bug@googlegroups.com.
+
+	* AUTHORS: Fix the formatting of contributors list to follow the
+	same conventions as GNU projects' AUTHORS files.
+
 2011-03-08  Jacob Mandelson  <jacob@mandelson.org>
 
 	* src/openfaucet/midokura.py,
