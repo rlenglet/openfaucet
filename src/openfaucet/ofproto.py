@@ -335,55 +335,13 @@ class OpenflowProtocol(object):
         self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                       oferror.OFPBRC_BAD_VERSION)
 
-    if msg_type == OFPT_HELLO:
-        self._handle_hello(msg_length, xid)
-    elif msg_type == OFPT_ERROR:
-        self._handle_error(msg_length, xid)
-    elif msg_type == OFPT_ECHO_REQUEST:
-        self._handle_echo_request(msg_length, xid)
-    elif msg_type == OFPT_ECHO_REPLY:
-        self._handle_echo_reply(msg_length, xid)
-    elif msg_type == OFPT_VENDOR:
-        self._handle_vendor(msg_length, xid)
-    elif msg_type == OFPT_FEATURES_REQUEST:
-        self._handle_features_request(msg_length, xid)
-    elif msg_type == OFPT_FEATURES_REPLY:
-        self._handle_features_reply(msg_length, xid)
-    elif msg_type == OFPT_GET_CONFIG_REQUEST:
-        self._handle_get_config_request(msg_length, xid)
-    elif msg_type == OFPT_GET_CONFIG_REPLY:
-        self._handle_get_config_reply(msg_length, xid)
-    elif msg_type == OFPT_SET_CONFIG:
-        self._handle_set_config(msg_length, xid)
-    elif msg_type == OFPT_PACKET_IN:
-        self._handle_packet_in(msg_length, xid)
-    elif msg_type == OFPT_FLOW_REMOVED:
-        self._handle_flow_removed(msg_length, xid)
-    elif msg_type == OFPT_PORT_STATUS:
-        self._handle_port_status(msg_length, xid)
-    elif msg_type == OFPT_PACKET_OUT:
-        self._handle_packet_out(msg_length, xid)
-    elif msg_type == OFPT_FLOW_MOD:
-        self._handle_flow_mod(msg_length, xid)
-    elif msg_type == OFPT_PORT_MOD:
-        self._handle_port_mod(msg_length, xid)
-    elif msg_type == OFPT_STATS_REQUEST:
-        self._handle_stats_request(msg_length, xid)
-    elif msg_type == OFPT_STATS_REPLY:
-        self._handle_stats_reply(msg_length, xid)
-    elif msg_type == OFPT_BARRIER_REQUEST:
-        self._handle_barrier_request(msg_length, xid)
-    elif msg_type == OFPT_BARRIER_REPLY:
-        self._handle_barrier_reply(msg_length, xid)
-    elif msg_type == OFPT_QUEUE_GET_CONFIG_REQUEST:
-        self._handle_queue_get_config_request(msg_length, xid)
-    elif msg_type == OFPT_QUEUE_GET_CONFIG_REPLY:
-        self._handle_queue_get_config_reply(msg_length, xid)
-    else:
+    msg_handler = self._MESSAGE_HANDLERS.get(msg_type)
+    if msg_handler is None:
       self.logger.error('message has unknown type %i', msg_type,
                         extra=self.log_extra)
       self.raise_error_with_request(oferror.OFPET_BAD_REQUEST,
                                     oferror.OFPBRC_BAD_TYPE)
+    msg_handler(self, msg_length, xid)
 
   def _handle_hello(self, msg_length, xid):
     # A OFPT_HELLO message has no body in the current version.
@@ -923,6 +881,32 @@ class OpenflowProtocol(object):
     self._log_handle_msg('OFPT_QUEUE_GET_CONFIG_REPLY',
                          port_no=port_no, queues=queues)
     self.handle_queue_get_config_reply(xid, port_no, queues)
+
+  # A map of message types and corresponding message handling methods.
+  _MESSAGE_HANDLERS = {
+      OFPT_HELLO: _handle_hello,
+      OFPT_ERROR: _handle_error,
+      OFPT_ECHO_REQUEST: _handle_echo_request,
+      OFPT_ECHO_REPLY: _handle_echo_reply,
+      OFPT_VENDOR: _handle_vendor,
+      OFPT_FEATURES_REQUEST: _handle_features_request,
+      OFPT_FEATURES_REPLY: _handle_features_reply,
+      OFPT_GET_CONFIG_REQUEST: _handle_get_config_request,
+      OFPT_GET_CONFIG_REPLY: _handle_get_config_reply,
+      OFPT_SET_CONFIG: _handle_set_config,
+      OFPT_PACKET_IN: _handle_packet_in,
+      OFPT_FLOW_REMOVED: _handle_flow_removed,
+      OFPT_PORT_STATUS: _handle_port_status,
+      OFPT_PACKET_OUT: _handle_packet_out,
+      OFPT_FLOW_MOD: _handle_flow_mod,
+      OFPT_PORT_MOD: _handle_port_mod,
+      OFPT_STATS_REQUEST: _handle_stats_request,
+      OFPT_STATS_REPLY: _handle_stats_reply,
+      OFPT_BARRIER_REQUEST: _handle_barrier_request,
+      OFPT_BARRIER_REPLY: _handle_barrier_reply,
+      OFPT_QUEUE_GET_CONFIG_REQUEST: _handle_queue_get_config_request,
+      OFPT_QUEUE_GET_CONFIG_REPLY: _handle_queue_get_config_reply
+      }
 
   def handle_hello(self):
     """Handle the reception of a OFPT_HELLO message.

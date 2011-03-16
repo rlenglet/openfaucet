@@ -1,3 +1,8 @@
+2011-03-16  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/ofproto.py: Dispatch on message type using a dict
+	instead of a series of ifs.
+
 2011-03-14  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* configure.ac: Replace the bug report email address by
