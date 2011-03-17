@@ -15,6 +15,8 @@
 # Mock implementation of the OpenFlow protocol.
 
 import struct
+import twisted.python.failure
+import twisted.internet.error
 
 from openfaucet import ofproto
 
@@ -159,3 +161,39 @@ class MockOpenflowProtocolHandler(ofproto.OpenflowProtocol):
   def handle_queue_get_config_reply(self, xid, port_no, queues):
     self.calls_made.append(('handle_queue_get_config_reply', xid, port_no,
                             queues))
+
+
+class LoopbackTransport(object):
+  """A twisted ITransport that directly writes data into an IProtocol.
+  """
+
+  def __init__(self, protocol, host, peer):
+    """Initialize this transport to write all data into the given protocol.
+
+    Args:
+      protocol: An IProtocol object.
+      peer: The remote address of this connection, as an IAddress object.
+      host: The local address of this connection, as an IAddress object.
+    """
+    self._protocol = protocol
+    self._host = host
+    self._peer = peer
+    self.open = True
+
+  def write(self, data):
+    self._protocol.dataReceived(data)
+
+  def writeSequence(self, data):
+    for d in data:
+      self.write(d)
+
+  def loseConnection(self):
+    self._protocol.connectionLost(twisted.python.failure.Failure(
+        twisted.internet.error.ConnectionDone()))
+    self.open = False
+
+  def getHost(self):
+    return self._host
+
+  def getPeer(self):
+    return self._peer
