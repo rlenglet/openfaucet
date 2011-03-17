@@ -288,7 +288,7 @@ class TestPhyPort(unittest2.TestCase):
                                autoneg=True)),
       ofconfig.PhyPort.deserialize(self.buf))
     # Test that the deserialization consumed all 48 bytes.
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(IndexError):
       self.buf.skip_bytes(1)
 
   def test_deserialize_every_state_stp(self):

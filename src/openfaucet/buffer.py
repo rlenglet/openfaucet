@@ -59,7 +59,9 @@ class ReceiveBuffer(object):
     Raises:
       IndexError if length is greater than the number of available bytes.
     """
-    assert length <= len(self), 'message length greater than buffer length'
+    if length > len(self):
+      raise IndexError('message length greater than buffer length',
+                       length, len(self))
     self._msg_start = self._offset
     self._msg_length = length
     self._msg_bytes_left = length
@@ -77,7 +79,9 @@ class ReceiveBuffer(object):
       lower than num if the message is shorter than num bytes; in that
       case, the whole message is returned.
     """
-    assert self._msg_start >= 0, 'compacted without resetting the boundaries'
+    if self._msg_start < 0:
+      raise IndexError(
+          'buffer was compacted without resetting the message boundaries')
     if num > self._msg_length:
       num = self._msg_length
     return self._buffer[self._msg_start:self._msg_start+num]
@@ -126,8 +130,8 @@ class ReceiveBuffer(object):
           the number of available bytes.
     """
     format_length = struct.calcsize(format)
-    assert format_length <= self._msg_bytes_left, 'format too long'
-    assert format_length <= len(self), 'format too long'
+    if format_length > self._msg_bytes_left or format_length > len(self):
+      raise IndexError('format too long')
     # TODO(romain): Avoid having to convert the buffer into a buffer,
     # as unpack requires a string or read-only buffer, and doesn't
     # take bytearrays.
@@ -147,8 +151,8 @@ class ReceiveBuffer(object):
           the number of available bytes.
     """
     format_length = struct.calcsize(format)
-    assert format_length <= self._msg_bytes_left, 'format too long'
-    assert format_length <= len(self), 'format too long'
+    if format_length > self._msg_bytes_left or format_length > len(self):
+      raise IndexError('format too long')
     # TODO(romain): Avoid having to convert the buffer into a buffer,
     # as unpack requires a string or read-only buffer, and doesn't
     # take bytearrays.
@@ -168,8 +172,8 @@ class ReceiveBuffer(object):
       IndexError if the format's length is greater than the limit or
           the number of available bytes.
     """
-    assert num <= self._msg_bytes_left, 'not enough unread bytes'
-    assert num <= len(self), 'not enough unread bytes'
+    if num > self._msg_bytes_left or num > len(self):
+      raise IndexError('not enough unread bytes')
     res = self._buffer[self._offset:self._offset+num]
     self._offset += num
     self._msg_bytes_left -= num
@@ -182,7 +186,7 @@ class ReceiveBuffer(object):
       num: The number of bytes to skip. Must be lower or equal than
           the limit and the number of unread bytes.
     """
-    assert num <= self._msg_bytes_left, 'not enough unread bytes'
-    assert num <= len(self), 'not enough unread bytes'
+    if num > self._msg_bytes_left or num > len(self):
+      raise IndexError('not enough unread bytes')
     self._offset += num
     self._msg_bytes_left -= num
