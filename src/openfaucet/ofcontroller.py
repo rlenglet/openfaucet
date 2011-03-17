@@ -519,6 +519,8 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     """
     ofprotoops.OpenflowProtocolOperations.connectionMade(self)
     self._features = None
+    self.logger.info('controller stub configuration: controller=%r',
+                     self.controller, extra=self.log_extra)
 
     # At handshake completion, call back the controller's
     # connection_made() callback, which is done in
@@ -1072,6 +1074,8 @@ class OpenflowControllerStubFactory(
         logger=logger, vendor_handlers=vendor_handlers, reactor=reactor,
         default_op_timeout=default_op_timeout, echo_op_period=echo_op_period)
     self._controller = controller
+    self._logger.info('controller stub factory configuration: controller=%r',
+                      self._controller)
 
   def buildProtocol(self, addr):
     """Create a protocol to handle a connection established to the given address.

@@ -1,5 +1,11 @@
 2011-03-17  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* src/test_all.py.in: Fix logging setup.
+
+	* src/openfaucet/ofproto.py, src/openfaucet/ofprotoops.py,
+	src/openfaucet/ofcontroller.py: Add INFO-level logging. Log the
+	configuration at INFO level.
+
 	* src/openfaucet/buffer.py, src/openfaucet/test_buffer.py,
 	src/openfaucet/test_ofconfig.py: Raise IndexErrors instead of
 	AssertionErrors in ReceiveBuffer's methods.

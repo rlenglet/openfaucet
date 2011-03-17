@@ -141,6 +141,11 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     periodic echo operations.
     """
     ofproto.OpenflowProtocol.connectionMade(self)
+    self.logger.info(
+        'protocol operations configuration: reactor=%r, '
+        'default_op_timeout=%r, echo_op_period=%r', self.reactor,
+        self.default_op_timeout, self.echo_op_period, extra=self.log_extra)
+
     self._next_xid = 0
     # Maintain a dictionary mapping of XIDs to PendingOperation
     # objects.
@@ -283,8 +288,11 @@ class OpenflowProtocolOperations(ofproto.OpenflowProtocol):
     pending_op = None
     with self._pending_ops_lock:
       pending_op = self._pending_ops.pop(xid, None)
-    if pending_op is not None and pending_op.timeout_callback is not None:
-      pending_op.timeout_callback()
+    if pending_op is not None:
+      self.logger.info('operation with xid=%i timed out', xid,
+                       extra=self.log_extra)
+      if pending_op.timeout_callback is not None:
+        pending_op.timeout_callback()
 
   # TODO(romain): Handle the reception of errors whose XIDs match
   # pending operations?
@@ -394,6 +402,10 @@ class OpenflowProtocolOperationsFactory(ofproto.OpenflowProtocolFactory):
     self._reactor = reactor
     self._default_op_timeout = default_op_timeout
     self._echo_op_period = echo_op_period
+    self._logger.info(
+        'protocol operations factory configuration: reactor=%r, '
+        'default_op_timeout=%r, echo_op_period=%r', self._reactor,
+        self._default_op_timeout, self._echo_op_period)
 
   def buildProtocol(self, addr):
     """Create a protocol to handle a connection established to the given address.

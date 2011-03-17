@@ -382,7 +382,11 @@ class OpenflowProtocol(object):
 
     Call connection_made() on every vendor handler.
     """
-    self.logger.debug('connection made', extra=self.log_extra)
+    self.logger.info('connection made', extra=self.log_extra)
+    self.logger.info(
+        'protocol configuration: error_data_bytes=%r, '
+        'vendor IDs and vendor_handlers=%r', self.error_data_bytes,
+        self._vendor_handlers.items(), extra=self.log_extra)
     self._buffer = buffer.ReceiveBuffer()
     for v in self._vendor_handlers.itervalues():
       v.connection_made()
@@ -398,8 +402,8 @@ class OpenflowProtocol(object):
           twisted.internet.error.ConnectionLost instance (or a
           subclass of one of those).
     """
-    self.logger.debug('connection lost with reason %r', reason,
-                      extra=self.log_extra)
+    self.logger.info('connection lost with reason %r', reason,
+                     extra=self.log_extra)
     for v in self._vendor_handlers.itervalues():
       v.connection_lost(reason)
     self.connected = False
@@ -2619,6 +2623,11 @@ class OpenflowProtocolFactory(object):
     self._error_data_bytes = error_data_bytes
     self._logger = logger
     self._vendor_handlers = vendor_handlers
+    self._logger.info(
+        'protocol factory configuration: protocol=%r, error_data_bytes=%r, '
+        'logger=%r, vendor IDs and vendor_handlers=%r',
+        self._protocol, self._error_data_bytes, self._logger,
+        [(v.vendor_id, v) for v in self._vendor_handlers])
 
   def doStart(self):
     """Called every time this is connected to a Port or Connector.
