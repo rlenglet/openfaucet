@@ -15,9 +15,12 @@
 # Implementation of Midokura's OpenFlow vendor extensions.
 
 import struct
+from zope import interface
 
 from openfaucet import ofaction
 from openfaucet import oferror
+from openfaucet import ofproto
+
 
 MIDOKURA_VENDOR_ID = 0x00ACCABA
 MIDO_ACTION_CHECK_TCP_FLAGS = 0
@@ -42,6 +45,8 @@ class MidoActionCheckAckSeqNum(
 
 class MidokuraVendorHandler(object):
   """Extension handler for Midokura's vendor extensions."""
+
+  interface.implements(ofproto.IOpenflowVendorHandler)
 
   vendor_id = MIDOKURA_VENDOR_ID
 

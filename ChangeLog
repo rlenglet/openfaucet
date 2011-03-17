@@ -1,3 +1,10 @@
+2011-03-17  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/ofproto.py, src/openfaucet/midokura.py,
+	src/openfaucet/mock_vendor.py: Define the IOpenflowVendorHandler
+	and IOpenflowVendorHandlerStub interfaces.  Rename "buffer" args
+	into "buf" to prevent shadowing Python's "buffer" keyword.
+
 2011-03-16  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/openfaucet/ofproto.py: Dispatch on message type using a dict

@@ -15,8 +15,10 @@
 # Mock implementations of OpenFlow vendor extension interfaces.
 
 import struct
+from zope import interface
 
 from openfaucet import ofaction
+from openfaucet import ofproto
 
 
 MOCK_VENDOR_ID = 0x4242
@@ -35,6 +37,8 @@ class MockVendorHandler(object):
   attribute calls_made.
   """
 
+  interface.implements(ofproto.IOpenflowVendorHandler)
+
   vendor_id = MOCK_VENDOR_ID
 
   def __init__(self):
@@ -47,8 +51,8 @@ class MockVendorHandler(object):
   def connection_lost(self, reason):
     pass
 
-  def handle_vendor_message(self, msg_length, xid, buffer):
-    bytes = buffer.read_bytes(msg_length - 12)  # Consume the remaining bytes.
+  def handle_vendor_message(self, msg_length, xid, buf):
+    bytes = buf.read_bytes(msg_length - 12)  # Consume the remaining bytes.
     self.calls_made.append(('handle_vendor_message', msg_length, xid,
                             bytes))
 
@@ -60,21 +64,20 @@ class MockVendorHandler(object):
     header = struct.pack('!H', subtype)
     return (header, action.serialize())
 
-  def deserialize_vendor_action(self, action_length, buffer):
-    subtype = buffer.unpack('!H')[0]
+  def deserialize_vendor_action(self, action_length, buf):
+    subtype = buf.unpack('!H')[0]
     if subtype != MockVendorAction.subtype:
       raise ValueError('wrong vendor action subtype', subtype)
-    a = MockVendorAction.deserialize(buffer)
+    a = MockVendorAction.deserialize(buf)
     self.calls_made.append(('deserialize_vendor_action', action_length, a))
     return a
 
-  def handle_vendor_stats_request(self, msg_length, xid, buffer):
-    bytes = buffer.read_bytes(msg_length - 16)  # Consume the remaining bytes.
+  def handle_vendor_stats_request(self, msg_length, xid, buf):
+    bytes = buf.read_bytes(msg_length - 16)  # Consume the remaining bytes.
     self.calls_made.append(('handle_vendor_stats_request', msg_length,
                             xid, bytes))
 
-  def handle_vendor_stats_reply(self, msg_length, xid, buffer,
-                                reply_more):
-    bytes = buffer.read_bytes(msg_length - 16)  # Consume the remaining bytes.
+  def handle_vendor_stats_reply(self, msg_length, xid, buf, reply_more):
+    bytes = buf.read_bytes(msg_length - 16)  # Consume the remaining bytes.
     self.calls_made.append(('handle_vendor_stats_reply', msg_length,
                             xid, bytes, reply_more))

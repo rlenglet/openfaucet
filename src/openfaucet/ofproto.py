@@ -138,6 +138,169 @@ OFPST_VENDOR = 0xffff
 OFPSF_REPLY_MORE = 1 << 0  # More replies to follow.
 
 
+class IOpenflowVendorHandler(interface.Interface):
+  """A decoder of vendor messages for an OpenFlow vendor ID.
+
+  Also encodes and decodes vendor actions for an OpenFlow vendor ID.
+
+  This interface must be implemented both by switch-side vendor
+  handlers, and by controller-side vendor handlers.
+  """
+
+  vendor_id = interface.Attribute(
+    """The OpenFlow vendor identifier that is handled by this object.
+
+    This is the unsigned 32-bit integer value that uniquely identifies
+    the vendor.
+    """)
+
+  def connection_made():
+    """Initialize the resources to manage the newly opened OpenFlow connection.
+
+    This is called before the handshake with the switch is initiated,
+    i.e. before the OFPT_HELLO message is sent to the switch,
+    etc. Therefore, this method must not send messages to the switch.
+    """
+
+  def connection_lost(reason):
+    """Release any resources used to manage the connection that was just lost.
+
+    All operations that are still pending when this method is called
+    back are cancelled silently.
+
+    Args:
+      reason: A twisted.python.failure.Failure that wraps a
+          twisted.internet.error.ConnectionDone or
+          twisted.internet.error.ConnectionLost instance (or a
+          subclass of one of those).
+    """
+
+  def handle_vendor_message(msg_length, xid, buf):
+    """Handle the reception of a OFPT_VENDOR message.
+
+    Args:
+      msg_length: The total length of the OFPT_VENDOR message.
+      xid: The transaction ID associated with the message, as a 32-bit
+          unsigned integer.
+      buf: A ReceiveBuffer object that contains the bytes of the
+          message to be decoded, starting after the ofp_vendor_header.
+    """
+
+  def serialize_vendor_action(action):
+    """Serialize a single vendor action.
+
+    Args:
+      action: The Action* object to serialize into data. This action
+          object has type OFPAT_VENDOR, and has the same vendor_id as
+          this handler.
+
+    Returns:
+      The sequence of binary strings representing the serialized
+      action, excluding the ofp_action_vendor_header.
+    """
+
+  def deserialize_vendor_action(action_length, buf):
+    """Deserialize a single vendor action from a buffer.
+
+    Args:
+      action_length: The number of bytes of the serialized vendor
+          action, including the ofp_action_vendor_header.
+      buf: A ReceiveBuffer object that contains the bytes that are the
+          serialized form of the vendor action, starting after the
+          ofp_action_vendor_header.
+
+    Returns:
+      A new Action* object deserialized from the buffer, with type
+      OFPAT_VENDOR and the same vendor_id as this handler.
+    """
+
+  def handle_vendor_stats_request(msg_length, xid, buf):
+    """Handle the reception of a OFPT_STATS_REQUEST / OFPST_VENDOR message.
+
+    This method is called back for every vendor stats requests with
+    the same vendor ID as this handler.
+
+    Args:
+      msg_length: The total number of bytes of the vendor stats
+          request message, including the ofp_stats_request header and
+          encoded vendor ID.
+      xid: The transaction ID associated with the request, as a 32-bit
+          unsigned integer.
+      buf: A ReceiveBuffer object that contains the bytes of the
+          vendor stats request message to be decoded, starting after
+          the ofp_stats_request header and the encoded vendor ID.
+    """
+
+  def handle_vendor_stats_reply(msg_length, xid, buf, reply_more):
+    """Handle the reception of a OFPT_STATS_REPLY / OFPST_VENDOR message.
+
+    This method is called back for every vendor stats reply with the
+    same vendor ID as this handler.
+
+    Args:
+      msg_length: The total number of bytes of the vendor stats reply
+          message, including the ofp_stats_reply header and encoded
+          vendor ID.
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      buf: A ReceiveBuffer object that contains the bytes of the
+          vendor stats reply message to be decoded, starting after
+          the ofp_stats_reply header and the encoded vendor ID.
+      reply_more: If True, more OFPT_STATS_REPLY will be sent after
+          this one to completely reply the request. If False, this is
+          the last reply to the request.
+    """
+
+
+class IOpenflowVendorHandlerStub(interface.Interface):
+  """An encoder of vendor messages to a datapath.
+  """
+
+  def send_vendor(vendor_id, xid=0, data=()):
+    """Send a OFPT_VENDOR message.
+
+    Args:
+      vendor_id: The OpenFlow vendor ID, as a 32-bit unsigned integer.
+      xid: The transaction ID associated with the request, as a 32-bit
+          unsigned integer. Defaults to 0.
+      data: The data in the message sent after the header, as a
+          sequence of binary strings. Defaults to an empty sequence.
+    """
+
+  def send_stats_request_vendor(xid, vendor_id, data=()):
+    """Send a OFPT_STATS_REQUEST message to query for vendor stats.
+
+    The OFPST_VENDOR stats contain vendor-specific stats.
+
+    Args:
+      xid: The transaction ID associated with the request, as a 32-bit
+          unsigned integer.
+      vendor_id: The OpenFlow vendor ID, as a 32-bit unsigned integer.
+      data: The data in the message sent after the header, as a
+          sequence of binary strings. Defaults to an empty sequence.
+    """
+
+  def send_stats_reply_vendor(xid, vendor_id, data=(), reply_more=False):
+    """Send a OFPT_STATS_REPLY message to reply vendor stats.
+
+    The OFPST_VENDOR stats contain vendor-specific stats.
+
+    Args:
+      xid: The transaction ID associated with the OFPT_STATS_REQUEST
+          message this is a reply to, as a 32-bit unsigned integer.
+      vendor_id: The OpenFlow vendor ID, as a 32-bit unsigned integer.
+      data: The data in the message sent after the header, as a
+          sequence of binary strings. Defaults to an empty sequence.
+      reply_more: If True, more OFPT_STATS_REPLY will be sent after
+          this one to completely reply the request. If False, this is
+          the last reply to the request.
+
+    Returns:
+      The transaction ID associated with the sent request, as a 32-bit
+      unsigned integer.
+    """
+
+
 class OpenflowProtocol(object):
   """An implementation of the OpenFlow 1.0 protocol.
 
@@ -158,7 +321,7 @@ class OpenflowProtocol(object):
         an empty sequence.
   """
 
-  interface.implements(interfaces.IProtocol)
+  interface.implements(interfaces.IProtocol, IOpenflowVendorHandlerStub)
   # Note: OpenflowProtocol should normally extend class
   # protocol.Protocol, but that is an old-style Python class, i.e. it
   # doesn't support properties, slots, etc. So we extend object
@@ -1514,7 +1677,7 @@ class OpenflowProtocol(object):
           serialized form of the action.
 
     Returns:
-      A new Action* object deserialized from the buffer
+      A new Action* object deserialized from the buffer.
     """
     # Action deserialization is specific to this protocol instance,
     # since the deserialization of vendor actions depends on the
