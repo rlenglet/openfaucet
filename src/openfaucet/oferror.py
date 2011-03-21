@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Representations and encoding/decoding of OpenFlow 1.0.0 errors.
+"""Representations and encoding/decoding of OpenFlow 1.0.0 errors.
+"""
 
 import struct
 
@@ -65,135 +66,137 @@ OFPQOFC_BAD_QUEUE = 1
 OFPQOFC_EPERM = 2
 
 OFP_ERROR_MESSAGES = {
-  OFPET_HELLO_FAILED: ('hello protocol failed', {
-    OFPHFC_INCOMPATIBLE: 'no compatible version',
-    OFPHFC_EPERM: 'permissions error',
-    }),
-  OFPET_BAD_REQUEST: ('request was not understood', {
-    OFPBRC_BAD_VERSION: 'ofp_header.version not supported',
-    OFPBRC_BAD_TYPE: 'ofp_header.type not supported',
-    OFPBRC_BAD_STAT: 'ofp_stats_request.type not supported',
-    OFPBRC_BAD_VENDOR: 'vendor not supported',
-    OFPBRC_BAD_SUBTYPE: 'vendor subtype not supported',
-    OFPBRC_EPERM: 'permissions error',
-    OFPBRC_BAD_LEN: 'wrong request length for type',
-    OFPBRC_BUFFER_EMPTY: 'specified buffer has already been used',
-    OFPBRC_BUFFER_UNKNOWN: 'specified buffer does not exist',
-    }),
-  OFPET_BAD_ACTION: ('error in action description', {
-    OFPBAC_BAD_TYPE: 'unknown action type',
-    OFPBAC_BAD_LEN: 'length problem in actions',
-    OFPBAC_BAD_VENDOR: 'unknown vendor ID specified',
-    OFPBAC_BAD_VENDOR_TYPE: 'unknown action type for vendor ID',
-    OFPBAC_BAD_OUT_PORT: 'problem validating output action',
-    OFPBAC_BAD_ARGUMENT: 'bad action argument',
-    OFPBAC_EPERM: 'permissions error',
-    OFPBAC_TOO_MANY: 'can\'t handle this many actions',
-    OFPBAC_BAD_QUEUE: 'problem validating output queue',
-    }),
-  OFPET_FLOW_MOD_FAILED: ('problem modifying flow entry', {
-    OFPFMFC_ALL_TABLES_FULL: 'flow not added because of full tables',
-    OFPFMFC_OVERLAP:
-        'attempted to add overlapping flow with CHECK_OVERLAP flag set',
-    OFPFMFC_EPERM: 'permissions error',
-    OFPFMFC_BAD_EMERG_TIMEOUT:
-        'flow not added because of non-zero idle/hard timeout',
-    OFPFMFC_BAD_COMMAND: 'unknown command',
-    OFPFMFC_UNSUPPORTED:
-        'unsupported action list - cannot process in the order specified',
-    }),
-  OFPET_PORT_MOD_FAILED: ('port mod request failed', {
-    OFPPMFC_BAD_PORT: 'specified port does not exist',
-    OFPPMFC_BAD_HW_ADDR: 'specified hardware address is wrong',
-    }),
-  OFPET_QUEUE_OP_FAILED: ('queue operation failed', {
-    OFPQOFC_BAD_PORT: 'invalid port (or port does not exist)',
-    OFPQOFC_BAD_QUEUE: 'queue does not exist',
-    OFPQOFC_EPERM: 'permissions error',
-    }),
-  }
+    OFPET_HELLO_FAILED: ('hello protocol failed', {
+       OFPHFC_INCOMPATIBLE: 'no compatible version',
+       OFPHFC_EPERM: 'permissions error',
+       }),
+    OFPET_BAD_REQUEST: ('request was not understood', {
+        OFPBRC_BAD_VERSION: 'ofp_header.version not supported',
+        OFPBRC_BAD_TYPE: 'ofp_header.type not supported',
+        OFPBRC_BAD_STAT: 'ofp_stats_request.type not supported',
+        OFPBRC_BAD_VENDOR: 'vendor not supported',
+        OFPBRC_BAD_SUBTYPE: 'vendor subtype not supported',
+        OFPBRC_EPERM: 'permissions error',
+        OFPBRC_BAD_LEN: 'wrong request length for type',
+        OFPBRC_BUFFER_EMPTY: 'specified buffer has already been used',
+        OFPBRC_BUFFER_UNKNOWN: 'specified buffer does not exist',
+        }),
+    OFPET_BAD_ACTION: ('error in action description', {
+        OFPBAC_BAD_TYPE: 'unknown action type',
+        OFPBAC_BAD_LEN: 'length problem in actions',
+        OFPBAC_BAD_VENDOR: 'unknown vendor ID specified',
+        OFPBAC_BAD_VENDOR_TYPE: 'unknown action type for vendor ID',
+        OFPBAC_BAD_OUT_PORT: 'problem validating output action',
+        OFPBAC_BAD_ARGUMENT: 'bad action argument',
+        OFPBAC_EPERM: 'permissions error',
+        OFPBAC_TOO_MANY: 'can\'t handle this many actions',
+        OFPBAC_BAD_QUEUE: 'problem validating output queue',
+        }),
+    OFPET_FLOW_MOD_FAILED: ('problem modifying flow entry', {
+        OFPFMFC_ALL_TABLES_FULL: 'flow not added because of full tables',
+        OFPFMFC_OVERLAP:
+            'attempted to add overlapping flow with CHECK_OVERLAP flag set',
+        OFPFMFC_EPERM: 'permissions error',
+        OFPFMFC_BAD_EMERG_TIMEOUT:
+            'flow not added because of non-zero idle/hard timeout',
+        OFPFMFC_BAD_COMMAND: 'unknown command',
+        OFPFMFC_UNSUPPORTED:
+            'unsupported action list - cannot process in the order specified',
+        }),
+    OFPET_PORT_MOD_FAILED: ('port mod request failed', {
+        OFPPMFC_BAD_PORT: 'specified port does not exist',
+        OFPPMFC_BAD_HW_ADDR: 'specified hardware address is wrong',
+        }),
+    OFPET_QUEUE_OP_FAILED: ('queue operation failed', {
+        OFPQOFC_BAD_PORT: 'invalid port (or port does not exist)',
+        OFPQOFC_BAD_QUEUE: 'queue does not exist',
+        OFPQOFC_EPERM: 'permissions error',
+        }),
+    }
 
 
 class OpenflowError(Exception):
-  """The base class of OpenFlow errors.
-  """
-
-  def __init__(self, error_type, error_code, data):
-    """Create an OpenflowError.
-
-    Args:
-      error_type: The error type, as one of the OFPET_* constants.
-      error_code: The error code, as one of the OFP* error code constants.
-      data: The data attached in the error message, as a sequence of
-          binary strings.
+    """The base class of OpenFlow errors.
     """
-    Exception.__init__(self, error_type, error_code, data)
-    error_type_data = OFP_ERROR_MESSAGES.get(error_type)
-    if error_type_data is None:
-      raise ValueError('unknown error type', error_type)
-    error_type_txt, error_code_txts = error_type_data
-    error_code_txt = error_code_txts.get(error_code)
-    if error_code_txt is None:
-      raise ValueError('unknown error code', error_code)
 
-    self.error_type = error_type
-    self.error_code = error_code
-    self.error_type_txt = error_type_txt
-    self.error_code_txt = error_code_txt
-    self.data = data
+    def __init__(self, error_type, error_code, data):
+        """Create an OpenflowError.
 
-  def __str__(self):
-    return 'error type %i (%s) code %i (%s) with data %r' % (
-        self.error_type, self.error_type_txt, self.error_code,
-        self.error_code_txt, ''.join(self.data))
+        Args:
+            error_type: The error type, as one of the OFPET_*
+                constants.
+            error_code: The error code, as one of the OFP* error code
+                constants.
+            data: The data attached in the error message, as a
+                sequence of binary strings.
+        """
+        Exception.__init__(self, error_type, error_code, data)
+        error_type_data = OFP_ERROR_MESSAGES.get(error_type)
+        if error_type_data is None:
+            raise ValueError('unknown error type', error_type)
+        error_type_txt, error_code_txts = error_type_data
+        error_code_txt = error_code_txts.get(error_code)
+        if error_code_txt is None:
+            raise ValueError('unknown error code', error_code)
 
-  def __cmp__(self, other):
-    return cmp(self.args, other.args)
+        self.error_type = error_type
+        self.error_code = error_code
+        self.error_type_txt = error_type_txt
+        self.error_code_txt = error_code_txt
+        self.data = data
 
-  def serialize(self):
-    """Serialize this exception into an OpenFlow ofp_error_msg.
+    def __str__(self):
+        return 'error type %i (%s) code %i (%s) with data %r' % (
+            self.error_type, self.error_type_txt, self.error_code,
+            self.error_code_txt, ''.join(self.data))
 
-    The returned string can be passed to deserialize() to recreate a
-    copy of this object.
+    def __cmp__(self, other):
+        return cmp(self.args, other.args)
 
-    Returns:
-      A sequence of binary strings that is a serialized form of this
-      object into an OpenFlow ofp_error_msg. The ofp_header structure
-      is not included in the generated strings.
-    """
-    all_data = [struct.pack('!HH', self.error_type, self.error_code)]
-    all_data.extend(self.data)
-    return all_data
+    def serialize(self):
+        """Serialize this exception into an OpenFlow ofp_error_msg.
 
-  @classmethod
-  def deserialize(self, buf):
-    """Returns an OpenflowError object deserialized from a sequence of bytes.
+        The returned string can be passed to deserialize() to recreate
+        a copy of this object.
 
-    Args:
-      buf: A ReceiveBuffer object that contains the bytes that are the
-          serialized form of the OpenflowError object.
+        Returns:
+            A sequence of binary strings that is a serialized form of
+            this object into an OpenFlow ofp_error_msg. The ofp_header
+            structure is not included in the generated strings.
+        """
+        all_data = [struct.pack('!HH', self.error_type, self.error_code)]
+        all_data.extend(self.data)
+        return all_data
 
-    Returns:
-      A new OpenflowError object deserialized from the buffer.
+    @classmethod
+    def deserialize(self, buf):
+        """Returns an OpenflowError object deserialized from a bytes sequence.
 
-    Raises:
-      ValueError if the buffer has an invalid number of available
-      bytes, or if the error type or code is invalid.
-      OpenflowError if the error data length is invalid for the
-      deserialized error type and code.
-    """
-    error_type, error_code = buf.unpack('!HH')
-    data = ()
+        Args:
+            buf: A ReceiveBuffer object that contains the bytes that
+                are the serialized form of the OpenflowError object.
 
-    if error_type == OFPET_HELLO_FAILED:
-      if buf.message_bytes_left > 0:
-        data = (str(buf.read_bytes(buf.message_bytes_left)),)
-    elif error_type in (OFPET_BAD_REQUEST, OFPET_BAD_ACTION,
-                        OFPET_FLOW_MOD_FAILED, OFPET_PORT_MOD_FAILED,
-                        OFPET_QUEUE_OP_FAILED):
-      data = (str(buf.read_bytes(buf.message_bytes_left)),)
-    elif buf.message_bytes_left > 0:
-      # Be liberal. Ignore data if none should have been sent.
-      buf.skip_bytes(buf.message_bytes_left)
+        Returns:
+            A new OpenflowError object deserialized from the buffer.
 
-    return OpenflowError(error_type, error_code, data)
+        Raises:
+            ValueError: The buffer has an invalid number of available
+                bytes, or the error type or code is invalid.
+            OpenflowError: The error data length is invalid for the
+                deserialized error type and code.
+        """
+        error_type, error_code = buf.unpack('!HH')
+        data = ()
+
+        if error_type == OFPET_HELLO_FAILED:
+            if buf.message_bytes_left > 0:
+                data = (str(buf.read_bytes(buf.message_bytes_left)),)
+        elif error_type in (OFPET_BAD_REQUEST, OFPET_BAD_ACTION,
+                            OFPET_FLOW_MOD_FAILED, OFPET_PORT_MOD_FAILED,
+                            OFPET_QUEUE_OP_FAILED):
+            data = (str(buf.read_bytes(buf.message_bytes_left)),)
+        elif buf.message_bytes_left > 0:
+            # Be liberal. Ignore data if none should have been sent.
+            buf.skip_bytes(buf.message_bytes_left)
+
+        return OpenflowError(error_type, error_code, data)

@@ -1,3 +1,10 @@
+2011-03-21  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/test_all.py.in, src/openfaucet/*.py: Follow PEP8 style:
+	reindent all Python sources with 4 spaces, put spaces around all
+	operators, etc. Move module documentation from comments into
+	docstrings.
+
 2011-03-17  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/openfaucet/test_ofprotoops.py,
