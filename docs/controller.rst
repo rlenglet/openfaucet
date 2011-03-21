@@ -774,3 +774,17 @@ object.
       :type reply_more: bool
 
   .. TODO(romain): Document how to get vendor stats.
+
+  .. method:: raise_error_with_request(error_type, error_code)
+
+    Raise an :class:`~openfaucet.oferror.OpenflowError` with the
+    failed request.
+
+    The raised exception's data contains at least 64 bytes of the
+    currently handled message. This method must be called from a
+    message handling callback.
+
+    :param error_type: The error type, as one of the ``OFPET_*``
+      constants.
+    :param error_code: The error code, as one of the ``OFP*`` error code
+      constants.

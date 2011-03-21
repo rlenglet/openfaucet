@@ -466,6 +466,20 @@ class OpenflowProtocol(object):
                 self._buffer.skip_bytes(self._buffer.message_bytes_left)
 
     def raise_error_with_request(self, error_type, error_code):
+        """Raise an OpenFlow error with the failed request.
+
+        The raised exception's data contains at least 64 bytes of the
+        currently handled message.
+
+        Args:
+            error_type: The error type, as one of the OFPET_*
+                constants.
+            error_code: The error code, as one of the OFP* error code
+                constants.
+
+        Raises:
+            OpenflowError: Always.
+        """
         raise oferror.OpenflowError(
             error_type, error_code,
             (str(self._buffer.get_first_message_bytes(

@@ -18,7 +18,8 @@ SPHINXDATA = \
 	index.rst \
 	controller.rst \
 	config.rst \
-	action.rst
+	action.rst \
+	error.rst
 
 dist_noinst_DATA = $(SPHINXDATA)
 
@@ -33,6 +34,7 @@ HTMLDATA = \
 	html/controller.html \
 	html/config.html \
 	html/action.html \
+	html/error.html \
 	html/genindex.html \
 	html/search.html \
 	html/searchindex.js \
@@ -53,7 +55,8 @@ CLEANFILES = \
 	index.doctree \
 	controller.doctree \
 	config.doctree \
-	action.doctree
+	action.doctree \
+	error.doctree
 
 clean-local:
 	-rm -rf $(builddir)/html

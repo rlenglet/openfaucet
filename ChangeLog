@@ -1,5 +1,13 @@
 2011-03-21  Romain Lenglet  <romain.lenglet@berabera.info>
 
+
+	* docs/index.rst, docs/Makefile.am, docs/error.rst: Add
+	documentation for OpenFlow errors.
+
+	* src/openfaucet/ofproto.py, src/openfaucet/ofcontroller.py,
+	docs/controller.rst: Add method raise_error_with_request into
+	IOpenflowControllerStub. Add documentation for it.
+
 	* src/test_all.py.in, src/openfaucet/*.py: Follow PEP8 style:
 	reindent all Python sources with 4 spaces, put spaces around all
 	operators, etc. Move module documentation from comments into

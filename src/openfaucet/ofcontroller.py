@@ -510,6 +510,23 @@ class IOpenflowControllerStub(interface.Interface):
                 out. If None, defaults to the default timeout.
         """
 
+    def raise_error_with_request(error_type, error_code):
+        """Raise an OpenFlow error with the failed request.
+
+        The raised exception's data contains at least 64 bytes of the
+        currently handled message. This method must be called from a
+        message handling callback.
+
+        Args:
+            error_type: The error type, as one of the OFPET_*
+                constants.
+            error_code: The error code, as one of the OFP* error code
+                constants.
+
+        Raises:
+            OpenflowError: Always.
+        """
+
 
 class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     """A basic implementation of the OpenFlow 1.0 protocol controller side.

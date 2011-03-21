@@ -28,6 +28,7 @@ Contents:
   controller
   config
   action
+  error
 
 
 Indices and tables
