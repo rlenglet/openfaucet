@@ -1,5 +1,7 @@
 2011-03-22  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* docs/install.rst.in: Add a link to the releases index page.
+
 	* docs/install.rst.in, index.rst, configure.ac, docs/Makefile.am:
 	Add documentation for installing and building OpenFaucet.
 
