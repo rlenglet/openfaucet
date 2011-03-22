@@ -47,6 +47,7 @@ AS_IF([test "x$ac_cv_path_PDFLATEX" = xnotfound],
 AC_CONFIG_FILES([Makefile
 docs/Makefile
 docs/conf.py
+docs/install.rst
 src/Makefile])
 
 AC_OUTPUT

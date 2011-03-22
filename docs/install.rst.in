@@ -1,0 +1,164 @@
+.. Copyright 2011 Midokura KK
+..
+.. Licensed under the Apache License, Version 2.0 (the "License");
+.. you may not use this file except in compliance with the License.
+.. You may obtain a copy of the License at
+..
+..     http://www.apache.org/licenses/LICENSE-2.0
+..
+.. Unless required by applicable law or agreed to in writing, software
+.. distributed under the License is distributed on an "AS IS" BASIS,
+.. WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+.. See the License for the specific language governing permissions and
+.. limitations under the License.
+
+Installing OpenFaucet
+=====================
+
+1. Download OpenFaucet
+
+  OpenFaucet can be downloaded either directly from the git source
+  repository (recommended for developers of OpenFaucet), or from a
+  pre-packaged release archive (recommended for end users).
+
+  1. Download the master branch from git
+
+    Clone the repository at URL
+    `git@github.com:midokura/openfaucet.git
+    <https://github.com/midokura/openfaucet>`_::
+
+      git clone git@github.com:midokura/openfaucet.git openfaucet
+      cd openfaucet
+
+    Install `GNU Autoconf <http://www.gnu.org/software/autoconf/>`_
+    and `GNU Automake <http://www.gnu.org/software/automake/>`_,
+    e.g. on Debian GNU/Linux::
+
+      aptitude install autoconf automake
+
+    Generate the ``configure`` script and ``Makefiles``::
+
+      ./bootstrap.sh
+
+  Or
+
+  2. Download a release archive
+
+    Download the current release archive at
+    http://midokura.github.com/openfaucet/releases/@PACKAGE@-@VERSION@.tar.gz
+    and then uncompress it::
+
+      gzip -d @PACKAGE@-@VERSION@.tar.gz
+      tar x -f @PACKAGE@-@VERSION@.tar
+      cd @PACKAGE@-@VERSION@/
+
+2. Install dependencies
+
+  Install all dependencies:
+    - `Python <http://www.python.org/>`_ version 2.6 or later (untested
+      with Python 3.x)
+    - `Twisted core <http://twistedmatrix.com/trac/>`_ version 10.2 or
+      later
+    - `ZopeInterface <http://www.zope.org/Products/ZopeInterface>`_
+      version 3.5.3 or later
+    - `unittest2 <http://pypi.python.org/pypi/unittest2>`_ version
+      0.5.1 or later (optionally, to execute the unittests)
+    - `Sphinx <http://sphinx.pocoo.org/>`_ version 0.6.6 or later
+      (optionally, to generate the documentation)
+
+  On Debian GNU/Linux, all those dependencies can be installed as
+  packages::
+
+    aptitude install python python-twisted-core python-zope.interface \
+        python-unittest2 python-sphinx
+
+3. Build and install OpenFaucet
+
+  OpenFaucet can either be built and installed "by hand", or built and
+  installed as a Debian package.
+
+  1. Build by hand
+
+    Check dependencies and configure to install OpenFaucet into
+    ``/usr/local/`` (default)::
+
+      ./configure
+
+    See the output of ``./configure --help`` for configuration
+    options.
+
+    Build::
+
+      make all
+
+    Optionally, run unittests (requires `unittest2
+    <http://pypi.python.org/pypi/unittest2>`_ to be installed)::
+
+      make check
+
+    Optionally, generate the HTML documentation (requires `Sphinx
+    <http://sphinx.pocoo.org/>`_)::
+
+      make html
+
+  And
+
+  2. Install by hand
+
+    Install the ``openfaucet`` package::
+
+      make install
+
+    Optionally, install the HTML documentation::
+
+      make install-html
+
+  Or
+
+  3. Install using GNU Stow
+
+    To better manage the installation of OpenFaucet into
+    ``/usr/local``, install `GNU Stow
+    <http://www.gnu.org/software/stow/>`_, e.g. on Debian GNU/Linux::
+
+      aptitude install stow
+
+    Install OpenFaucet into a subdirectory of ``/usr/local/stow/``::
+
+      make all
+      make install prefix=/usr/local/stow/@PACKAGE@-@VERSION@
+
+    Optionally, install the HTML documentation::
+
+      make install-html prefix=/usr/local/stow/@PACKAGE@-@VERSION@
+
+    Install the ``@PACKAGE@-@VERSION@`` package using ``stow``::
+
+      stow -d /usr/local/stow @PACKAGE@-@VERSION@
+
+    To uninstall the ``@PACKAGE@-@VERSION@`` package, pass the ``-D``
+    option to ``stow``::
+
+      stow -D -d /usr/local/stow @PACKAGE@-@VERSION@
+
+  Or
+
+  4. Build and install as a Debian GNU/Linux package
+
+    Download the master branch from the git source repository, as
+    described in Step 1.1 above, and install `unittest2
+    <http://pypi.python.org/pypi/unittest2>`_ and `Sphinx
+    <http://sphinx.pocoo.org/>`_.
+
+    Install Debian GNU/Linux's package build tools::
+
+      aptitude install devscripts
+
+    Build the packages::
+
+      debuild
+
+    Install the built packages::
+
+      dpkg -i ../python-@PACKAGE@_@VERSION@_all.deb \
+              ../python-@PACKAGE@-doc_@VERSION@_all.deb

@@ -1,5 +1,8 @@
 2011-03-22  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* docs/install.rst.in, index.rst, configure.ac, docs/Makefile.am:
+	Add documentation for installing and building OpenFaucet.
+
 	* docs/index.rst: Shorten titles in table of contents.
 
 	* docs/match.rst, docs/index.rst, docs/Makefile.am: Add
