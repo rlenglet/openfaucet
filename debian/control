@@ -5,7 +5,7 @@ Maintainer: Romain Lenglet <romain.lenglet@berabera.info>
 Build-Depends: debhelper (>= 7.0.50~), autotools-dev, python,
  python-sphinx, python-support, python-unittest2
 Standards-Version: 3.9.1.0
-Homepage: https://github.com/midokura/openfaucet
+Homepage: http://midokura.github.com/openfaucet/index.html
 Vcs-Git: https://github.com/midokura/openfaucet.git
 Vcs-Browser: https://github.com/midokura/openfaucet
 
