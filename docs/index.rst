@@ -25,11 +25,11 @@ Contents:
 .. toctree::
   :maxdepth: 2
 
-  controller
-  match
-  config
-  action
-  error
+  Controller developer's guide <controller>
+  Flow matching <match>
+  Switch configuration <config>
+  Flow actions <action>
+  Errors <error>
 
 
 Indices and tables
