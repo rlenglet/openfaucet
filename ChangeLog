@@ -1,5 +1,9 @@
 2011-03-22  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* configure.ac: Set the version to 1.0.
+
+	* NEWS: Add empty NEWS file.
+
 	* docs/install.rst.in: Add a link to the releases index page.
 
 	* docs/install.rst.in, index.rst, configure.ac, docs/Makefile.am:
