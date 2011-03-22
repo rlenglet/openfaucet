@@ -17,6 +17,7 @@
 SPHINXDATA = \
 	index.rst \
 	controller.rst \
+	match.rst \
 	config.rst \
 	action.rst \
 	error.rst
@@ -32,6 +33,7 @@ installdirs-local: installdirs-html-local
 HTMLDATA = \
 	html/index.html \
 	html/controller.html \
+	html/match.html \
 	html/config.html \
 	html/action.html \
 	html/error.html \
@@ -54,6 +56,7 @@ CLEANFILES = \
 	environment.pickle \
 	index.doctree \
 	controller.doctree \
+	match.doctree \
 	config.doctree \
 	action.doctree \
 	error.doctree

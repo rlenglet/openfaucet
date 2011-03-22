@@ -1,3 +1,8 @@
+2011-03-22  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* docs/match.rst, docs/index.rst, docs/Makefile.am: Add
+	documentation for OpenFlow flow matches.
+
 2011-03-21  Romain Lenglet  <romain.lenglet@berabera.info>
 
 

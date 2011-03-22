@@ -26,6 +26,7 @@ Contents:
   :maxdepth: 2
 
   controller
+  match
   config
   action
   error

@@ -74,7 +74,7 @@ instance::
 
     The number of tables supported by the datapath.
 
-   cap_*: Boolean flags indicating each the support of not of a capability:
+  cap_*: Boolean flags indicating each the support of not of a capability:
 
   .. attribute:: cap_flow_stats
 
