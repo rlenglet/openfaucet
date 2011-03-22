@@ -1,0 +1,248 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Installing OpenFaucet &mdash; OpenFaucet v0.1~pre1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1~pre1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="OpenFaucet v0.1~pre1 documentation" href="index.html" />
+    <link rel="next" title="OpenFlow controller developer’s guide" href="controller.html" />
+    <link rel="prev" title="Welcome to OpenFaucet’s documentation!" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="controller.html" title="OpenFlow controller developer’s guide"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to OpenFaucet’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">OpenFaucet v0.1~pre1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="installing-openfaucet">
+<h1>Installing OpenFaucet<a class="headerlink" href="#installing-openfaucet" title="Permalink to this headline">¶</a></h1>
+<ol class="arabic simple">
+<li>Download OpenFaucet</li>
+</ol>
+<blockquote>
+<p>OpenFaucet can be downloaded either directly from the git source
+repository (recommended for developers of OpenFaucet), or from a
+pre-packaged release archive (recommended for end users).</p>
+<ol class="arabic simple">
+<li>Download the master branch from git</li>
+</ol>
+<blockquote>
+<p>Clone the repository at URL
+<a class="reference external" href="https://github.com/midokura/openfaucet">git&#64;github.com:midokura/openfaucet.git</a>:</p>
+<div class="highlight-python"><pre>git clone git@github.com:midokura/openfaucet.git openfaucet
+cd openfaucet</pre>
+</div>
+<p>Install <a class="reference external" href="http://www.gnu.org/software/autoconf/">GNU Autoconf</a>
+and <a class="reference external" href="http://www.gnu.org/software/automake/">GNU Automake</a>,
+e.g. on Debian GNU/Linux:</p>
+<div class="highlight-python"><pre>aptitude install autoconf automake</pre>
+</div>
+<p>Generate the <tt class="docutils literal"><span class="pre">configure</span></tt> script and <tt class="docutils literal"><span class="pre">Makefiles</span></tt>:</p>
+<div class="highlight-python"><pre>./bootstrap.sh</pre>
+</div>
+</blockquote>
+<p>Or</p>
+<ol class="arabic simple" start="2">
+<li>Download a release archive</li>
+</ol>
+<blockquote>
+<p>Download the current release archive at
+<a class="reference external" href="http://midokura.github.com/openfaucet/releases/openfaucet-0.1~pre1.tar.gz">http://midokura.github.com/openfaucet/releases/openfaucet-0.1~pre1.tar.gz</a>
+and then uncompress it:</p>
+<div class="highlight-python"><pre>gzip -d openfaucet-0.1~pre1.tar.gz
+tar x -f openfaucet-0.1~pre1.tar
+cd openfaucet-0.1~pre1/</pre>
+</div>
+</blockquote>
+</blockquote>
+<ol class="arabic simple" start="2">
+<li>Install dependencies</li>
+</ol>
+<blockquote>
+<dl class="docutils">
+<dt>Install all dependencies:</dt>
+<dd><ul class="first last simple">
+<li><a class="reference external" href="http://www.python.org/">Python</a> version 2.6 or later (untested
+with Python 3.x)</li>
+<li><a class="reference external" href="http://twistedmatrix.com/trac/">Twisted core</a> version 10.2 or
+later</li>
+<li><a class="reference external" href="http://www.zope.org/Products/ZopeInterface">ZopeInterface</a>
+version 3.5.3 or later</li>
+<li><a class="reference external" href="http://pypi.python.org/pypi/unittest2">unittest2</a> version
+0.5.1 or later (optionally, to execute the unittests)</li>
+<li><a class="reference external" href="http://sphinx.pocoo.org/">Sphinx</a> version 0.6.6 or later
+(optionally, to generate the documentation)</li>
+</ul>
+</dd>
+</dl>
+<p>On Debian GNU/Linux, all those dependencies can be installed as
+packages:</p>
+<div class="highlight-python"><pre>aptitude install python python-twisted-core python-zope.interface \
+    python-unittest2 python-sphinx</pre>
+</div>
+</blockquote>
+<ol class="arabic simple" start="3">
+<li>Build and install OpenFaucet</li>
+</ol>
+<blockquote>
+<p>OpenFaucet can either be built and installed &#8220;by hand&#8221;, or built and
+installed as a Debian package.</p>
+<ol class="arabic simple">
+<li>Build by hand</li>
+</ol>
+<blockquote>
+<p>Check dependencies and configure to install OpenFaucet into
+<tt class="docutils literal"><span class="pre">/usr/local/</span></tt> (default):</p>
+<div class="highlight-python"><pre>./configure</pre>
+</div>
+<p>See the output of <tt class="docutils literal"><span class="pre">./configure</span> <span class="pre">--help</span></tt> for configuration
+options.</p>
+<p>Build:</p>
+<div class="highlight-python"><pre>make all</pre>
+</div>
+<p>Optionally, run unittests (requires <a class="reference external" href="http://pypi.python.org/pypi/unittest2">unittest2</a> to be installed):</p>
+<div class="highlight-python"><pre>make check</pre>
+</div>
+<p>Optionally, generate the HTML documentation (requires <a class="reference external" href="http://sphinx.pocoo.org/">Sphinx</a>):</p>
+<div class="highlight-python"><pre>make html</pre>
+</div>
+</blockquote>
+<p>And</p>
+<ol class="arabic simple" start="2">
+<li>Install by hand</li>
+</ol>
+<blockquote>
+<p>Install the <tt class="docutils literal"><span class="pre">openfaucet</span></tt> package:</p>
+<div class="highlight-python"><pre>make install</pre>
+</div>
+<p>Optionally, install the HTML documentation:</p>
+<div class="highlight-python"><pre>make install-html</pre>
+</div>
+</blockquote>
+<p>Or</p>
+<ol class="arabic simple" start="3">
+<li>Install using GNU Stow</li>
+</ol>
+<blockquote>
+<p>To better manage the installation of OpenFaucet into
+<tt class="docutils literal"><span class="pre">/usr/local</span></tt>, install <a class="reference external" href="http://www.gnu.org/software/stow/">GNU Stow</a>, e.g. on Debian GNU/Linux:</p>
+<div class="highlight-python"><pre>aptitude install stow</pre>
+</div>
+<p>Install OpenFaucet into a subdirectory of <tt class="docutils literal"><span class="pre">/usr/local/stow/</span></tt>:</p>
+<div class="highlight-python"><pre>make all
+make install prefix=/usr/local/stow/openfaucet-0.1~pre1</pre>
+</div>
+<p>Optionally, install the HTML documentation:</p>
+<div class="highlight-python"><pre>make install-html prefix=/usr/local/stow/openfaucet-0.1~pre1</pre>
+</div>
+<p>Install the <tt class="docutils literal"><span class="pre">openfaucet-0.1~pre1</span></tt> package using <tt class="docutils literal"><span class="pre">stow</span></tt>:</p>
+<div class="highlight-python"><pre>stow -d /usr/local/stow openfaucet-0.1~pre1</pre>
+</div>
+<p>To uninstall the <tt class="docutils literal"><span class="pre">openfaucet-0.1~pre1</span></tt> package, pass the <tt class="docutils literal"><span class="pre">-D</span></tt>
+option to <tt class="docutils literal"><span class="pre">stow</span></tt>:</p>
+<div class="highlight-python"><pre>stow -D -d /usr/local/stow openfaucet-0.1~pre1</pre>
+</div>
+</blockquote>
+<p>Or</p>
+<ol class="arabic simple" start="4">
+<li>Build and install as a Debian GNU/Linux package</li>
+</ol>
+<blockquote>
+<p>Download the master branch from the git source repository, as
+described in Step 1.1 above, and install <a class="reference external" href="http://pypi.python.org/pypi/unittest2">unittest2</a> and <a class="reference external" href="http://sphinx.pocoo.org/">Sphinx</a>.</p>
+<p>Install Debian GNU/Linux&#8217;s package build tools:</p>
+<div class="highlight-python"><pre>aptitude install devscripts</pre>
+</div>
+<p>Build the packages:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">debuild</span>
+</pre></div>
+</div>
+<p>Install the built packages:</p>
+<div class="highlight-python"><pre>dpkg -i ../python-openfaucet_0.1~pre1_all.deb \
+        ../python-openfaucet-doc_0.1~pre1_all.deb</pre>
+</div>
+</blockquote>
+</blockquote>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="index.html"
+                                  title="previous chapter">Welcome to OpenFaucet&#8217;s documentation!</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="controller.html"
+                                  title="next chapter">OpenFlow controller developer&#8217;s guide</a></p>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="controller.html" title="OpenFlow controller developer’s guide"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to OpenFaucet’s documentation!"
+             >previous</a> |</li>
+        <li><a href="index.html">OpenFaucet v0.1~pre1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2011, Midokura KK.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.6.
+    </div>
+  </body>
+</html>

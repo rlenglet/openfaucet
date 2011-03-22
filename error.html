@@ -1,0 +1,365 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>OpenFlow errors &mdash; OpenFaucet v0.1~pre1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1~pre1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="OpenFaucet v0.1~pre1 documentation" href="index.html" />
+    <link rel="prev" title="OpenFlow actions" href="action.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="action.html" title="OpenFlow actions"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">OpenFaucet v0.1~pre1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="openflow-errors">
+<h1>OpenFlow errors<a class="headerlink" href="#openflow-errors" title="Permalink to this headline">¶</a></h1>
+<p>In OpenFaucet, OpenFlow <tt class="docutils literal"><span class="pre">OFPT_ERROR</span></tt> error messages are represented
+as exceptions of type <a title="openfaucet.oferror.openfaucet.oferror.OpenflowError" class="reference internal" href="#openfaucet.oferror.openfaucet.oferror.OpenflowError"><tt class="xref docutils literal"><span class="pre">OpenflowError</span></tt></a>. In a
+message handler, sending an error message to the peer is done by
+raising an <a title="openfaucet.oferror.openfaucet.oferror.OpenflowError" class="reference internal" href="#openfaucet.oferror.openfaucet.oferror.OpenflowError"><tt class="xref docutils literal"><span class="pre">OpenflowError</span></tt></a> exception, with
+the appropriate error type, error code, and data to describe the
+error.  For instance, in an OpenFlow controller&#8217;s
+<tt class="xref docutils literal"><span class="pre">handle_port_status()</span></tt>
+callback:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">openfaucet</span> <span class="kn">import</span> <span class="n">oferror</span>
+
+<span class="k">class</span> <span class="nc">MyController</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">handle_port_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reason</span><span class="p">,</span> <span class="n">desc</span><span class="p">):</span>
+        <span class="c"># ...</span>
+        <span class="k">raise</span> <span class="n">oferror</span><span class="o">.</span><span class="n">OpenflowError</span><span class="p">(</span><span class="n">oferror</span><span class="o">.</span><span class="n">OFPET_BAD_REQUEST</span><span class="p">,</span>
+                                    <span class="n">oferror</span><span class="o">.</span><span class="n">OFPBRC_EPERM</span><span class="p">,</span> <span class="p">())</span>
+</pre></div>
+</div>
+<p>The exception object is transparently catched and serialized by an
+OpenFaucet <a title="openfaucet.ofcontroller.IOpenflowControllerStub" class="reference external" href="controller.html#openfaucet.ofcontroller.IOpenflowControllerStub"><tt class="xref docutils literal"><span class="pre">IOpenflowControllerStub</span></tt></a>
+protocol object into an <tt class="docutils literal"><span class="pre">OFPT_ERROR</span></tt> OpenFlow message.</p>
+<dl class="class">
+<dt id="openfaucet.oferror.openfaucet.oferror.OpenflowError">
+<em class="property">class </em><tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OpenflowError</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OpenflowError" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="openfaucet.oferror.openfaucet.oferror.OpenflowError.__init__">
+<tt class="descname">__init__</tt><big>(</big><em>error_type</em>, <em>error_code</em>, <em>data</em><big>)</big><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OpenflowError.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create an <a title="openfaucet.oferror.openfaucet.oferror.OpenflowError" class="reference internal" href="#openfaucet.oferror.openfaucet.oferror.OpenflowError"><tt class="xref docutils literal"><span class="pre">OpenflowError</span></tt></a>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>error_type</em> &#8211; The error type, as one of the <tt class="docutils literal"><span class="pre">OFPET_*</span></tt>
+constants.</li>
+<li><em>error_code</em> &#8211; The error code, as one of the <tt class="docutils literal"><span class="pre">OFP*</span></tt> error
+code constants.</li>
+<li><em>data</em> &#8211; The data attached in the error message, as a sequence
+of binary strings.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<p>A standard set of valid error types is defined in the OpenFlow
+standard, as well as a set of valid error codes for every error
+type. Most error types and codes can only be sent by a datapath to a
+controller.</p>
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPET_HELLO_FAILED">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPET_HELLO_FAILED</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPET_HELLO_FAILED" title="Permalink to this definition">¶</a></dt>
+<dd><p>The hello protocol failed. This error can be raised only when
+handling an <tt class="docutils literal"><span class="pre">OFPT_HELLO</span></tt> message during the initial handshake.</p>
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPHFC_INCOMPATIBLE">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPHFC_INCOMPATIBLE</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPHFC_INCOMPATIBLE" title="Permalink to this definition">¶</a></dt>
+<dd>The peers use incompatible versions of the protocol.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPHFC_EPERM">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPHFC_EPERM</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPHFC_EPERM" title="Permalink to this definition">¶</a></dt>
+<dd>Permissions error.</dd></dl>
+
+</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPET_BAD_REQUEST">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPET_BAD_REQUEST</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPET_BAD_REQUEST" title="Permalink to this definition">¶</a></dt>
+<dd><p>The request was not understood.</p>
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBRC_BAD_VERSION">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBRC_BAD_VERSION</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBRC_BAD_VERSION" title="Permalink to this definition">¶</a></dt>
+<dd>The protocol version in the received message is not supported.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBRC_BAD_TYPE">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBRC_BAD_TYPE</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBRC_BAD_TYPE" title="Permalink to this definition">¶</a></dt>
+<dd>The message type is not supported.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBRC_BAD_STAT">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBRC_BAD_STAT</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBRC_BAD_STAT" title="Permalink to this definition">¶</a></dt>
+<dd>The stats type is not supported.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBRC_BAD_VENDOR">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBRC_BAD_VENDOR</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBRC_BAD_VENDOR" title="Permalink to this definition">¶</a></dt>
+<dd>The received vendor ID is not supported.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBRC_BAD_SUBTYPE">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBRC_BAD_SUBTYPE</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBRC_BAD_SUBTYPE" title="Permalink to this definition">¶</a></dt>
+<dd>The received vendor-specific subtype is not supported.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBRC_EPERM">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBRC_EPERM</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBRC_EPERM" title="Permalink to this definition">¶</a></dt>
+<dd>Permissions error.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBRC_BAD_LEN">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBRC_BAD_LEN</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBRC_BAD_LEN" title="Permalink to this definition">¶</a></dt>
+<dd>The message has an invalid length.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBRC_BUFFER_EMPTY">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBRC_BUFFER_EMPTY</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBRC_BUFFER_EMPTY" title="Permalink to this definition">¶</a></dt>
+<dd>The specified buffer has already been used.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBRC_BUFFER_UNKNOWN">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBRC_BUFFER_UNKNOWN</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBRC_BUFFER_UNKNOWN" title="Permalink to this definition">¶</a></dt>
+<dd>The specified buffer does not exist.</dd></dl>
+
+</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPET_BAD_ACTION">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPET_BAD_ACTION</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPET_BAD_ACTION" title="Permalink to this definition">¶</a></dt>
+<dd><p>Error in an action description.</p>
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_TYPE">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBAC_BAD_TYPE</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_TYPE" title="Permalink to this definition">¶</a></dt>
+<dd>Unknown action type.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_LEN">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBAC_BAD_LEN</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_LEN" title="Permalink to this definition">¶</a></dt>
+<dd>An action has an invalid length.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_VENDOR">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBAC_BAD_VENDOR</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_VENDOR" title="Permalink to this definition">¶</a></dt>
+<dd>A vendor action has a vendor ID that is unsupported.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_VENDOR_TYPE">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBAC_BAD_VENDOR_TYPE</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_VENDOR_TYPE" title="Permalink to this definition">¶</a></dt>
+<dd>A vendor action has a vendor-specific subtype that is not
+supported.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_OUT_PORT">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBAC_BAD_OUT_PORT</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_OUT_PORT" title="Permalink to this definition">¶</a></dt>
+<dd>An output action has an invalid port number.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_ARGUMENT">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBAC_BAD_ARGUMENT</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_ARGUMENT" title="Permalink to this definition">¶</a></dt>
+<dd>An action has an invalid argument.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBAC_EPERM">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBAC_EPERM</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBAC_EPERM" title="Permalink to this definition">¶</a></dt>
+<dd>Permissions error.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBAC_TOO_MANY">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBAC_TOO_MANY</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBAC_TOO_MANY" title="Permalink to this definition">¶</a></dt>
+<dd>Can&#8217;t handle this many actions.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_QUEUE">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPBAC_BAD_QUEUE</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPBAC_BAD_QUEUE" title="Permalink to this definition">¶</a></dt>
+<dd>An action has an invalid queue number argument.</dd></dl>
+
+</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPET_FLOW_MOD_FAILED">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPET_FLOW_MOD_FAILED</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPET_FLOW_MOD_FAILED" title="Permalink to this definition">¶</a></dt>
+<dd><p>Problem when modifying a flow entry.</p>
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPFMFC_ALL_TABLES_FULL">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPFMFC_ALL_TABLES_FULL</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPFMFC_ALL_TABLES_FULL" title="Permalink to this definition">¶</a></dt>
+<dd>The flow cannot be added because of full tables.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPFMFC_OVERLAP">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPFMFC_OVERLAP</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPFMFC_OVERLAP" title="Permalink to this definition">¶</a></dt>
+<dd>Attempted to add an overlapping flow with <tt class="docutils literal"><span class="pre">check_overlap</span></tt> set to
+<tt class="xref docutils literal"><span class="pre">True</span></tt>.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPFMFC_EPERM">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPFMFC_EPERM</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPFMFC_EPERM" title="Permalink to this definition">¶</a></dt>
+<dd>Permissions error.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPFMFC_BAD_EMERG_TIMEOUT">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPFMFC_BAD_EMERG_TIMEOUT</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPFMFC_BAD_EMERG_TIMEOUT" title="Permalink to this definition">¶</a></dt>
+<dd>The flow cannot added because <tt class="docutils literal"><span class="pre">emerg</span></tt> was set to <tt class="xref docutils literal"><span class="pre">True</span></tt> and
+the idle and hard timeouts were set to non-zero.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPFMFC_BAD_COMMAND">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPFMFC_BAD_COMMAND</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPFMFC_BAD_COMMAND" title="Permalink to this definition">¶</a></dt>
+<dd>An <tt class="docutils literal"><span class="pre">OFPT_FLOW_MOD</span></tt> message was sent with an invalid command.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPFMFC_UNSUPPORTED">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPFMFC_UNSUPPORTED</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPFMFC_UNSUPPORTED" title="Permalink to this definition">¶</a></dt>
+<dd>The specified list of actions cannot be processed in this order.</dd></dl>
+
+</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPET_PORT_MOD_FAILED">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPET_PORT_MOD_FAILED</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPET_PORT_MOD_FAILED" title="Permalink to this definition">¶</a></dt>
+<dd><p>A port modification request failed.</p>
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPPMFC_BAD_PORT">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPPMFC_BAD_PORT</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPPMFC_BAD_PORT" title="Permalink to this definition">¶</a></dt>
+<dd>The specified port number does not exist.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPPMFC_BAD_HW_ADDR">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPPMFC_BAD_HW_ADDR</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPPMFC_BAD_HW_ADDR" title="Permalink to this definition">¶</a></dt>
+<dd>The specified port hardware address is wrong.</dd></dl>
+
+</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPET_QUEUE_OP_FAILED">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPET_QUEUE_OP_FAILED</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPET_QUEUE_OP_FAILED" title="Permalink to this definition">¶</a></dt>
+<dd><p>A queue operation failed.</p>
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPQOFC_BAD_PORT">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPQOFC_BAD_PORT</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPQOFC_BAD_PORT" title="Permalink to this definition">¶</a></dt>
+<dd>The specified port number does not exist or is invalid.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPQOFC_BAD_QUEUE">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPQOFC_BAD_QUEUE</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPQOFC_BAD_QUEUE" title="Permalink to this definition">¶</a></dt>
+<dd>The specified queue number does not exist.</dd></dl>
+
+<dl class="data">
+<dt id="openfaucet.oferror.openfaucet.oferror.OFPQOFC_EPERM">
+<tt class="descclassname">openfaucet.oferror.</tt><tt class="descname">OFPQOFC_EPERM</tt><a class="headerlink" href="#openfaucet.oferror.openfaucet.oferror.OFPQOFC_EPERM" title="Permalink to this definition">¶</a></dt>
+<dd>Permissions error.</dd></dl>
+
+</dd></dl>
+
+<p>The semantics of <tt class="docutils literal"><span class="pre">data</span></tt> in an
+<a title="openfaucet.oferror.openfaucet.oferror.OpenflowError" class="reference internal" href="#openfaucet.oferror.openfaucet.oferror.OpenflowError"><tt class="xref docutils literal"><span class="pre">OpenflowError</span></tt></a> depends on the error
+type. For <a title="openfaucet.oferror.openfaucet.oferror.OFPET_HELLO_FAILED" class="reference internal" href="#openfaucet.oferror.openfaucet.oferror.OFPET_HELLO_FAILED"><tt class="xref docutils literal"><span class="pre">OFPET_HELLO_FAILED</span></tt></a> errors,
+<tt class="docutils literal"><span class="pre">data</span></tt> is an ASCII text string that adds detail on why the error
+occurred:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">openfaucet</span> <span class="kn">import</span> <span class="n">oferror</span>
+
+<span class="k">raise</span> <span class="n">oferror</span><span class="o">.</span><span class="n">OpenflowError</span><span class="p">(</span><span class="n">oferror</span><span class="o">.</span><span class="n">OFPET_HELLO_FAILED</span><span class="p">,</span>
+                            <span class="n">oferror</span><span class="o">.</span><span class="n">OFPHFC_INCOMPATIBLE</span><span class="p">,</span>
+                            <span class="p">(</span><span class="s">&#39;only v1.0.0 supported&#39;</span><span class="p">,))</span>
+</pre></div>
+</div>
+<p>For all other error types, <tt class="docutils literal"><span class="pre">data</span></tt> contains at least 64 bytes of the
+failed
+request. <a title="openfaucet.ofcontroller.IOpenflowControllerStub.raise_error_with_request" class="reference external" href="controller.html#openfaucet.ofcontroller.IOpenflowControllerStub.raise_error_with_request"><tt class="xref docutils literal"><span class="pre">raise_error_with_request()</span></tt></a>
+is a helper method of protocol objects that can be used to raise
+exceptions with such data, for instance in a controller callback:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">openfaucet</span> <span class="kn">import</span> <span class="n">oferror</span>
+
+<span class="k">class</span> <span class="nc">MyController</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">connection_made</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># ...</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="p">()</span><span class="o">.</span><span class="n">raise_error_with_request</span><span class="p">(</span><span class="n">oferror</span><span class="o">.</span><span class="n">OFPET_HELLO_FAILED</span><span class="p">,</span>
+                                                 <span class="n">oferror</span><span class="o">.</span><span class="n">OFPHFC_EPERM</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="action.html"
+                                  title="previous chapter">OpenFlow actions</a></p>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="action.html" title="OpenFlow actions"
+             >previous</a> |</li>
+        <li><a href="index.html">OpenFaucet v0.1~pre1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2011, Midokura KK.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.6.
+    </div>
+  </body>
+</html>

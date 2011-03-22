@@ -1,0 +1,441 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>OpenFlow switch configuration &mdash; OpenFaucet v0.1~pre1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1~pre1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="OpenFaucet v0.1~pre1 documentation" href="index.html" />
+    <link rel="next" title="OpenFlow actions" href="action.html" />
+    <link rel="prev" title="OpenFlow flow matching" href="match.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="action.html" title="OpenFlow actions"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="match.html" title="OpenFlow flow matching"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">OpenFaucet v0.1~pre1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="openflow-switch-configuration">
+<h1>OpenFlow switch configuration<a class="headerlink" href="#openflow-switch-configuration" title="Permalink to this headline">¶</a></h1>
+<p>The status and configuration of an OpenFlow datapath and its parts
+(ports, queues) is represented by instances of the classes below. All
+these classes are named tuple classes (cf. Python&#8217;s
+<tt class="xref docutils literal"><span class="pre">collections</span></tt>), i.e. configuration objects are also tuples whose
+elements each correspond to an attribute. To create a configuration
+object, its attributes can be given in positional order, or using
+keywords, i.e.:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">openfaucet</span> <span class="kn">import</span> <span class="n">ofconfig</span>
+<span class="n">port_config</span> <span class="o">=</span> <span class="n">ofconfig</span><span class="o">.</span><span class="n">PortConfig</span><span class="p">(</span>
+    <span class="n">port_down</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">no_stp</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">no_recv</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">no_recv_stp</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+    <span class="n">no_flood</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">no_fwd</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">no_packet_in</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>is equivalent to:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">openfaucet</span> <span class="kn">import</span> <span class="n">ofconfig</span>
+<span class="n">port_config</span> <span class="o">=</span> <span class="n">ofconfig</span><span class="o">.</span><span class="n">PortConfig</span><span class="p">(</span><span class="bp">False</span><span class="p">,</span> <span class="bp">True</span><span class="p">,</span> <span class="bp">True</span><span class="p">,</span> <span class="bp">True</span><span class="p">,</span> <span class="bp">False</span><span class="p">,</span>
+                                  <span class="bp">False</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Likewise, attributes can be accessed by position or by name, i.e.:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">no_stp</span> <span class="o">=</span> <span class="n">port_config</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>is equivalent to:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">no_stp</span> <span class="o">=</span> <span class="n">port_config</span><span class="o">.</span><span class="n">no_stp</span>
+</pre></div>
+</div>
+<p>Attribute access by name is recommended for readability. Every
+configuration object, just like any tuple, is immutable and
+hashable. A copy of an existing configuration object with some of its
+attributes modified can be created by calling <tt class="xref docutils literal"><span class="pre">_replace()</span></tt>, for
+instance:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">new_port_config</span> <span class="o">=</span> <span class="n">port_config</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">port_down</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">no_packet_in</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="rubric">Datapath configuration</p>
+<dl class="class">
+<dt id="openfaucet.ofconfig.SwitchFeatures">
+<em class="property">class </em><tt class="descclassname">openfaucet.ofconfig.</tt><tt class="descname">SwitchFeatures</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchFeatures" title="Permalink to this definition">¶</a></dt>
+<dd><p>Describes the features of a datapath.</p>
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchFeatures.datapath_id">
+<tt class="descname">datapath_id</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchFeatures.datapath_id" title="Permalink to this definition">¶</a></dt>
+<dd>The datapath&#8217;s unique ID, as a binary string.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchFeatures.n_buffers">
+<tt class="descname">n_buffers</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchFeatures.n_buffers" title="Permalink to this definition">¶</a></dt>
+<dd>The maximum number of buffers that can be used at once, each to
+buffer a packet.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchFeatures.n_tables">
+<tt class="descname">n_tables</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchFeatures.n_tables" title="Permalink to this definition">¶</a></dt>
+<dd>The number of tables supported by the datapath.</dd></dl>
+
+<p>cap_*: Boolean flags indicating each the support of not of a capability:</p>
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchFeatures.cap_flow_stats">
+<tt class="descname">cap_flow_stats</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchFeatures.cap_flow_stats" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that flow statistics are
+supported by the datapath.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchFeatures.cap_table_stats">
+<tt class="descname">cap_table_stats</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchFeatures.cap_table_stats" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that table statistics are
+supported by the datapath.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchFeatures.cap_port_stats">
+<tt class="descname">cap_port_stats</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchFeatures.cap_port_stats" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that port statistics are
+supported by the datapath.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchFeatures.cap_stp">
+<tt class="descname">cap_stp</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchFeatures.cap_stp" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that the 802.1d Spanning
+Tree Protocol is supported by the datapath.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchFeatures.cap_ip_reasm">
+<tt class="descname">cap_ip_reasm</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchFeatures.cap_ip_reasm" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that the datapath can
+reassemble IP fragments.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchFeatures.cap_queue_stats">
+<tt class="descname">cap_queue_stats</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchFeatures.cap_queue_stats" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that queue statistics are
+supported by the datapath.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchFeatures.cap_arp_match_ip">
+<tt class="descname">cap_arp_match_ip</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchFeatures.cap_arp_match_ip" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that the datapath can match
+IP addresses in ARP packets.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchFeatures.actions">
+<tt class="descname">actions</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchFeatures.actions" title="Permalink to this definition">¶</a></dt>
+<dd>The <tt class="xref docutils literal"><span class="pre">frozenset</span></tt> of standard action type codes that is
+supported by the switch. See <tt class="xref docutils literal"><span class="pre">ofaction</span></tt> for the
+list of standard action types.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchFeatures.ports">
+<tt class="descname">ports</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchFeatures.ports" title="Permalink to this definition">¶</a></dt>
+<dd>A tuple of <a title="openfaucet.ofconfig.PhyPort" class="reference internal" href="#openfaucet.ofconfig.PhyPort"><tt class="xref docutils literal"><span class="pre">PhyPort</span></tt></a> objects defining
+the physical ports of the switch.</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="openfaucet.ofconfig.SwitchConfig">
+<em class="property">class </em><tt class="descclassname">openfaucet.ofconfig.</tt><tt class="descname">SwitchConfig</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>The configuration of an OpenFlow switch.</p>
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchConfig.config_frag">
+<tt class="descname">config_frag</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchConfig.config_frag" title="Permalink to this definition">¶</a></dt>
+<dd>Indicates how IP fragments should be treated, either
+<tt class="xref docutils literal"><span class="pre">OFPC_FRAG_NORMAL</span></tt> (no special
+handling for fragments),
+<tt class="xref docutils literal"><span class="pre">OFPC_FRAG_DROP</span></tt> (drop fragments), or
+<tt class="xref docutils literal"><span class="pre">OFPC_FRAG_REASM</span></tt> (reassemble, only if
+supported,
+cf. <a title="openfaucet.ofconfig.SwitchFeatures.cap_ip_reasm" class="reference internal" href="#openfaucet.ofconfig.SwitchFeatures.cap_ip_reasm"><tt class="xref docutils literal"><span class="pre">cap_ip_reasm</span></tt></a>).</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.SwitchConfig.miss_send_len">
+<tt class="descname">miss_send_len</tt><a class="headerlink" href="#openfaucet.ofconfig.SwitchConfig.miss_send_len" title="Permalink to this definition">¶</a></dt>
+<dd>The maximum number of bytes of new flow packets that the datapath
+should send to the controller in <tt class="docutils literal"><span class="pre">OFPT_PACKET_IN</span></tt> messages.</dd></dl>
+
+</dd></dl>
+
+<p class="rubric">Port configuration</p>
+<dl class="class">
+<dt id="openfaucet.ofconfig.PhyPort">
+<em class="property">class </em><tt class="descclassname">openfaucet.ofconfig.</tt><tt class="descname">PhyPort</tt><a class="headerlink" href="#openfaucet.ofconfig.PhyPort" title="Permalink to this definition">¶</a></dt>
+<dd><p>The description of a physical port of an OpenFlow switch.</p>
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PhyPort.port_no">
+<tt class="descname">port_no</tt><a class="headerlink" href="#openfaucet.ofconfig.PhyPort.port_no" title="Permalink to this definition">¶</a></dt>
+<dd>The port&#8217;s unique number, as a 16-bit unsigned integer. Must be
+between 1 and <tt class="xref docutils literal"><span class="pre">OFPP_MAX</span></tt>.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PhyPort.hw_addr">
+<tt class="descname">hw_addr</tt><a class="headerlink" href="#openfaucet.ofconfig.PhyPort.hw_addr" title="Permalink to this definition">¶</a></dt>
+<dd>The port&#8217;s MAC address, as a binary string.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PhyPort.name">
+<tt class="descname">name</tt><a class="headerlink" href="#openfaucet.ofconfig.PhyPort.name" title="Permalink to this definition">¶</a></dt>
+<dd>The port&#8217;s human-readable name, limited to 16 characters.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PhyPort.config">
+<tt class="descname">config</tt><a class="headerlink" href="#openfaucet.ofconfig.PhyPort.config" title="Permalink to this definition">¶</a></dt>
+<dd>A <a title="openfaucet.ofconfig.PortConfig" class="reference internal" href="#openfaucet.ofconfig.PortConfig"><tt class="xref docutils literal"><span class="pre">PortConfig</span></tt></a> object indicating the
+configuration of the port.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PhyPort.state_link_down">
+<tt class="descname">state_link_down</tt><a class="headerlink" href="#openfaucet.ofconfig.PhyPort.state_link_down" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean value indicating that no physical link is present.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PhyPort.state_stp">
+<tt class="descname">state_stp</tt><a class="headerlink" href="#openfaucet.ofconfig.PhyPort.state_stp" title="Permalink to this definition">¶</a></dt>
+<dd>Indicates the Spanning Tree Protocol state, either
+<tt class="xref docutils literal"><span class="pre">OFPPS_STP_LISTEN</span></tt> (not learning or
+relaying frames), <tt class="xref docutils literal"><span class="pre">OFPPS_STP_LEARN</span></tt>
+(learning but not relaying frames),
+<tt class="xref docutils literal"><span class="pre">OFPPS_STP_FORWARD</span></tt> (learning and
+relaying frames), or <tt class="xref docutils literal"><span class="pre">OFPPS_STP_BLOCK</span></tt>
+(not part of spanning tree).</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PhyPort.curr">
+<tt class="descname">curr</tt><a class="headerlink" href="#openfaucet.ofconfig.PhyPort.curr" title="Permalink to this definition">¶</a></dt>
+<dd>A <a title="openfaucet.ofconfig.PortFeatures" class="reference internal" href="#openfaucet.ofconfig.PortFeatures"><tt class="xref docutils literal"><span class="pre">PortFeatures</span></tt></a> object defining the
+current features of the port.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PhyPort.advertised">
+<tt class="descname">advertised</tt><a class="headerlink" href="#openfaucet.ofconfig.PhyPort.advertised" title="Permalink to this definition">¶</a></dt>
+<dd>A <a title="openfaucet.ofconfig.PortFeatures" class="reference internal" href="#openfaucet.ofconfig.PortFeatures"><tt class="xref docutils literal"><span class="pre">PortFeatures</span></tt></a> object defining the
+features being advertised by the port.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PhyPort.supported">
+<tt class="descname">supported</tt><a class="headerlink" href="#openfaucet.ofconfig.PhyPort.supported" title="Permalink to this definition">¶</a></dt>
+<dd>A <a title="openfaucet.ofconfig.PortFeatures" class="reference internal" href="#openfaucet.ofconfig.PortFeatures"><tt class="xref docutils literal"><span class="pre">PortFeatures</span></tt></a> object defining the
+features supported by the port.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PhyPort.peer">
+<tt class="descname">peer</tt><a class="headerlink" href="#openfaucet.ofconfig.PhyPort.peer" title="Permalink to this definition">¶</a></dt>
+<dd>A <a title="openfaucet.ofconfig.PortFeatures" class="reference internal" href="#openfaucet.ofconfig.PortFeatures"><tt class="xref docutils literal"><span class="pre">PortFeatures</span></tt></a> object defining the
+features advertised by the peer connected to the port.</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="openfaucet.ofconfig.PortConfig">
+<em class="property">class </em><tt class="descclassname">openfaucet.ofconfig.</tt><tt class="descname">PortConfig</tt><a class="headerlink" href="#openfaucet.ofconfig.PortConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>The description of the configuration of a physical port.</p>
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortConfig.port_down">
+<tt class="descname">port_down</tt><a class="headerlink" href="#openfaucet.ofconfig.PortConfig.port_down" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that the port is
+administratively down.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortConfig.no_stp">
+<tt class="descname">no_stp</tt><a class="headerlink" href="#openfaucet.ofconfig.PortConfig.no_stp" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that 802.1D Spanning Tree
+Protocol is disabled on the port.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortConfig.no_recv">
+<tt class="descname">no_recv</tt><a class="headerlink" href="#openfaucet.ofconfig.PortConfig.no_recv" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that all received packets
+are dropped except 802.1D Spanning Tree Protocol packets.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortConfig.no_recv_stp">
+<tt class="descname">no_recv_stp</tt><a class="headerlink" href="#openfaucet.ofconfig.PortConfig.no_recv_stp" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that all received 802.1D
+STP packets are dropped.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortConfig.no_flood">
+<tt class="descname">no_flood</tt><a class="headerlink" href="#openfaucet.ofconfig.PortConfig.no_flood" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that this port is not
+included when flooding.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortConfig.no_fwd">
+<tt class="descname">no_fwd</tt><a class="headerlink" href="#openfaucet.ofconfig.PortConfig.no_fwd" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that packets forwarded to
+the port are dropped.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortConfig.no_packet_in">
+<tt class="descname">no_packet_in</tt><a class="headerlink" href="#openfaucet.ofconfig.PortConfig.no_packet_in" title="Permalink to this definition">¶</a></dt>
+<dd>A boolean flag which if True indicates that no packet-in messages
+are sent by the datapath for packets received on the port.</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="openfaucet.ofconfig.PortFeatures">
+<em class="property">class </em><tt class="descclassname">openfaucet.ofconfig.</tt><tt class="descname">PortFeatures</tt><a class="headerlink" href="#openfaucet.ofconfig.PortFeatures" title="Permalink to this definition">¶</a></dt>
+<dd><p>Boolean attributes describing the features of a physical port.</p>
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortFeatures.mode_10mb_hd">
+<tt class="descname">mode_10mb_hd</tt><a class="headerlink" href="#openfaucet.ofconfig.PortFeatures.mode_10mb_hd" title="Permalink to this definition">¶</a></dt>
+<dd>If True, 10 Mbps half-duplex rate is supported.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortFeatures.mode_10mb_fd">
+<tt class="descname">mode_10mb_fd</tt><a class="headerlink" href="#openfaucet.ofconfig.PortFeatures.mode_10mb_fd" title="Permalink to this definition">¶</a></dt>
+<dd>If True, 10 Mbps full-duplex rate is supported.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortFeatures.mode_100mb_hd">
+<tt class="descname">mode_100mb_hd</tt><a class="headerlink" href="#openfaucet.ofconfig.PortFeatures.mode_100mb_hd" title="Permalink to this definition">¶</a></dt>
+<dd>If True, 100 Mbps half-duplex rate is supported.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortFeatures.mode_100mb_fd">
+<tt class="descname">mode_100mb_fd</tt><a class="headerlink" href="#openfaucet.ofconfig.PortFeatures.mode_100mb_fd" title="Permalink to this definition">¶</a></dt>
+<dd>If True, 100 Mbps full-duplex rate is supported.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortFeatures.mode_1gb_hd">
+<tt class="descname">mode_1gb_hd</tt><a class="headerlink" href="#openfaucet.ofconfig.PortFeatures.mode_1gb_hd" title="Permalink to this definition">¶</a></dt>
+<dd>If True, 1 Gbps half-duplex rate is supported.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortFeatures.mode_1gb_fd">
+<tt class="descname">mode_1gb_fd</tt><a class="headerlink" href="#openfaucet.ofconfig.PortFeatures.mode_1gb_fd" title="Permalink to this definition">¶</a></dt>
+<dd>If True, 1 Gbps full-duplex rate is supported.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortFeatures.mode_10gb_fd">
+<tt class="descname">mode_10gb_fd</tt><a class="headerlink" href="#openfaucet.ofconfig.PortFeatures.mode_10gb_fd" title="Permalink to this definition">¶</a></dt>
+<dd>If True, 10 Gbps full-duplex rate is supported.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortFeatures.copper">
+<tt class="descname">copper</tt><a class="headerlink" href="#openfaucet.ofconfig.PortFeatures.copper" title="Permalink to this definition">¶</a></dt>
+<dd>If True, a copper medium is supported as the link type.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortFeatures.fiber">
+<tt class="descname">fiber</tt><a class="headerlink" href="#openfaucet.ofconfig.PortFeatures.fiber" title="Permalink to this definition">¶</a></dt>
+<dd>If True, a fiber medium is supported as the link type.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortFeatures.autoneg">
+<tt class="descname">autoneg</tt><a class="headerlink" href="#openfaucet.ofconfig.PortFeatures.autoneg" title="Permalink to this definition">¶</a></dt>
+<dd>If True, the auto-negotiation feature is supported.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortFeatures.pause">
+<tt class="descname">pause</tt><a class="headerlink" href="#openfaucet.ofconfig.PortFeatures.pause" title="Permalink to this definition">¶</a></dt>
+<dd>If True, the pause feature is supported.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PortFeatures.pause_asym">
+<tt class="descname">pause_asym</tt><a class="headerlink" href="#openfaucet.ofconfig.PortFeatures.pause_asym" title="Permalink to this definition">¶</a></dt>
+<dd>If True, the asymmetric pause feature is supported.</dd></dl>
+
+</dd></dl>
+
+<p class="rubric">Queue configuration</p>
+<dl class="class">
+<dt id="openfaucet.ofconfig.PacketQueue">
+<em class="property">class </em><tt class="descclassname">openfaucet.ofconfig.</tt><tt class="descname">PacketQueue</tt><a class="headerlink" href="#openfaucet.ofconfig.PacketQueue" title="Permalink to this definition">¶</a></dt>
+<dd><p>The description of a packet queue.</p>
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PacketQueue.queue_id">
+<tt class="descname">queue_id</tt><a class="headerlink" href="#openfaucet.ofconfig.PacketQueue.queue_id" title="Permalink to this definition">¶</a></dt>
+<dd>The queue&#8217;s ID, as 32-bit unsigned integer.</dd></dl>
+
+<dl class="attribute">
+<dt id="openfaucet.ofconfig.PacketQueue.min_rate">
+<tt class="descname">min_rate</tt><a class="headerlink" href="#openfaucet.ofconfig.PacketQueue.min_rate" title="Permalink to this definition">¶</a></dt>
+<dd>If specified for this queue, the minimum data rate guaranteed, as
+a 16-bit unsigned integer. This value is given in 1/10 of a
+percent. If &gt;1000, the queuing is disabled. If None, this property
+is not available for this queue.</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="match.html"
+                                  title="previous chapter">OpenFlow flow matching</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="action.html"
+                                  title="next chapter">OpenFlow actions</a></p>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="action.html" title="OpenFlow actions"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="match.html" title="OpenFlow flow matching"
+             >previous</a> |</li>
+        <li><a href="index.html">OpenFaucet v0.1~pre1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2011, Midokura KK.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.6.
+    </div>
+  </body>
+</html>

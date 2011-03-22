@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -14,16 +12,16 @@
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
         VERSION:     '0.1~pre1',
-        COLLAPSE_INDEX: false,
+        COLLAPSE_MODINDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
       };
     </script>
     <script type="text/javascript" src="_static/jquery.js"></script>
-    <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="top" title="OpenFaucet v0.1~pre1 documentation" href="index.html" />
-    <link rel="prev" title="Welcome to OpenFaucet’s documentation" href="index.html" /> 
+    <link rel="next" title="OpenFlow flow matching" href="match.html" />
+    <link rel="prev" title="Installing OpenFaucet" href="install.html" /> 
   </head>
   <body>
     <div class="related">
@@ -33,7 +31,10 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="index.html" title="Welcome to OpenFaucet’s documentation"
+          <a href="match.html" title="OpenFlow flow matching"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="install.html" title="Installing OpenFaucet"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">OpenFaucet v0.1~pre1 documentation</a> &raquo;</li> 
       </ul>
@@ -74,7 +75,7 @@ between the controller stub and every vendor handler:</p>
 <p>Every controller stub is an instance of class ControllerStub that is
 created by a factory object which is an instance of class
 OpenflowControllerStubFactory. This factory class implements Twisted&#8217;s
-<tt class="xref py py-class docutils literal"><span class="pre">IProtocolFactory</span></tt> interface, so
+<tt class="xref docutils literal"><span class="pre">IProtocolFactory</span></tt> interface, so
 it can be used the standard way to manage Twisted transport
 connections. It must be configured by passing arguments to the its
 constructor:</p>
@@ -84,37 +85,37 @@ constructor:</p>
 <dd><dl class="method">
 <dt id="openfaucet.ofcontroller.OpenflowControllerStubFactory.__init__">
 <tt class="descname">__init__</tt><big>(</big><em>controller</em><span class="optional">[</span>, <em>protocol</em>, <em>error_data_bytes</em>, <em>logger</em>, <em>vendor_handlers</em>, <em>reactor</em>, <em>default_op_timeout</em>, <em>echo_op_period</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.OpenflowControllerStubFactory.__init__" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create a factory of <tt class="xref py py-class docutils literal"><span class="pre">OpenflowControllerStub</span></tt> objects and
-of controllers and vendor handlers bound to them. The only
-mandatory parameter is <tt class="docutils literal"><span class="pre">controller</span></tt>, the class of controller
-objects to create.</p>
+<dd><p>Create a factory of <a title="openfaucet.ofcontroller.OpenflowControllerStub" class="reference internal" href="#openfaucet.ofcontroller.OpenflowControllerStub"><tt class="xref docutils literal"><span class="pre">OpenflowControllerStub</span></tt></a> objects and of
+controllers and vendor handlers bound to them. The only mandatory
+parameter is <tt class="docutils literal"><span class="pre">controller</span></tt>, the class of controller objects to
+create.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>controller</strong> (<em>class</em>) &#8211; The class of controller objects to create,
-which must implement interface <a class="reference internal" href="#openfaucet.ofcontroller.IOpenflowController" title="openfaucet.ofcontroller.IOpenflowController"><tt class="xref py py-class docutils literal"><span class="pre">IOpenflowController</span></tt></a>.</li>
-<li><strong>protocol</strong> (<em>class</em>) &#8211; The class of protocol objects (controller
-stubs) to create. Defaults to class
-<tt class="xref py py-class docutils literal"><span class="pre">OpenflowControllerStub</span></tt>.</li>
-<li><strong>error_data_bytes</strong> (<em>integer</em>) &#8211; The maximum number of bytes of
-erroneous requests to send back in an error message. Must be
-&gt;= 64.  Defaults to 64.</li>
-<li><strong>logger</strong> (<em>logger object</em>) &#8211; The Python logger used for logging in every
+<li><em>controller</em> (class) &#8211; The class of controller objects to create,
+which must implement interface <a title="openfaucet.ofcontroller.IOpenflowController" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowController"><tt class="xref docutils literal"><span class="pre">IOpenflowController</span></tt></a>.</li>
+<li><em>protocol</em> (class) &#8211; The class of protocol objects (controller stubs)
+to create. Defaults to class <a title="openfaucet.ofcontroller.OpenflowControllerStub" class="reference internal" href="#openfaucet.ofcontroller.OpenflowControllerStub"><tt class="xref docutils literal"><span class="pre">OpenflowControllerStub</span></tt></a>.</li>
+<li><em>error_data_bytes</em> (integer) &#8211; The maximum number of bytes of erroneous
+requests to send back in an error message. Must be &gt;= 64.
+Defaults to 64.</li>
+<li><em>logger</em> &#8211; The Python logger object used for logging in every
 created protocol object. Defaults to the root logger, as
 obtained with <tt class="docutils literal"><span class="pre">logging.getLogger('')</span></tt>.</li>
-<li><strong>vendor_handlers</strong> (<em>class list</em>) &#8211; A sequence of vendor handler
-classes. One instance of every class is instantiated (with no
-arguments) and passed to every created protocol
-object. Defaults to an empty sequence.</li>
-<li><strong>reactor</strong> (<em>reactor object</em>) &#8211; An object implementing Twisted&#8217;s IReactorTime
+<li><em>vendor_handlers</em> (class list) &#8211; A sequence of vendor handler classes. One
+instance of every class is instantiated (with no arguments) and
+passed to every created protocol object. Defaults to an empty
+sequence.</li>
+<li><em>reactor</em> (reactor object) &#8211; An object implementing Twisted&#8217;s IReactorTime
 interface, used to do delayed calls. Defaults to Twisted&#8217;s
-default reactor <tt class="xref py py-mod docutils literal"><span class="pre">twisted.internet.reactor</span></tt>.</li>
-<li><strong>default_op_timeout</strong> (<em>float</em>) &#8211; The default period, in seconds,
-before an operation times out. This is also used as the
-timeout for echo operations. Defaults to 3.0 (seconds).</li>
-<li><strong>echo_op_period</strong> (<em>float</em>) &#8211; The period, in seconds, between two echo
+default reactor <tt class="xref docutils literal"><span class="pre">twisted.internet.reactor</span></tt>.</li>
+<li><em>default_op_timeout</em> (float) &#8211; The default period, in seconds, before
+an operation times out. This is also used as the timeout for
+echo operations, and as the timeout for initial
+handshakes. Defaults to 3.0 (seconds).</li>
+<li><em>echo_op_period</em> (float) &#8211; The period, in seconds, between two echo
 operations. Defaults to 5.0 (seconds).</li>
 </ul>
 </td>
@@ -141,10 +142,10 @@ switch using a TCP connection:</p>
 <tt class="docutils literal"><span class="pre">controller</span></tt> class with no arguments, so every controller class must
 implement an <tt class="docutils literal"><span class="pre">__init__()</span></tt> constructor with no arguments. If a
 controller object requires attributes to be set, implement a factory
-that is a subclass of <a class="reference internal" href="#openfaucet.ofcontroller.OpenflowControllerStubFactory" title="openfaucet.ofcontroller.OpenflowControllerStubFactory"><tt class="xref py py-class docutils literal"><span class="pre">OpenflowControllerStubFactory</span></tt></a> which
+that is a subclass of <a title="openfaucet.ofcontroller.OpenflowControllerStubFactory" class="reference internal" href="#openfaucet.ofcontroller.OpenflowControllerStubFactory"><tt class="xref docutils literal"><span class="pre">OpenflowControllerStubFactory</span></tt></a> which
 sets the attributes after the controller stub, the controller and
 vendor handlers are created, and override method
-<tt class="xref py py-meth docutils literal"><span class="pre">buildProtocol()</span></tt>:</p>
+<tt class="xref docutils literal"><span class="pre">buildProtocol()</span></tt>:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">openfaucet</span> <span class="kn">import</span> <span class="n">ofcontroller</span>
 
 <span class="k">class</span> <span class="nc">MyController</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -168,7 +169,7 @@ vendor handlers are created, and override method
 <div class="section" id="asynchronous-message-callbacks">
 <h2>Asynchronous message callbacks<a class="headerlink" href="#asynchronous-message-callbacks" title="Permalink to this headline">¶</a></h2>
 <p>Every controller class must implement OpenFaucet&#8217;s
-<a class="reference internal" href="#openfaucet.ofcontroller.IOpenflowController" title="openfaucet.ofcontroller.IOpenflowController"><tt class="xref py py-class docutils literal"><span class="pre">IOpenflowController</span></tt></a> interface, which defines the following 5
+<a title="openfaucet.ofcontroller.IOpenflowController" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowController"><tt class="xref docutils literal"><span class="pre">IOpenflowController</span></tt></a> interface, which defines the following 5
 callback methods:</p>
 <dl class="class">
 <dt id="openfaucet.ofcontroller.IOpenflowController">
@@ -176,25 +177,27 @@ callback methods:</p>
 <dd><dl class="method">
 <dt id="openfaucet.ofcontroller.IOpenflowController.connection_made">
 <tt class="descname">connection_made</tt><big>(</big><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowController.connection_made" title="Permalink to this definition">¶</a></dt>
-<dd><p>Initialize the resources to manage the newly opened OpenFlow
-connection. This callback is made once the handshake is
-completed with the switch, i.e. once the description of the
-switch&#8217;s features have been received.</p>
-</dd></dl>
+<dd>Initialize the resources to manage the newly opened OpenFlow
+connection. This callback is made once the handshake is completed
+with the switch, i.e. once the description of the switch&#8217;s
+features have been received. This callback is never made in case
+the handshake times out, in which case the connection is closed.</dd></dl>
 
 <dl class="method">
 <dt id="openfaucet.ofcontroller.IOpenflowController.connection_lost">
 <tt class="descname">connection_lost</tt><big>(</big><em>reason</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowController.connection_lost" title="Permalink to this definition">¶</a></dt>
-<dd><p>Release any resources used to manage the connection that was
-just lost.</p>
+<dd><p>Release any resources used to manage the connection that was just
+lost.</p>
+<p>All operations that are still pending when this method is called
+back are cancelled silently.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><strong>reason</strong> &#8211; The reason why the connection was lost, as a
-<tt class="xref py py-class docutils literal"><span class="pre">Failure</span></tt> that wraps a
-<tt class="xref py py-class docutils literal"><span class="pre">ConnectionDone</span></tt> or
-<tt class="xref py py-class docutils literal"><span class="pre">ConnectionLost</span></tt> instance (or a
+<tr class="field"><th class="field-name">Parameter:</th><td class="field-body"><em>reason</em> &#8211; The reason why the connection was lost, as a
+<tt class="xref docutils literal"><span class="pre">Failure</span></tt> that wraps a
+<tt class="xref docutils literal"><span class="pre">ConnectionDone</span></tt> or
+<tt class="xref docutils literal"><span class="pre">ConnectionLost</span></tt> instance (or a
 subclass of one of those).</td>
 </tr>
 </tbody>
@@ -211,16 +214,16 @@ Ethernet frame forwarded by the datapath.</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>buffer_id</strong> (<em>integer</em>) &#8211; The buffer ID assigned by datapath. If
+<li><em>buffer_id</em> (integer) &#8211; The buffer ID assigned by datapath. If
 0xffffffff, the frame is not buffered, and the entire frame is
 passed in data.</li>
-<li><strong>total_len</strong> (<em>integer</em>) &#8211; The full length of the frame, in bytes.</li>
-<li><strong>in_port</strong> (<em>integer</em>) &#8211; The port on which the frame was received.</li>
-<li><strong>reason</strong> (<em>integer</em>) &#8211; The reason why the frame is being sent, either
-<tt class="xref py py-attr docutils literal"><span class="pre">OFPR_NO_MATCH</span></tt> (no matching flow)
-or <tt class="xref py py-attr docutils literal"><span class="pre">OFPR_ACTION</span></tt> (action explicitly
+<li><em>total_len</em> (integer) &#8211; The full length of the frame, in bytes.</li>
+<li><em>in_port</em> (integer) &#8211; The port on which the frame was received.</li>
+<li><em>reason</em> (integer) &#8211; The reason why the frame is being sent, either
+<tt class="xref docutils literal"><span class="pre">OFPR_NO_MATCH</span></tt> (no matching flow) or
+<tt class="xref docutils literal"><span class="pre">OFPR_ACTION</span></tt> (action explicitly
 output to controller).</li>
-<li><strong>data</strong> (<em>byte buffer</em>) &#8211; The Ethernet frame, as a byte buffer.</li>
+<li><em>data</em> (binary string) &#8211; The Ethernet frame.</li>
 </ul>
 </td>
 </tr>
@@ -231,32 +234,31 @@ output to controller).</li>
 <dl class="method">
 <dt id="openfaucet.ofcontroller.IOpenflowController.handle_flow_removed">
 <tt class="descname">handle_flow_removed</tt><big>(</big><em>match</em>, <em>cookie</em>, <em>priority</em>, <em>reason</em>, <em>duration_sec</em>, <em>duration_nsec</em>, <em>idle_timeout</em>, <em>packet_count</em>, <em>byte_count</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowController.handle_flow_removed" title="Permalink to this definition">¶</a></dt>
-<dd><p>Handle the reception of a <tt class="docutils literal"><span class="pre">OFPT_FLOW_REMOVED</span></tt> message,
-i.e. the notification that a flow has been removed from the
-datapath.</p>
+<dd><p>Handle the reception of a <tt class="docutils literal"><span class="pre">OFPT_FLOW_REMOVED</span></tt> message, i.e. the
+notification that a flow has been removed from the datapath.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>match</strong> &#8211; A <tt class="xref py py-class docutils literal"><span class="pre">Match</span></tt> object
+<li><em>match</em> &#8211; A <tt class="xref docutils literal"><span class="pre">Match</span></tt> object
 describing the fields of the flow.</li>
-<li><strong>cookie</strong> (<em>64-bit unsigned integer</em>) &#8211; An opaque value issued by the controller when the
+<li><em>cookie</em> (64-bit unsigned integer) &#8211; An opaque value issued by the controller when the
 flow was added.</li>
-<li><strong>priority</strong> (<em>16-bit unsigned integer</em>) &#8211; The priority level of the expired flow entry.</li>
-<li><strong>reason</strong> (<em>integer</em>) &#8211; The reason why the flow entry expired, either
-<tt class="xref py py-attr docutils literal"><span class="pre">OFPRR_IDLE_TIMEOUT</span></tt> (flow idle time
+<li><em>priority</em> (16-bit unsigned integer) &#8211; The priority level of the expired flow entry.</li>
+<li><em>reason</em> (integer) &#8211; The reason why the flow entry expired, either
+<tt class="xref docutils literal"><span class="pre">OFPRR_IDLE_TIMEOUT</span></tt> (flow idle time
 exceeded idle_timeout),
-<tt class="xref py py-attr docutils literal"><span class="pre">OFPRR_HARD_TIMEOUT</span></tt> (time exceeded
-hard_timeout), or <tt class="xref py py-attr docutils literal"><span class="pre">OFPRR_DELETE</span></tt>
+<tt class="xref docutils literal"><span class="pre">OFPRR_HARD_TIMEOUT</span></tt> (time exceeded
+hard_timeout), or <tt class="xref docutils literal"><span class="pre">OFPRR_DELETE</span></tt>
 (evicted by a <tt class="docutils literal"><span class="pre">DELETE</span></tt> flow mod message).</li>
-<li><strong>duration_sec</strong> (<em>32-bit unsigned integer.</em>) &#8211; Time the flow was alive in seconds.</li>
-<li><strong>duration_nsec</strong> (<em>32-bit unsigned integer</em>) &#8211; Time flow was alive in nanoseconds beyond
+<li><em>duration_sec</em> (32-bit unsigned integer) &#8211; Time the flow was alive in seconds.</li>
+<li><em>duration_nsec</em> (32-bit unsigned integer) &#8211; Time flow was alive in nanoseconds beyond
 duration_sec.</li>
-<li><strong>idle_timeout</strong> (<em>16-bit unsigned integer</em>) &#8211; The idle timeout in seconds from the
-original flow mod.</li>
-<li><strong>packet_count</strong> (<em>64-bit unsigned integer</em>) &#8211; The number of packets in the flow.</li>
-<li><strong>byte_count</strong> (<em>64-bit unsigned integer</em>) &#8211; The number of bytes in packets in the flow.</li>
+<li><em>idle_timeout</em> (16-bit unsigned integer) &#8211; The idle timeout in seconds from the original
+flow mod.</li>
+<li><em>packet_count</em> (64-bit unsigned integer) &#8211; The number of packets in the flow.</li>
+<li><em>byte_count</em> (64-bit unsigned integer) &#8211; The number of bytes in packets in the flow.</li>
 </ul>
 </td>
 </tr>
@@ -274,12 +276,12 @@ notification that a datapath port&#8217;s status has changed.</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>reason</strong> (<em>integer</em>) &#8211; The reason for the port status change, either
-<tt class="xref py py-attr docutils literal"><span class="pre">OFPPR_ADD</span></tt> (the port was added),
-<tt class="xref py py-attr docutils literal"><span class="pre">OFPPR_DELETE</span></tt> (the port was
-removed), or <tt class="xref py py-attr docutils literal"><span class="pre">OFPPR_MODIFY</span></tt> (some
+<li><em>reason</em> (integer) &#8211; The reason for the port status change, either
+<tt class="xref docutils literal"><span class="pre">OFPPR_ADD</span></tt> (the port was added),
+<tt class="xref docutils literal"><span class="pre">OFPPR_DELETE</span></tt> (the port was
+removed), or <tt class="xref docutils literal"><span class="pre">OFPPR_MODIFY</span></tt> (some
 attribute of the port has changed).</li>
-<li><strong>desc</strong> &#8211; A <tt class="xref py py-class docutils literal"><span class="pre">PhyPort</span></tt> object
+<li><em>desc</em> &#8211; A <a title="openfaucet.ofconfig.PhyPort" class="reference external" href="config.html#openfaucet.ofconfig.PhyPort"><tt class="xref docutils literal"><span class="pre">PhyPort</span></tt></a> object
 defining the physical port, including its new status.</li>
 </ul>
 </td>
@@ -291,11 +293,702 @@ defining the physical port, including its new status.</li>
 </dd></dl>
 
 </div>
-<div class="section" id="asynchronous-requests">
-<h2>Asynchronous requests<a class="headerlink" href="#asynchronous-requests" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="sending-messages-to-datapaths">
+<h2>Sending messages to datapaths<a class="headerlink" href="#sending-messages-to-datapaths" title="Permalink to this headline">¶</a></h2>
+<p>Every controller object is bound to an
+<a title="openfaucet.ofcontroller.OpenflowControllerStub" class="reference internal" href="#openfaucet.ofcontroller.OpenflowControllerStub"><tt class="xref docutils literal"><span class="pre">OpenflowControllerStub</span></tt></a> object that
+provides methods for sending requests and messages to the connected
+OpenFlow datapath, as defined in interface
+<a title="openfaucet.ofcontroller.IOpenflowControllerStub" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub"><tt class="xref docutils literal"><span class="pre">IOpenflowControllerStub</span></tt></a>. The stub is
+referenced by a weak reference set in the controller&#8217;s <tt class="docutils literal"><span class="pre">protocol</span></tt>
+attribute, so it must be retrieved by calling <tt class="docutils literal"><span class="pre">self.protocol()</span></tt>. For
+instance, to print the datapath ID once the handshake with the
+datapath is terminated:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">MyController</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">connection_made</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">dp_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="p">()</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">datapath_id</span>
+        <span class="k">print</span> <span class="s">&#39;connected to datapath&#39;</span><span class="p">,</span> <span class="n">dp_id</span>
+</pre></div>
 </div>
-<div class="section" id="asynchronous-messages">
-<h2>Asynchronous messages<a class="headerlink" href="#asynchronous-messages" title="Permalink to this headline">¶</a></h2>
+<p>The controller stub provides several asynchronous methods for request
+/ reply operations with the datapath. Those methods take callables as
+arguments to specify callbacks to be made when the operation&#8217;s reply
+is received or when the operation times out.</p>
+<p>If a callable needs to get additional positional or keyword arguments
+in addition to the arguments passed by the protocol object, the caller
+must wrap the callable into a <a title="openfaucet.ofcontroller.openfaucet.ofprotoops.Callable" class="reference internal" href="#openfaucet.ofcontroller.openfaucet.ofprotoops.Callable"><tt class="xref docutils literal"><span class="pre">Callable</span></tt></a>
+object.</p>
+<dl class="class">
+<dt id="openfaucet.ofcontroller.openfaucet.ofprotoops.Callable">
+<em class="property">class </em><tt class="descclassname">openfaucet.ofprotoops.</tt><tt class="descname">Callable</tt><a class="headerlink" href="#openfaucet.ofcontroller.openfaucet.ofprotoops.Callable" title="Permalink to this definition">¶</a></dt>
+<dd><p>A namedtuple object that decorates a callable to pass additional
+arguments to it when called. The additional arguments to the
+callable are passed in addition to the arguments given by the
+caller. The preferred way to create a
+<a title="openfaucet.ofcontroller.openfaucet.ofprotoops.Callable" class="reference internal" href="#openfaucet.ofcontroller.openfaucet.ofprotoops.Callable"><tt class="xref docutils literal"><span class="pre">Callable</span></tt></a> is by calling
+<a title="openfaucet.ofcontroller.openfaucet.ofprotoops.Callable.make_callable" class="reference internal" href="#openfaucet.ofcontroller.openfaucet.ofprotoops.Callable.make_callable"><tt class="xref docutils literal"><span class="pre">make_callable()</span></tt></a>:</p>
+<dl class="classmethod">
+<dt id="openfaucet.ofcontroller.openfaucet.ofprotoops.Callable.make_callable">
+<em class="property">classmethod </em><tt class="descname">make_callable</tt><big>(</big><em>callable</em><span class="optional">[</span>, <em>*args</em>, <em>**kwargs</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.openfaucet.ofprotoops.Callable.make_callable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a <a title="openfaucet.ofcontroller.openfaucet.ofprotoops.Callable" class="reference internal" href="#openfaucet.ofcontroller.openfaucet.ofprotoops.Callable"><tt class="xref docutils literal"><span class="pre">Callable</span></tt></a> with the given
+callable and args.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>callable</em> &#8211; A callable.</li>
+<li><em>args</em> &#8211; The (possibly empty) sequence of additional
+positional arguments to pass to the callable.</li>
+<li><em>kwargs</em> &#8211; The (possibly empty) dict of additional keyword
+arguments to pass to the callable.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<p>A callable object can then be called directly, possibly with
+positional and keyword arguments. The positional arguments given to
+the call correspond to the signature of the method expected by the
+caller. The additional positional and keyword arguments given to
+<a title="openfaucet.ofcontroller.openfaucet.ofprotoops.Callable.make_callable" class="reference internal" href="#openfaucet.ofcontroller.openfaucet.ofprotoops.Callable.make_callable"><tt class="xref docutils literal"><span class="pre">make_callable()</span></tt></a> can be used to
+pass context information to the callable, for example:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">openfaucet</span> <span class="kn">import</span> <span class="n">ofprotoops</span>
+
+<span class="k">def</span> <span class="nf">my_callable</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">log_prefix</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">print</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">: </span><span class="si">%r</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">log_prefix</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">call_me_back</span><span class="p">(</span><span class="n">callback</span><span class="p">):</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="s">&#39;world&#39;</span>
+    <span class="n">callback</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+<span class="n">callback</span><span class="o">=</span> <span class="n">ofprotoops</span><span class="o">.</span><span class="n">Callable</span><span class="o">.</span><span class="n">make_callable</span><span class="p">(</span><span class="n">log_prefix</span><span class="o">=</span><span class="s">&#39;hello&#39;</span><span class="p">)</span>
+<span class="n">call_me_back</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="class">
+<dt id="openfaucet.ofcontroller.OpenflowControllerStub">
+<em class="property">class </em><tt class="descclassname">openfaucet.ofcontroller.</tt><tt class="descname">OpenflowControllerStub</tt><a class="headerlink" href="#openfaucet.ofcontroller.OpenflowControllerStub" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub">
+<em class="property">class </em><tt class="descclassname">openfaucet.ofcontroller.</tt><tt class="descname">IOpenflowControllerStub</tt><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub" title="Permalink to this definition">¶</a></dt>
+<dd><p class="rubric">Configuration</p>
+<dl class="attribute">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.features">
+<tt class="descname">features</tt><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.features" title="Permalink to this definition">¶</a></dt>
+<dd>The <a title="openfaucet.ofconfig.SwitchFeatures" class="reference external" href="config.html#openfaucet.ofconfig.SwitchFeatures"><tt class="xref docutils literal"><span class="pre">SwitchFeatures</span></tt></a> object describing
+the switch features. None if the handshake with the datapath has
+not yet been completed, i.e. before
+<a title="openfaucet.ofcontroller.IOpenflowController.connection_made" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowController.connection_made"><tt class="xref docutils literal"><span class="pre">connection_made()</span></tt></a>
+has been called back. This
+<a title="openfaucet.ofconfig.SwitchFeatures" class="reference external" href="config.html#openfaucet.ofconfig.SwitchFeatures"><tt class="xref docutils literal"><span class="pre">SwitchFeatures</span></tt></a> object is
+automatically updated by this stub when any port status changes.</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.get_features">
+<tt class="descname">get_features</tt><big>(</big><em>callback</em><span class="optional">[</span>, <em>timeout_callback</em>, <em>timeout</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_features" title="Permalink to this definition">¶</a></dt>
+<dd><p>Request the switch features.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>callback</em> &#8211; The callable to be called with the replied data.</li>
+<li><em>timeout_callback</em> &#8211; The callable to be called in case the
+operation times out.</li>
+<li><em>timeout</em> (integer or None) &#8211; The period, in seconds, before the operation times
+out. If None, defaults to the default timeout.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Using this object&#8217;s <a title="openfaucet.ofcontroller.IOpenflowControllerStub.features" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.features"><tt class="xref docutils literal"><span class="pre">features</span></tt></a> attribute is more efficient
+than calling this method, so this method should normally not be
+called by controllers.</p>
+</div>
+<p>This operation is asynchronous: the switch features are passed
+back by calling the given <tt class="docutils literal"><span class="pre">callback</span></tt> as:</p>
+<dl class="function">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.callback">
+<tt class="descname">callback</tt><big>(</big><em>switch_features</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.callback" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameter:</th><td class="field-body"><em>switch_features</em> &#8211; A
+<a title="openfaucet.ofconfig.SwitchFeatures" class="reference external" href="config.html#openfaucet.ofconfig.SwitchFeatures"><tt class="xref docutils literal"><span class="pre">SwitchFeatures</span></tt></a> object containing
+the switch features.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<p>If the operation times out, i.e. if no reply is received before
+the <tt class="docutils literal"><span class="pre">timeout</span></tt> period, and if <tt class="docutils literal"><span class="pre">timeout_callback</span></tt> is not None,
+<tt class="docutils literal"><span class="pre">timeout_callback</span></tt> is called as:</p>
+<dl class="function">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.timeout_callback">
+<tt class="descname">timeout_callback</tt><big>(</big><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.timeout_callback" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p><tt class="docutils literal"><span class="pre">callback</span></tt> and / or <tt class="docutils literal"><span class="pre">timeout_callback</span></tt> must be None if no
+callback must be made when the reply is received and / or the
+operation times out. They may also be
+<a title="openfaucet.ofcontroller.openfaucet.ofprotoops.Callable" class="reference internal" href="#openfaucet.ofcontroller.openfaucet.ofprotoops.Callable"><tt class="xref docutils literal"><span class="pre">Callable</span></tt></a> objects to pass
+additional arguments to the callables.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.get_config">
+<tt class="descname">get_config</tt><big>(</big><em>callback</em><span class="optional">[</span>, <em>timeout_callback</em>, <em>timeout</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Request the switch config.</p>
+<p>This operation is asynchronous. The <tt class="docutils literal"><span class="pre">callback</span></tt>,
+<tt class="docutils literal"><span class="pre">timeout_callback</span></tt>, and <tt class="docutils literal"><span class="pre">timeout</span></tt> are similar as in
+<a title="openfaucet.ofcontroller.IOpenflowControllerStub.get_features" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_features"><tt class="xref docutils literal"><span class="pre">get_features()</span></tt></a>, and <tt class="docutils literal"><span class="pre">callback</span></tt> is called as:</p>
+<dl class="function">
+<dt>
+<tt class="descname">callback</tt><big>(</big><em>switch_config</em><big>)</big></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameter:</th><td class="field-body"><em>switch_config</em> &#8211; A
+<a title="openfaucet.ofconfig.SwitchConfig" class="reference external" href="config.html#openfaucet.ofconfig.SwitchConfig"><tt class="xref docutils literal"><span class="pre">SwitchConfig</span></tt></a> object containing
+the switch configuration.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.send_set_config">
+<tt class="descname">send_set_config</tt><big>(</big><em>switch_config</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.send_set_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a <tt class="docutils literal"><span class="pre">OFPT_SET_CONFIG</span></tt> message to modify the switch
+configuration.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameter:</th><td class="field-body"><em>switch_config</em> &#8211; A <a title="openfaucet.ofconfig.SwitchConfig" class="reference external" href="config.html#openfaucet.ofconfig.SwitchConfig"><tt class="xref docutils literal"><span class="pre">SwitchConfig</span></tt></a>
+object containing the switch configuration.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.send_port_mod">
+<tt class="descname">send_port_mod</tt><big>(</big><em>port_no</em>, <em>hw_addr</em>, <em>config</em>, <em>mask</em>, <em>advertise</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.send_port_mod" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a <tt class="docutils literal"><span class="pre">OFPT_PORT_MOD</span></tt> message to modify the configuration of a
+port.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>port_no</em> (16-bit unsigned integer) &#8211; The port&#8217;s unique number. Must be between 1 and
+<tt class="xref docutils literal"><span class="pre">OFPP_MAX</span></tt>.</li>
+<li><em>hw_addr</em> (binary string) &#8211; The port&#8217;s MAC address. The hardware address is
+not configurable. This is used only to sanity-check the request,
+so it must be the same as returned in
+<a title="openfaucet.ofconfig.PhyPort" class="reference external" href="config.html#openfaucet.ofconfig.PhyPort"><tt class="xref docutils literal"><span class="pre">PhyPort</span></tt></a> object.</li>
+<li><em>config</em> &#8211; The <a title="openfaucet.ofconfig.PortConfig" class="reference external" href="config.html#openfaucet.ofconfig.PortConfig"><tt class="xref docutils literal"><span class="pre">PortConfig</span></tt></a>
+containing the new values of fields to replace. Only the fields
+which are True in <tt class="docutils literal"><span class="pre">mask</span></tt> are replaced, the others are ignored.</li>
+<li><em>mask</em> &#8211; The <a title="openfaucet.ofconfig.PortConfig" class="reference external" href="config.html#openfaucet.ofconfig.PortConfig"><tt class="xref docutils literal"><span class="pre">PortConfig</span></tt></a>
+indicating which fields are to be replaced with values from
+config.</li>
+<li><em>advertise</em> &#8211; The <a title="openfaucet.ofconfig.PortFeatures" class="reference external" href="config.html#openfaucet.ofconfig.PortFeatures"><tt class="xref docutils literal"><span class="pre">PortFeatures</span></tt></a>
+indicating the features to be advertised by the port. If None or
+all fields are False, the advertised features are not replaced.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The <tt class="docutils literal"><span class="pre">config</span></tt> and <tt class="docutils literal"><span class="pre">mask</span></tt> arguments can be obtained by calling
+<tt class="xref docutils literal"><span class="pre">get_diff()</span></tt> on a
+<a title="openfaucet.ofconfig.PortConfig" class="reference external" href="config.html#openfaucet.ofconfig.PortConfig"><tt class="xref docutils literal"><span class="pre">PortConfig</span></tt></a> object. For instance, to
+disable flooding on every port at connection time:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">openfaucet</span> <span class="kn">import</span> <span class="n">ofproto</span>
+
+<span class="k">class</span> <span class="nc">MyController</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">connection_made</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">port</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="p">()</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">ports</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">port</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">no_flood</span><span class="p">:</span>
+                <span class="n">new_config</span> <span class="o">=</span> <span class="n">port</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">no_flood</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                <span class="n">config</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">new_config</span><span class="o">.</span><span class="n">get_diff</span><span class="p">(</span><span class="n">port</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">protocol</span><span class="p">()</span><span class="o">.</span><span class="n">send_port_mod</span><span class="p">(</span><span class="n">port</span><span class="o">.</span><span class="n">port_no</span><span class="p">,</span> <span class="n">port</span><span class="o">.</span><span class="n">hw_addr</span><span class="p">,</span>
+                                              <span class="n">config</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.get_queue_config">
+<tt class="descname">get_queue_config</tt><big>(</big><em>port_no</em>, <em>callback</em><span class="optional">[</span>, <em>timeout_callback</em>, <em>timeout</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_queue_config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Request a port&#8217;s queues configs.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameter:</th><td class="field-body"><em>port_no</em> (16-bit unsigned integer) &#8211; The port&#8217;s unique number. Must be a valid physical
+port, i.e. &lt; <tt class="xref docutils literal"><span class="pre">OFPP_MAX</span></tt>.</td>
+</tr>
+</tbody>
+</table>
+<p>This operation is asynchronous. The <tt class="docutils literal"><span class="pre">callback</span></tt>,
+<tt class="docutils literal"><span class="pre">timeout_callback</span></tt>, and <tt class="docutils literal"><span class="pre">timeout</span></tt> are similar as in
+<a title="openfaucet.ofcontroller.IOpenflowControllerStub.get_features" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_features"><tt class="xref docutils literal"><span class="pre">get_features()</span></tt></a>, and <tt class="docutils literal"><span class="pre">callback</span></tt> is called as:</p>
+<dl class="function">
+<dt>
+<tt class="descname">callback</tt><big>(</big><em>port_no</em>, <em>queues</em><big>)</big></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>port_no</em> (16-bit unsigned integer) &#8211; The port&#8217;s unique number. Must be a valid
+physical port, i.e. &lt; <tt class="xref docutils literal"><span class="pre">OFPP_MAX</span></tt>.</li>
+<li><em>queues</em> &#8211; A sequence of
+<a title="openfaucet.ofconfig.PacketQueue" class="reference external" href="config.html#openfaucet.ofconfig.PacketQueue"><tt class="xref docutils literal"><span class="pre">PacketQueue</span></tt></a> objects describing
+the port&#8217;s queues.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<p class="rubric">Flows and packets</p>
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.send_packet_out">
+<tt class="descname">send_packet_out</tt><big>(</big><em>buffer_id</em>, <em>in_port</em>, <em>actions</em>, <em>data</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.send_packet_out" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a <tt class="docutils literal"><span class="pre">OFPT_PACKET_OUT</span></tt> message to have a packet processed by
+the datapath.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>buffer_id</em> (32-bit unsigned integer) &#8211; The buffer ID assigned by the datapath. If
+0xffffffff, the frame is not buffered, and the entire frame must
+be passed in <tt class="docutils literal"><span class="pre">data</span></tt>.</li>
+<li><em>in_port</em> (integer) &#8211; The port from which the frame is to be
+sent. <tt class="xref docutils literal"><span class="pre">OFPP_NONE</span></tt> if none.
+<tt class="xref docutils literal"><span class="pre">OFPP_TABLE</span></tt> to perform the actions
+defined in the flow table.</li>
+<li><em>actions</em> &#8211; The sequence of action objects (implementing
+<tt class="xref docutils literal"><span class="pre">IAction</span></tt>) specifying the actions to
+perform on the frame.</li>
+<li><em>data</em> &#8211; The entire Ethernet frame, as a sequence of binary
+strings. Should be of length 0 if buffer_id is -1, and should be
+of length &gt;0 otherwise.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.send_flow_mod_add">
+<tt class="descname">send_flow_mod_add</tt><big>(</big><em>match</em>, <em>cookie</em>, <em>idle_timeout</em>, <em>hard_timeout</em>, <em>priority</em>, <em>buffer_id</em>, <em>send_flow_rem</em>, <em>check_overlap</em>, <em>emerg</em>, <em>actions</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.send_flow_mod_add" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a <tt class="docutils literal"><span class="pre">OFPT_FLOW_MOD</span></tt> message to add a flow into the datapath.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>match</em> &#8211; A <a title="openfaucet.ofmatch.Match" class="reference external" href="match.html#openfaucet.ofmatch.Match"><tt class="xref docutils literal"><span class="pre">Match</span></tt></a> object
+describing the fields of the flow.</li>
+<li><em>cookie</em> (64-bit unsigned integer) &#8211; An opaque value issued by the
+controller. 0xffffffffffffffff is reserved and must not be
+used.</li>
+<li><em>idle_timeout</em> (16-bit unsigned integer) &#8211; The idle time in seconds before
+discarding.</li>
+<li><em>hard_timeout</em> (16-bit unsigned integer) &#8211; The maximum time before discarding in
+seconds.</li>
+<li><em>priority</em> (16-bit unsigned integer) &#8211; The priority level of the flow entry.</li>
+<li><em>buffer_id</em> (32-bit unsigned integer) &#8211; The buffer ID assigned by the datapath of a
+buffered packet to apply the flow to. If 0xffffffff, no buffered
+packet is to be applied the flow actions.</li>
+<li><em>send_flow_rem</em> (bool) &#8211; If True, send a <tt class="docutils literal"><span class="pre">OFPT_FLOW_REMOVED</span></tt>
+message when the flow expires or is deleted.</li>
+<li><em>check_overlap</em> (bool) &#8211; If True, check for overlapping entries
+first, i.e. if there are conflicting entries with the same
+priority, the flow is not added and the modification
+fails.</li>
+<li><em>emerg</em> (bool) &#8211; if True, the switch must consider this flow entry as
+an emergency entry, and only use it for forwarding when
+disconnected from the controller.</li>
+<li><em>actions</em> &#8211; The sequence of action objects (see
+<tt class="xref docutils literal"><span class="pre">ofaction</span></tt>) specifying the actions to perform
+on the flow&#8217;s packets.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.send_flow_mod_modify">
+<tt class="descname">send_flow_mod_modify</tt><big>(</big><em>strict</em>, <em>match</em>, <em>cookie</em>, <em>idle_timeout</em>, <em>hard_timeout</em>, <em>priority</em>, <em>buffer_id</em>, <em>send_flow_rem</em>, <em>check_overlap</em>, <em>emerg</em>, <em>actions</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.send_flow_mod_modify" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a <tt class="docutils literal"><span class="pre">OFPT_FLOW_MOD</span></tt> message to modify a flow in the datapath.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>strict</em> (bool) &#8211; If True, all args, including the wildcards and
+priority, are strictly matched against the entry, and only an
+identical flow is modified. If False, a match will occur when a
+flow entry exactly matches or is more specific than the given
+match and priority.</li>
+<li><em>match</em> &#8211; A <a title="openfaucet.ofmatch.Match" class="reference external" href="match.html#openfaucet.ofmatch.Match"><tt class="xref docutils literal"><span class="pre">Match</span></tt></a> object
+describing the fields of the flow.</li>
+<li><em>cookie</em> (64-bit unsigned integer) &#8211; An opaque value issued by the
+controller. 0xffffffffffffffff is reserved and must not be
+used.</li>
+<li><em>idle_timeout</em> (16-bit unsigned integer) &#8211; The idle time in seconds before
+discarding.</li>
+<li><em>hard_timeout</em> (16-bit unsigned integer) &#8211; The maximum time before discarding in
+seconds.</li>
+<li><em>priority</em> (16-bit unsigned integer) &#8211; The priority level of the flow entry.</li>
+<li><em>buffer_id</em> (32-bit unsigned integer) &#8211; The buffer ID assigned by the datapath of a
+buffered packet to apply the flow to. If 0xffffffff, no buffered
+packet is to be applied the flow actions.</li>
+<li><em>send_flow_rem</em> (bool) &#8211; If True, send a <tt class="docutils literal"><span class="pre">OFPT_FLOW_REMOVED</span></tt>
+message when the flow expires or is deleted.</li>
+<li><em>check_overlap</em> (bool) &#8211; If True, check for overlapping entries
+first, i.e. if there are conflicting entries with the same
+priority, the flow is not added and the modification
+fails.</li>
+<li><em>emerg</em> (bool) &#8211; if True, the switch must consider this flow entry as
+an emergency entry, and only use it for forwarding when
+disconnected from the controller.</li>
+<li><em>actions</em> &#8211; The sequence of action objects (see
+<tt class="xref docutils literal"><span class="pre">ofaction</span></tt>) specifying the actions to perform
+on the flow&#8217;s packets.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.send_flow_mod_delete">
+<tt class="descname">send_flow_mod_delete</tt><big>(</big><em>strict</em>, <em>match</em>, <em>priority</em>, <em>out_port</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.send_flow_mod_delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a <tt class="docutils literal"><span class="pre">OFPT_FLOW_MOD</span></tt> message to delete a flow from the datapath.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>strict</em> (bool) &#8211; If True, all args, including the wildcards and
+priority, are strictly matched against the entry, and only an
+identical flow is deleted. If False, a match will occur when a
+flow entry exactly matches or is more specific than the given
+match and priority.</li>
+<li><em>match</em> &#8211; A <a title="openfaucet.ofmatch.Match" class="reference external" href="match.html#openfaucet.ofmatch.Match"><tt class="xref docutils literal"><span class="pre">Match</span></tt></a> object
+describing the fields of the flow.</li>
+<li><em>priority</em> (16-bit unsigned integer) &#8211; The priority level of the flow entry.</li>
+<li><em>out_port</em> (integer) &#8211; An output port that is required to be included in
+matching flows&#8217; output actions. If
+<tt class="xref docutils literal"><span class="pre">OFPP_NONE</span></tt>, no restriction applies
+in matching.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.barrier">
+<tt class="descname">barrier</tt><big>(</big><em>callback</em><span class="optional">[</span>, <em>timeout_callback</em>, <em>timeout</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.barrier" title="Permalink to this definition">¶</a></dt>
+<dd><p>Request a synchronization barrier.</p>
+<p>This operation is asynchronous. The <tt class="docutils literal"><span class="pre">callback</span></tt>,
+<tt class="docutils literal"><span class="pre">timeout_callback</span></tt>, and <tt class="docutils literal"><span class="pre">timeout</span></tt> are similar as in
+<a title="openfaucet.ofcontroller.IOpenflowControllerStub.get_features" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_features"><tt class="xref docutils literal"><span class="pre">get_features()</span></tt></a>, and <tt class="docutils literal"><span class="pre">callback</span></tt> is called as:</p>
+<dl class="function">
+<dt>
+<tt class="descname">callback</tt><big>(</big><big>)</big></dt>
+<dd></dd></dl>
+
+<p>The callback is called when the barrier has been reached, i.e. any
+message sent before the barrier has been completely processed by
+the datapath.</p>
+</dd></dl>
+
+<p class="rubric">Statistics</p>
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_desc">
+<tt class="descname">get_stats_desc</tt><big>(</big><em>callback</em><span class="optional">[</span>, <em>timeout_callback</em>, <em>timeout</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_desc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Request the switch stats.</p>
+<p>This operation is asynchronous. The <tt class="docutils literal"><span class="pre">callback</span></tt>,
+<tt class="docutils literal"><span class="pre">timeout_callback</span></tt>, and <tt class="docutils literal"><span class="pre">timeout</span></tt> are similar as in
+<a title="openfaucet.ofcontroller.IOpenflowControllerStub.get_features" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_features"><tt class="xref docutils literal"><span class="pre">get_features()</span></tt></a>, and <tt class="docutils literal"><span class="pre">callback</span></tt> is called as:</p>
+<dl class="function">
+<dt>
+<tt class="descname">callback</tt><big>(</big><em>desc_stats</em><big>)</big></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameter:</th><td class="field-body"><em>desc_stats</em> &#8211; A
+<tt class="xref docutils literal"><span class="pre">DescriptionStats</span></tt> that contains
+the switch description stats.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_flow">
+<tt class="descname">get_stats_flow</tt><big>(</big><em>match</em>, <em>table_id</em>, <em>out_port</em>, <em>callback</em><span class="optional">[</span>, <em>timeout_callback</em>, <em>timeout</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_flow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Request individual flow stats.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>match</em> &#8211; A <a title="openfaucet.ofmatch.Match" class="reference external" href="match.html#openfaucet.ofmatch.Match"><tt class="xref docutils literal"><span class="pre">Match</span></tt></a> object
+describing the fields of the flows to match.</li>
+<li><em>table_id</em> (8-bit unsigned integer) &#8211; The ID of the table to read. 0xff for all tables
+or 0xfe for emergency.</li>
+<li><em>out_port</em> (integer) &#8211; Require matching flows to include this as an
+output port. A value of <tt class="xref docutils literal"><span class="pre">OFPP_NONE</span></tt>
+indicates no restriction.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The callback is called with the individual stats of every flow
+matching the given criteria.</p>
+<p>This operation is asynchronous. The <tt class="docutils literal"><span class="pre">callback</span></tt>,
+<tt class="docutils literal"><span class="pre">timeout_callback</span></tt>, and <tt class="docutils literal"><span class="pre">timeout</span></tt> are similar as in
+<a title="openfaucet.ofcontroller.IOpenflowControllerStub.get_features" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_features"><tt class="xref docutils literal"><span class="pre">get_features()</span></tt></a>, and <tt class="docutils literal"><span class="pre">callback</span></tt> is called as:</p>
+<dl class="function">
+<dt>
+<tt class="descname">callback</tt><big>(</big><em>flow_stats</em>, <em>reply_more</em><big>)</big></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>flow_stats</em> &#8211; A tuple of
+<tt class="xref docutils literal"><span class="pre">FlowStats</span></tt> objects each containing
+the stats for an individual flow.</li>
+<li><em>reply_more</em> (bool) &#8211; If True, more callbacks will be made to the
+callable after this one to completely terminate this
+operation. If False, this is the last callback in this
+operation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<p>One or more calls to the <tt class="docutils literal"><span class="pre">callback</span></tt> may be made, to reply the
+stats for all matching flows: zero or more calls with
+<tt class="docutils literal"><span class="pre">reply_more</span></tt> set to True, followed by one call with
+<tt class="docutils literal"><span class="pre">reply_more</span></tt> set to False. The operation&#8217;s timeout applies to
+the whole sequence of calls. So zero or more calls may be made to
+<tt class="docutils literal"><span class="pre">callback</span></tt> with <tt class="docutils literal"><span class="pre">reply_more</span></tt> set to True, before the operation
+times out and <tt class="docutils literal"><span class="pre">timeout_callback</span></tt> is called back.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_aggregate">
+<tt class="descname">get_stats_aggregate</tt><big>(</big><em>match</em>, <em>table_id</em>, <em>out_port</em>, <em>callback</em><span class="optional">[</span>, <em>timeout_callback</em>, <em>timeout</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_aggregate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Request aggregate flow stats.</p>
+<p>The arguments are identical to those of <a title="openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_flow" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_flow"><tt class="xref docutils literal"><span class="pre">get_stats_flow()</span></tt></a>,
+except that the callback is called with the aggregate stats of all
+flows matching the given criteria.</p>
+<p>This operation is asynchronous. The <tt class="docutils literal"><span class="pre">callback</span></tt>,
+<tt class="docutils literal"><span class="pre">timeout_callback</span></tt>, and <tt class="docutils literal"><span class="pre">timeout</span></tt> are similar as in
+<a title="openfaucet.ofcontroller.IOpenflowControllerStub.get_features" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_features"><tt class="xref docutils literal"><span class="pre">get_features()</span></tt></a>, and <tt class="docutils literal"><span class="pre">callback</span></tt> is called as:</p>
+<dl class="function">
+<dt>
+<tt class="descname">callback</tt><big>(</big><em>packet_count</em>, <em>byte_count</em>, <em>flow_count</em><big>)</big></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>packet_count</em> (64-bit unsigned integer) &#8211; The number of packets in aggregated flows.</li>
+<li><em>byte_count</em> (64-bit unsigned integer) &#8211; The number of bytes in aggregated flows.</li>
+<li><em>flow_count</em> (32-bit unsigned integer) &#8211; The number of aggregated flows.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_table">
+<tt class="descname">get_stats_table</tt><big>(</big><em>callback</em><span class="optional">[</span>, <em>timeout_callback</em>, <em>timeout</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Request table stats.</p>
+<p>This operation is asynchronous. The <tt class="docutils literal"><span class="pre">callback</span></tt>,
+<tt class="docutils literal"><span class="pre">timeout_callback</span></tt>, and <tt class="docutils literal"><span class="pre">timeout</span></tt> are similar as in
+<a title="openfaucet.ofcontroller.IOpenflowControllerStub.get_features" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_features"><tt class="xref docutils literal"><span class="pre">get_features()</span></tt></a>, and <tt class="docutils literal"><span class="pre">callback</span></tt> is called as:</p>
+<dl class="function">
+<dt>
+<tt class="descname">callback</tt><big>(</big><em>table_stats</em>, <em>reply_more</em><big>)</big></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>table_stats</em> &#8211; A tuple of
+<tt class="xref docutils literal"><span class="pre">TableStats</span></tt> objects containing
+each the stats for an individual table.</li>
+<li><em>reply_more</em> (bool) &#8211; Indicates if this callback is not the last in
+this operation, cf. <a title="openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_flow" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_flow"><tt class="xref docutils literal"><span class="pre">get_stats_flow()</span></tt></a>.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_port">
+<tt class="descname">get_stats_port</tt><big>(</big><em>port_no</em>, <em>callback</em><span class="optional">[</span>, <em>timeout_callback</em>, <em>timeout</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_port" title="Permalink to this definition">¶</a></dt>
+<dd><p>Request port stats.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameter:</th><td class="field-body"><em>port_no</em> (16-bit unsigned integer) &#8211; The port&#8217;s unique number. If
+<tt class="xref docutils literal"><span class="pre">OFPP_NONE</span></tt>, stats for all ports are
+replied.</td>
+</tr>
+</tbody>
+</table>
+<p>This operation is asynchronous. The <tt class="docutils literal"><span class="pre">callback</span></tt>,
+<tt class="docutils literal"><span class="pre">timeout_callback</span></tt>, and <tt class="docutils literal"><span class="pre">timeout</span></tt> are similar as in
+<a title="openfaucet.ofcontroller.IOpenflowControllerStub.get_features" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_features"><tt class="xref docutils literal"><span class="pre">get_features()</span></tt></a>, and <tt class="docutils literal"><span class="pre">callback</span></tt> is called as:</p>
+<dl class="function">
+<dt>
+<tt class="descname">callback</tt><big>(</big><em>port_stats</em>, <em>reply_more</em><big>)</big></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>port_stats</em> &#8211; A tuple of
+<tt class="xref docutils literal"><span class="pre">PortStats</span></tt> objects containing
+each the stats for an individual port.</li>
+<li><em>reply_more</em> (bool) &#8211; Indicates if this callback is not the last in
+this operation, cf. <a title="openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_flow" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_flow"><tt class="xref docutils literal"><span class="pre">get_stats_flow()</span></tt></a>.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_queue">
+<tt class="descname">get_stats_queue</tt><big>(</big><em>port_no</em>, <em>queue_id</em>, <em>callback</em><span class="optional">[</span>, <em>timeout_callback</em>, <em>timeout</em><span class="optional">]</span><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_queue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Request queue stats.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>port_no</em> (16-bit unsigned integer) &#8211; The port&#8217;s unique number. If
+<tt class="xref docutils literal"><span class="pre">OFPP_ALL</span></tt>, stats for all ports are
+replied.</li>
+<li><em>queue_id</em> (32-bit unsigned integer) &#8211; The queue&#8217;s ID. If
+<tt class="xref docutils literal"><span class="pre">OFPQ_ALL</span></tt>, stats for all queues are
+replied.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>This operation is asynchronous. The <tt class="docutils literal"><span class="pre">callback</span></tt>,
+<tt class="docutils literal"><span class="pre">timeout_callback</span></tt>, and <tt class="docutils literal"><span class="pre">timeout</span></tt> are similar as in
+<a title="openfaucet.ofcontroller.IOpenflowControllerStub.get_features" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_features"><tt class="xref docutils literal"><span class="pre">get_features()</span></tt></a>, and <tt class="docutils literal"><span class="pre">callback</span></tt> is called as:</p>
+<dl class="function">
+<dt>
+<tt class="descname">callback</tt><big>(</big><em>queue_stats</em>, <em>reply_more</em><big>)</big></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>queue_stats</em> &#8211; A tuple of
+<tt class="xref docutils literal"><span class="pre">QueueStats</span></tt> objects containing
+each the stats for an individual queue.</li>
+<li><em>reply_more</em> (bool) &#8211; Indicates if this callback is not the last in
+this operation, cf. <a title="openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_flow" class="reference internal" href="#openfaucet.ofcontroller.IOpenflowControllerStub.get_stats_flow"><tt class="xref docutils literal"><span class="pre">get_stats_flow()</span></tt></a>.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="openfaucet.ofcontroller.IOpenflowControllerStub.raise_error_with_request">
+<tt class="descname">raise_error_with_request</tt><big>(</big><em>error_type</em>, <em>error_code</em><big>)</big><a class="headerlink" href="#openfaucet.ofcontroller.IOpenflowControllerStub.raise_error_with_request" title="Permalink to this definition">¶</a></dt>
+<dd><p>Raise an <tt class="xref docutils literal"><span class="pre">OpenflowError</span></tt> with the
+failed request.</p>
+<p>The raised exception&#8217;s data contains at least 64 bytes of the
+currently handled message. This method must be called from a
+message handling callback.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><em>error_type</em> &#8211; The error type, as one of the <tt class="docutils literal"><span class="pre">OFPET_*</span></tt>
+constants.</li>
+<li><em>error_code</em> &#8211; The error code, as one of the <tt class="docutils literal"><span class="pre">OFP*</span></tt> error code
+constants.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
 </div>
 </div>
 
@@ -305,33 +998,35 @@ defining the physical port, including its new status.</li>
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
-  <h3><a href="index.html">Table Of Contents</a></h3>
-  <ul>
-<li><a class="reference internal" href="#">OpenFlow controller developer&#8217;s guide</a><ul>
-<li><a class="reference internal" href="#controller-instantiation">Controller instantiation</a></li>
-<li><a class="reference internal" href="#asynchronous-message-callbacks">Asynchronous message callbacks</a></li>
-<li><a class="reference internal" href="#asynchronous-requests">Asynchronous requests</a></li>
-<li><a class="reference internal" href="#asynchronous-messages">Asynchronous messages</a></li>
+            <h3><a href="index.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="#">OpenFlow controller developer&#8217;s guide</a><ul>
+<li><a class="reference external" href="#controller-instantiation">Controller instantiation</a></li>
+<li><a class="reference external" href="#asynchronous-message-callbacks">Asynchronous message callbacks</a></li>
+<li><a class="reference external" href="#sending-messages-to-datapaths">Sending messages to datapaths</a></li>
 </ul>
 </li>
 </ul>
 
-  <h4>Previous topic</h4>
-  <p class="topless"><a href="index.html"
-                        title="previous chapter">Welcome to OpenFaucet&#8217;s documentation</a></p>
-<div id="searchbox" style="display: none">
-  <h3>Quick search</h3>
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" size="18" />
-      <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
-    </form>
-    <p class="searchtip" style="font-size: 90%">
-    Enter search terms or a module, class or function name.
-    </p>
-</div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="install.html"
+                                  title="previous chapter">Installing OpenFaucet</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="match.html"
+                                  title="next chapter">OpenFlow flow matching</a></p>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
@@ -343,14 +1038,17 @@ defining the physical port, including its new status.</li>
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="index.html" title="Welcome to OpenFaucet’s documentation"
+          <a href="match.html" title="OpenFlow flow matching"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="install.html" title="Installing OpenFaucet"
              >previous</a> |</li>
         <li><a href="index.html">OpenFaucet v0.1~pre1 documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">
-        &copy; Copyright 2011, Midokura KK.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+      &copy; Copyright 2011, Midokura KK.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.6.
     </div>
   </body>
 </html>
