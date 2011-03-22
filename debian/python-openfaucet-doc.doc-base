@@ -1,0 +1,11 @@
+Document: openfaucet
+Title: OpenFaucet documentation
+Author: Romain Lenglet
+Abstract: OpenFaucet is an implementation of the OpenFlow protocol in Python.
+ This documentation describes how to use OpenFaucet to develop OpenFlow
+ controllers.
+Section: Programming/Python
+
+Format: HTML
+Index: /usr/share/doc/python-openfaucet-doc/html/index.html
+Files: /usr/share/doc/python-openfaucet-doc/html/*.html
