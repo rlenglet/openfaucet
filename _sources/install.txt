@@ -45,14 +45,14 @@ Installing OpenFaucet
   2. Download a release archive
 
     Download the archive of the current release at
-    http://midokura.github.com/openfaucet/releases/openfaucet-0.1~pre1.tar.gz
+    http://midokura.github.com/openfaucet/releases/openfaucet-1.0.tar.gz
     (or `another release
     <http://midokura.github.com/openfaucet/releases/>`_) and
     uncompress it::
 
-      gzip -d openfaucet-0.1~pre1.tar.gz
-      tar x -f openfaucet-0.1~pre1.tar
-      cd openfaucet-0.1~pre1/
+      gzip -d openfaucet-1.0.tar.gz
+      tar x -f openfaucet-1.0.tar
+      cd openfaucet-1.0/
 
 2. Install dependencies
 
@@ -128,20 +128,20 @@ Installing OpenFaucet
     Install OpenFaucet into a subdirectory of ``/usr/local/stow/``::
 
       make all
-      make install prefix=/usr/local/stow/openfaucet-0.1~pre1
+      make install prefix=/usr/local/stow/openfaucet-1.0
 
     Optionally, install the HTML documentation::
 
-      make install-html prefix=/usr/local/stow/openfaucet-0.1~pre1
+      make install-html prefix=/usr/local/stow/openfaucet-1.0
 
-    Install the ``openfaucet-0.1~pre1`` package using ``stow``::
+    Install the ``openfaucet-1.0`` package using ``stow``::
 
-      stow -d /usr/local/stow openfaucet-0.1~pre1
+      stow -d /usr/local/stow openfaucet-1.0
 
-    To uninstall the ``openfaucet-0.1~pre1`` package, pass the ``-D``
+    To uninstall the ``openfaucet-1.0`` package, pass the ``-D``
     option to ``stow``::
 
-      stow -D -d /usr/local/stow openfaucet-0.1~pre1
+      stow -D -d /usr/local/stow openfaucet-1.0
 
   Or
 
@@ -162,5 +162,5 @@ Installing OpenFaucet
 
     Install the built packages::
 
-      dpkg -i ../python-openfaucet_0.1~pre1_all.deb \
-              ../python-openfaucet-doc_0.1~pre1_all.deb
+      dpkg -i ../python-openfaucet_1.0_all.deb \
+              ../python-openfaucet-doc_1.0_all.deb
