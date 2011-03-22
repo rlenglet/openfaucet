@@ -44,9 +44,11 @@ Installing OpenFaucet
 
   2. Download a release archive
 
-    Download the current release archive at
+    Download the archive of the current release at
     http://midokura.github.com/openfaucet/releases/openfaucet-0.1~pre1.tar.gz
-    and then uncompress it::
+    (or `another release
+    <http://midokura.github.com/openfaucet/releases/>`_) and
+    uncompress it::
 
       gzip -d openfaucet-0.1~pre1.tar.gz
       tar x -f openfaucet-0.1~pre1.tar
