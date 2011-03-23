@@ -1,3 +1,74 @@
+2011-03-22  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* configure.ac, NEWS: Set the version to 1.1~pre1, and prepare
+	NEWS for future changes.
+
+	* configure.ac: Set the version to 1.0.
+
+	* NEWS: Add empty NEWS file.
+
+	* docs/install.rst.in: Add a link to the releases index page.
+
+	* docs/install.rst.in, index.rst, configure.ac, docs/Makefile.am:
+	Add documentation for installing and building OpenFaucet.
+
+	* docs/index.rst: Shorten titles in table of contents.
+
+	* docs/match.rst, docs/index.rst, docs/Makefile.am: Add
+	documentation for OpenFlow flow matches.
+
+2011-03-21  Romain Lenglet  <romain.lenglet@berabera.info>
+
+
+	* docs/index.rst, docs/Makefile.am, docs/error.rst: Add
+	documentation for OpenFlow errors.
+
+	* src/openfaucet/ofproto.py, src/openfaucet/ofcontroller.py,
+	docs/controller.rst: Add method raise_error_with_request into
+	IOpenflowControllerStub. Add documentation for it.
+
+	* src/test_all.py.in, src/openfaucet/*.py: Follow PEP8 style:
+	reindent all Python sources with 4 spaces, put spaces around all
+	operators, etc. Move module documentation from comments into
+	docstrings.
+
+2011-03-17  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/test_ofprotoops.py,
+	src/openfaucet/test_ofcontroller.py: Use LoopbackTransports to
+	exchange messages with a peer mock protocol, to simplify
+	unittests.
+
+	* src/openfaucet/mock_ofproto.py: Define class LoopbackTransport.
+
+	* src/test_all.py.in: Fix logging setup.
+
+	* src/openfaucet/ofproto.py, src/openfaucet/ofprotoops.py,
+	src/openfaucet/ofcontroller.py: Add INFO-level logging. Log the
+	configuration at INFO level.
+
+	* src/openfaucet/buffer.py, src/openfaucet/test_buffer.py,
+	src/openfaucet/test_ofconfig.py: Raise IndexErrors instead of
+	AssertionErrors in ReceiveBuffer's methods.
+
+	* src/openfaucet/ofproto.py, src/openfaucet/midokura.py,
+	src/openfaucet/mock_vendor.py: Define the IOpenflowVendorHandler
+	and IOpenflowVendorHandlerStub interfaces.  Rename "buffer" args
+	into "buf" to prevent shadowing Python's "buffer" keyword.
+
+2011-03-16  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/ofproto.py: Dispatch on message type using a dict
+	instead of a series of ifs.
+
+2011-03-14  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* configure.ac: Replace the bug report email address by
+	openfaucet-bug@googlegroups.com.
+
+	* AUTHORS: Fix the formatting of contributors list to follow the
+	same conventions as GNU projects' AUTHORS files.
+
 2011-03-08  Jacob Mandelson  <jacob@mandelson.org>
 
 	* src/openfaucet/midokura.py,

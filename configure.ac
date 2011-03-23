@@ -13,7 +13,7 @@
 # limitations under the License.
 
 AC_PREREQ(2.64)
-AC_INIT(OpenFaucet, 0.1~pre1, romain.lenglet@berabera.info, openfaucet)
+AC_INIT(OpenFaucet, 1.1~pre1, openfaucet-bug@googlegroups.com, openfaucet)
 AC_COPYRIGHT([Copyright 2011 Midokura KK])
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
@@ -47,6 +47,7 @@ AS_IF([test "x$ac_cv_path_PDFLATEX" = xnotfound],
 AC_CONFIG_FILES([Makefile
 docs/Makefile
 docs/conf.py
+docs/install.rst
 src/Makefile])
 
 AC_OUTPUT

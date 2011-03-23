@@ -16,8 +16,7 @@ Welcome to OpenFaucet's documentation!
 ======================================
 
 OpenFaucet is a pure Python implementation of the OpenFlow 1.0.0
-protocol. OpenFlow is used to implement Layer-2 and -3 switching
-controllers.
+protocol. OpenFlow is used to implement Layer-2 and -3 soft switches.
 
 
 Contents:
@@ -25,9 +24,12 @@ Contents:
 .. toctree::
   :maxdepth: 2
 
-  controller
-  config
-  action
+  install
+  Controller developer's guide <controller>
+  Flow matching <match>
+  Switch configuration <config>
+  Flow actions <action>
+  Errors <error>
 
 
 Indices and tables

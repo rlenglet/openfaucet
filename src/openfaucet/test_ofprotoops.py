@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Unittests for ofprotoops.py.
+"""Unittests for ofprotoops.py.
+"""
 
-import re
 import struct
 import unittest2
 import weakref
@@ -25,268 +25,277 @@ import twisted.python.failure
 from openfaucet import ofproto
 from openfaucet import ofprotoops
 
+from openfaucet import mock_ofproto
 from openfaucet import mock_twisted
 from openfaucet import mock_vendor
-# TODO(romain): Move mock types in test_ofproto into their own module.
-from openfaucet import test_ofproto
 
 
 class TestOpenflowProtocolOperations(unittest2.TestCase):
 
-  def setUp(self):
-    self.transport = mock_twisted.MockTransport()
-    self.reactor = mock_twisted.MockReactorTime()
-    self.vendor_handler = mock_vendor.MockVendorHandler()
-    self.default_op_timeout = 3
-    self.echo_op_period = 5
+    def setUp(self):
+        self.reactor = mock_twisted.MockReactorTime()
+        self.default_op_timeout = 3
+        self.echo_op_period = 5
 
-    self.proto = ofprotoops.OpenflowProtocolOperations()
-    self.proto.vendor_handlers = (self.vendor_handler,)
-    self.proto.reactor = self.reactor
-    self.proto.default_op_timeout = self.default_op_timeout
-    self.proto.echo_op_period = self.echo_op_period
-    self.proto.transport = self.transport
+        self.peerproto = mock_ofproto.MockOpenflowProtocolHandler()
+        self.peer_vendor_handler = mock_vendor.MockVendorHandler()
+        self.peerproto.vendor_handlers = (self.peer_vendor_handler,)
+        self.peer_vendor_handler.protocol = weakref.ref(self.peerproto)
 
-    self.vendor_handler.protocol = weakref.ref(self.proto)
+        self.proto = ofprotoops.OpenflowProtocolOperations()
+        self.vendor_handler = mock_vendor.MockVendorHandler()
+        self.proto.vendor_handlers = (self.vendor_handler,)
+        self.vendor_handler.protocol = weakref.ref(self.proto)
+        self.proto.reactor = self.reactor
+        self.proto.default_op_timeout = self.default_op_timeout
+        self.proto.echo_op_period = self.echo_op_period
 
-  def _get_next_sent_message(self):
-    """Get the undecoded next message sent by the protocol.
+        host_address = twisted.internet.address.IPv4Address(
+            'TCP', '192.168.1.1', '14123')
+        peer_address = twisted.internet.address.IPv4Address(
+            'TCP', '192.168.1.2', '14567')
+        self.proto.transport = mock_ofproto.LoopbackTransport(
+            self.peerproto, host_address, peer_address)
+        self.peerproto.transport = mock_ofproto.LoopbackTransport(
+            self.proto, peer_address, host_address)
 
-    Returns:
-      A byte array containing a single message, or None if no message
-      was received.
-    """
-    buf = self.transport.buffer
-    if len(buf) == 0:
-      return None
-    self.assertGreaterEqual(len(buf), ofproto.OFP_HEADER_LENGTH)
-    buf.set_message_boundaries(ofproto.OFP_HEADER_LENGTH)
-    _, _, msg_length, _ = buf.unpack_inplace(ofproto.OFP_HEADER_FORMAT)
-    self.assertGreaterEqual(len(buf), msg_length)
-    buf.set_message_boundaries(msg_length)
-    return buf.read_bytes(msg_length)
+        self.peerproto.connectionMade()
 
-  def test_connection_made_send_hello_echo_request(self):
-    self.proto.connectionMade()
-    # Sent initial OFPT_HELLO with XID 0.
-    self.assertEqual('\x01\x00\x00\x08\x00\x00\x00\x00',
-                     self._get_next_sent_message())
-    # Sent initial OFPT_ECHO_REQUEST with XID 0.
-    self.assertRegexpMatches(
-        self._get_next_sent_message(),
-        re.compile(r'\x01\x02\x00\x0c\x00\x00\x00\x00'
-                   '....',  # 32-bit random data
-                   re.DOTALL))
+    def _get_next_sent_message(self):
+        """Get the decoded next message sent by the protocol.
 
-  def test_connection_lost_ops_timeout(self):
-    self.proto.connectionMade()
-    self._get_next_sent_message()  # Initial OFPT_HELLO.
-    self._get_next_sent_message()  # Initial OFPT_ECHO_REQUEST.
-    # Send 2 more echo requests.
-    self.proto._echo()
-    self.proto._echo()
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(0,),
-            kw={}),
-         mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(1,),
-            kw={}),
-         mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(2,),
-            kw={}),
-         ], self.reactor.delayed_calls)
-    
-    self.proto.connectionLost(twisted.python.failure.Failure(
-        twisted.internet.error.ConnectionLost()))
-    self.assertItemsEqual([], self.reactor.delayed_calls)
+        Returns:
+            A tuple describing a single message, or None if no message
+            was sent.
+        """
+        calls_made = self.peerproto.calls_made
+        if not calls_made:
+            return None
+        m = calls_made[0]
+        self.peerproto.calls_made = calls_made[1:]
+        return m
 
-  def test_echo_op_periodic(self):
-    self.proto.connectionMade()
-    self._get_next_sent_message()  # Initial OFPT_HELLO.
+    def test_connection_made_send_hello_echo_request(self):
+        self.proto.connectionMade()
+        # Sent initial OFPT_HELLO with XID 0.
+        self.assertTupleEqual(('handle_hello',),
+                              self._get_next_sent_message())
+        # Sent initial OFPT_ECHO_REQUEST with XID 0.
+        self.assertEqual('handle_echo_request',
+                         self._get_next_sent_message()[0])
 
-    # Initial OFPT_ECHO_REQUEST with XID 0.
-    next_msg = self._get_next_sent_message()
-    self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x00', next_msg[:8])
-    data = next_msg[8:]  # 32-big random data
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(0,),
-            kw={}),
-         ], self.reactor.delayed_calls)
+    def test_connection_lost_ops_timeout(self):
+        self.proto.connectionMade()
+        self._get_next_sent_message()  # Initial OFPT_HELLO.
+        self._get_next_sent_message()  # Initial OFPT_ECHO_REQUEST.
+        # Send 2 more echo requests.
+        self.proto._echo()
+        self.proto._echo()
+        self.assertItemsEqual(
+            [mock_twisted.MockDelayedCall(
+                reactor_time=self.reactor,
+                time=self.default_op_timeout,
+                already_cancelled=False,
+                already_called=False,
+                callable=self.proto._timeout_operation,
+                args=(0,),
+                kw={}),
+             mock_twisted.MockDelayedCall(
+                reactor_time=self.reactor,
+                time=self.default_op_timeout,
+                already_cancelled=False,
+                already_called=False,
+                callable=self.proto._timeout_operation,
+                args=(1,),
+                kw={}),
+             mock_twisted.MockDelayedCall(
+                reactor_time=self.reactor,
+                time=self.default_op_timeout,
+                already_cancelled=False,
+                already_called=False,
+                callable=self.proto._timeout_operation,
+                args=(2,),
+                kw={}),
+             ], self.reactor.delayed_calls)
 
-    # Receive the reply after 2s, before timeout.
-    self.reactor.increment_time(2)
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(0,),
-            kw={}),
-         ], self.reactor.delayed_calls)
-    self.proto.dataReceived('\x01\x03\x00\x0c\x00\x00\x00\x00' + data)
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.reactor.seconds() + self.echo_op_period,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._echo,
-            args=(),
-            kw={}),
-         ], self.reactor.delayed_calls)
+        self.proto.connectionLost(twisted.python.failure.Failure(
+            twisted.internet.error.ConnectionLost()))
+        self.assertItemsEqual([], self.reactor.delayed_calls)
 
-    # Next OFPT_ECHO_REQUEST with XID 1.
-    self.reactor.increment_time(self.echo_op_period)
-    next_msg = self._get_next_sent_message()
-    self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x01', next_msg[:8])
-    data = next_msg[8:]  # 32-big random data
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.reactor.seconds() + self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(1,),
-            kw={}),
-         ], self.reactor.delayed_calls)
+    def test_echo_op_periodic(self):
+        self.proto.connectionMade()
+        self._get_next_sent_message()  # Initial OFPT_HELLO.
 
-  def test_echo_op_timeout(self):
-    self.proto.connectionMade()
-    self._get_next_sent_message()  # Initial OFPT_HELLO.
+        # Initial OFPT_ECHO_REQUEST with XID 0.
+        next_msg = self._get_next_sent_message()
+        self.assertEqual('handle_echo_request', next_msg[0])
+        self.assertEqual(0, next_msg[1])
+        data = next_msg[2]  # 32-big random data
+        self.assertItemsEqual(
+            [mock_twisted.MockDelayedCall(
+                reactor_time=self.reactor,
+                time=self.default_op_timeout,
+                already_cancelled=False,
+                already_called=False,
+                callable=self.proto._timeout_operation,
+                args=(0,),
+                kw={}),
+             ], self.reactor.delayed_calls)
 
-    # Initial OFPT_ECHO_REQUEST with XID 0.
-    next_msg = self._get_next_sent_message()
-    self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x00', next_msg[:8])
-    data = next_msg[8:]  # 32-big random data
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(0,),
-            kw={}),
-         ], self.reactor.delayed_calls)
-    self.assertTrue(self.transport.open)  # Connection open.
+        # Receive the reply after 2s, before timeout.
+        self.reactor.increment_time(2)
+        self.assertItemsEqual(
+            [mock_twisted.MockDelayedCall(
+                reactor_time=self.reactor,
+                time=self.default_op_timeout,
+                already_cancelled=False,
+                already_called=False,
+                callable=self.proto._timeout_operation,
+                args=(0,),
+                kw={}),
+             ], self.reactor.delayed_calls)
+        self.peerproto.send_echo_reply(0, (data,))
+        self.assertItemsEqual(
+            [mock_twisted.MockDelayedCall(
+                reactor_time=self.reactor,
+                time=self.reactor.seconds() + self.echo_op_period,
+                already_cancelled=False,
+                already_called=False,
+                callable=self.proto._echo,
+                args=(),
+                kw={}),
+             ], self.reactor.delayed_calls)
 
-    # Let the echo operation time out.
-    self.reactor.increment_time(self.default_op_timeout)
-    self.assertFalse(self.transport.open)  # Connection closed.
+        # Next OFPT_ECHO_REQUEST with XID 1.
+        self.reactor.increment_time(self.echo_op_period)
+        next_msg = self._get_next_sent_message()
+        self.assertEqual('handle_echo_request', next_msg[0])
+        self.assertEqual(1, next_msg[1])
+        data = next_msg[2]  # 32-big random data
+        self.assertItemsEqual(
+            [mock_twisted.MockDelayedCall(
+                reactor_time=self.reactor,
+                time=self.reactor.seconds() + self.default_op_timeout,
+                already_cancelled=False,
+                already_called=False,
+                callable=self.proto._timeout_operation,
+                args=(1,),
+                kw={}),
+             ], self.reactor.delayed_calls)
 
-  def test_echo_op_wrong_data(self):
-    self.proto.connectionMade()
-    self._get_next_sent_message()  # Initial OFPT_HELLO.
+    def test_echo_op_timeout(self):
+        self.proto.connectionMade()
+        self._get_next_sent_message()  # Initial OFPT_HELLO.
 
-    # Initial OFPT_ECHO_REQUEST with XID 0.
-    next_msg = self._get_next_sent_message()
-    self.assertEqual('\x01\x02\x00\x0c\x00\x00\x00\x00', next_msg[:8])
-    data = next_msg[8:]  # 32-big random data
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(0,),
-            kw={}),
-         ], self.reactor.delayed_calls)
+        # Initial OFPT_ECHO_REQUEST with XID 0.
+        next_msg = self._get_next_sent_message()
+        self.assertEqual('handle_echo_request', next_msg[0])
+        self.assertEqual(0, next_msg[1])
+        data = next_msg[2]  # 32-big random data
+        self.assertItemsEqual(
+            [mock_twisted.MockDelayedCall(
+                reactor_time=self.reactor,
+                time=self.default_op_timeout,
+                already_cancelled=False,
+                already_called=False,
+                callable=self.proto._timeout_operation,
+                args=(0,),
+                kw={}),
+             ], self.reactor.delayed_calls)
+        self.assertTrue(self.proto.transport.open)  # Connection open.
 
-    # Receive the reply with wrong data, after 2s, before timeout.
-    self.reactor.increment_time(2)
-    self.assertItemsEqual(
-        [mock_twisted.MockDelayedCall(
-            reactor_time=self.reactor,
-            time=self.default_op_timeout,
-            already_cancelled=False,
-            already_called=False,
-            callable=self.proto._timeout_operation,
-            args=(0,),
-            kw={}),
-         ], self.reactor.delayed_calls)
-    self.proto.dataReceived('\x01\x03\x00\x13\x00\x00\x00\x00'
-                            'garbage' + data)
-    # No error message sent back, as this is not a standard error.
-    self.assertIsNone(self._get_next_sent_message())
+        # Let the echo operation time out.
+        self.reactor.increment_time(self.default_op_timeout)
+        self.assertFalse(self.proto.transport.open)  # Connection closed.
 
-  def test_handle_echo_request(self):
-    self.proto.connectionMade()
-    self._get_next_sent_message()  # Initial OFPT_HELLO.
-    self._get_next_sent_message()  # Initial OFPT_ECHO_REQUEST.
+    def test_echo_op_wrong_data(self):
+        self.proto.connectionMade()
+        self._get_next_sent_message()  # Initial OFPT_HELLO.
 
-    self.proto.dataReceived('\x01\x02\x00\x10\x00\x00\x00\x04abcdefgh')
+        # Initial OFPT_ECHO_REQUEST with XID 0.
+        next_msg = self._get_next_sent_message()
+        self.assertEqual('handle_echo_request', next_msg[0])
+        self.assertEqual(0, next_msg[1])
+        data = next_msg[2]  # 32-big random data
+        self.assertItemsEqual(
+            [mock_twisted.MockDelayedCall(
+                reactor_time=self.reactor,
+                time=self.default_op_timeout,
+                already_cancelled=False,
+                already_called=False,
+                callable=self.proto._timeout_operation,
+                args=(0,),
+                kw={}),
+             ], self.reactor.delayed_calls)
 
-    # Sent back an OFPT_ECHO_REPLY with same length 8+8, data, and XID 4.
-    self.assertEqual('\x01\x03\x00\x10\x00\x00\x00\x04abcdefgh',
-                     self._get_next_sent_message())
+        # Receive the reply with wrong data, after 2s, before timeout.
+        self.reactor.increment_time(2)
+        self.assertItemsEqual(
+            [mock_twisted.MockDelayedCall(
+                reactor_time=self.reactor,
+                time=self.default_op_timeout,
+                already_cancelled=False,
+                already_called=False,
+                callable=self.proto._timeout_operation,
+                args=(0,),
+                kw={}),
+             ], self.reactor.delayed_calls)
+        self.peerproto.send_echo_reply(0, ('garbage' + data,))
+        # No error message sent back, as this is not a standard error.
+        self.assertIsNone(self._get_next_sent_message())
+
+    def test_handle_echo_request(self):
+        self.proto.connectionMade()
+        self._get_next_sent_message()  # Initial OFPT_HELLO.
+        self._get_next_sent_message()  # Initial OFPT_ECHO_REQUEST.
+
+        self.peerproto.send_echo_request(4, ('abcdefgh',))
+
+        # Sent back an OFPT_ECHO_REPLY with same length, data, and XID 4.
+        self.assertEqual(('handle_echo_reply', 4, 'abcdefgh'),
+                         self._get_next_sent_message())
 
 
 class TestOpenflowProtocolOperationsFactory(unittest2.TestCase):
 
-  def setUp(self):
-    self.vendor_handler_classes = (mock_vendor.MockVendorHandler,)
-    self.reactor = mock_twisted.MockReactorTime()
-    self.factory = ofprotoops.OpenflowProtocolOperationsFactory(
-        protocol=ofprotoops.OpenflowProtocolOperations,
-        error_data_bytes=64, vendor_handlers=self.vendor_handler_classes,
-        reactor=self.reactor, default_op_timeout=4.0, echo_op_period=6.0)
+    def setUp(self):
+        self.vendor_handler_classes = (mock_vendor.MockVendorHandler,)
+        self.reactor = mock_twisted.MockReactorTime()
+        self.factory = ofprotoops.OpenflowProtocolOperationsFactory(
+            protocol=ofprotoops.OpenflowProtocolOperations,
+            error_data_bytes=64, vendor_handlers=self.vendor_handler_classes,
+            reactor=self.reactor, default_op_timeout=4.0, echo_op_period=6.0)
 
-    self.addr = twisted.internet.address.IPv4Address('TCP', '192.168.1.1',
-                                                     '14123')
+        self.addr = twisted.internet.address.IPv4Address('TCP', '192.168.1.1',
+                                                         '14123')
 
-  def test_build_protocol_reactor(self):
-    self.factory.doStart()
-    proto = self.factory.buildProtocol(self.addr)
-    self.assertEqual(self.reactor, proto.reactor)
-    self.factory.doStop()
+    def test_build_protocol_reactor(self):
+        self.factory.doStart()
+        proto = self.factory.buildProtocol(self.addr)
+        self.assertEqual(self.reactor, proto.reactor)
+        self.factory.doStop()
 
-  def test_build_protocol_default_op_timeout(self):
-    self.factory._default_op_timeout = 42.0
-    self.factory.doStart()
-    proto = self.factory.buildProtocol(self.addr)
-    self.assertEqual(42.0, proto.default_op_timeout)
-    self.factory.doStop()
+    def test_build_protocol_default_op_timeout(self):
+        self.factory._default_op_timeout = 42.0
+        self.factory.doStart()
+        proto = self.factory.buildProtocol(self.addr)
+        self.assertEqual(42.0, proto.default_op_timeout)
+        self.factory.doStop()
 
-  def test_build_protocol_echo_op_period(self):
-    self.factory._echo_op_period = 42.0
-    self.factory.doStart()
-    proto = self.factory.buildProtocol(self.addr)
-    self.assertEqual(42.0, proto.echo_op_period)
-    self.factory.doStop()
+    def test_build_protocol_echo_op_period(self):
+        self.factory._echo_op_period = 42.0
+        self.factory.doStart()
+        proto = self.factory.buildProtocol(self.addr)
+        self.assertEqual(42.0, proto.echo_op_period)
+        self.factory.doStop()
 
 
 if __name__ == '__main__':
-  # Disable logging during unittests.
-  import logging
-  logging.basicConfig(level=logging.CRITICAL)
-  #logging.basicConfig(level=logging.DEBUG,
-  #                    format='%(asctime)s %(levelname)s %(message)s',
-  #                    filename='unittest.log',
-  #                    filemode='w')
-  unittest2.main()
+    # Disable logging during unittests.
+    import logging
+    logging.basicConfig(level=logging.CRITICAL)
+    #logging.basicConfig(level=logging.DEBUG,
+    #                    format='%(asctime)s %(levelname)s %(message)s',
+    #                    filename='unittest.log',
+    #                    filemode='w')
+    unittest2.main()

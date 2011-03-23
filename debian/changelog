@@ -1,3 +1,15 @@
+openfaucet (1.1~pre1) unstable; urgency=low
+
+  * Minor fixes.
+
+ -- Romain Lenglet <romain.lenglet@berabera.info>  Tue, 22 Mar 2011 15:46:44 +0100
+
+openfaucet (1.0) unstable; urgency=low
+
+  * Update to released version 1.0.
+
+ -- Romain Lenglet <romain.lenglet@berabera.info>  Tue, 22 Mar 2011 15:08:35 +0100
+
 openfaucet (0.1~pre1) unstable; urgency=low
 
   * Initial Release.
