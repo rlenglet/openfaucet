@@ -235,7 +235,7 @@ class OpenflowProtocol(object):
           twisted.internet.error.ConnectionLost instance (or a
           subclass of one of those).
     """
-    self.logger.debug('connection lost with reason %r', reason,
+    self.logger.debug('connection lost with reason %r', repr(reason),
                       extra=self.log_extra)
     for v in self._vendor_handlers.itervalues():
       v.connection_lost(reason)
@@ -248,6 +248,7 @@ class OpenflowProtocol(object):
     Args:
       data: A string of indeterminate length containing the received bytes.
     """
+    logging.debug("Entering ofproto.dataReceived()")
     self._buffer.append(data)
 
     # Loop while we can at least decode a header.
@@ -263,6 +264,7 @@ class OpenflowProtocol(object):
         # message have been decoded in this loop, compact the buffer
         # to drop read bytes.
         self._buffer.compact()
+        logging.debug("Leaving ofproto.dataReceived() [compaction]")
         return
 
       self._buffer.set_message_boundaries(msg_length)
@@ -284,6 +286,7 @@ class OpenflowProtocol(object):
                           self._buffer.message_bytes_left,
                           extra=self.log_extra)
         self._buffer.skip_bytes(self._buffer.message_bytes_left)
+    logging.debug("Leaving ofproto.dataReceived()")
 
   def raise_error_with_request(self, error_type, error_code):
     raise oferror.OpenflowError(
@@ -348,7 +351,9 @@ class OpenflowProtocol(object):
     elif msg_type == OFPT_FEATURES_REQUEST:
         self._handle_features_request(msg_length, xid)
     elif msg_type == OFPT_FEATURES_REPLY:
+        logging.debug("Calling _handle_features_reply()")
         self._handle_features_reply(msg_length, xid)
+        logging.debug("Returned from _handle_features_reply()")
     elif msg_type == OFPT_GET_CONFIG_REQUEST:
         self._handle_get_config_request(msg_length, xid)
     elif msg_type == OFPT_GET_CONFIG_REPLY:
@@ -472,7 +477,9 @@ class OpenflowProtocol(object):
     switch_features = ofconfig.SwitchFeatures.deserialize(self._buffer)
     self._log_handle_msg('OFPT_FEATURES_REPLY',
                          switch_features=switch_features)
+    logging.debug("Calling handle_features_reply()")
     self.handle_features_reply(xid, switch_features)
+    logging.debug("Returned from handle_features_reply()")
 
   def _handle_get_config_request(self, msg_length, xid):
     if msg_length > OFP_HEADER_LENGTH:
