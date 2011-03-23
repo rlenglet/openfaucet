@@ -19,8 +19,6 @@ extensions. A vendor extension can be implemented as an object that
 implements the IOpenflowVendorHandler interface.
 """
 
-import pdb
-
 import collections
 import logging
 import struct
@@ -631,10 +629,7 @@ class OpenflowProtocol(object):
         switch_features = ofconfig.SwitchFeatures.deserialize(self._buffer)
         self._log_handle_msg('OFPT_FEATURES_REPLY',
                              switch_features=switch_features)
-        logging.debug("Calling handle_features_reply()")
-        pdb.set_trace()
         self.handle_features_reply(xid, switch_features)
-        logging.debug("Returned from handle_features_reply()")
 
     def _handle_get_config_request(self, msg_length, xid):
         if msg_length > OFP_HEADER_LENGTH:
