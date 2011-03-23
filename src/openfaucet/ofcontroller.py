@@ -899,19 +899,23 @@ class OpenflowControllerStub(ofprotoops.OpenflowProtocolOperations):
     def handle_features_reply(self, xid, switch_features):
         success_callable = self.terminate_operation(
             xid, cookie=ofproto.OFPT_FEATURES_REQUEST)
+        first_time = False
 
         # Update the local copy of the switch features, accessible in
         # property 'features'.
         with self._features_lock:
 
             if self._features is None:
-                # This is the first time we receive an
-                # OFPT_FEATURES_REPLY, which means that this
-                # terminates the handshake with the datapath. Callback
-                # the controller.
-                self.controller.connection_made()
+                first_time = True
 
             self._features = switch_features
+
+        # This is the first time we receive an
+        # OFPT_FEATURES_REPLY, which means that this
+        # terminates the handshake with the datapath. Callback
+        # the controller.
+        if first_time:
+            self.controller.connection_made()
 
         if success_callable is not None:
             success_callable(switch_features)
