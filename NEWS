@@ -2,6 +2,8 @@ OpenFaucet NEWS - User visible changes.
 
 * Noteworthy changes in release ?.? (????-??-??) [?]
 
+** Fixed deadlock when accessing property features in controller's
+   connection_made() callback.
 
 Copyright 2011 Midokura KK
 

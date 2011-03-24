@@ -414,7 +414,7 @@ class OpenflowProtocol(object):
                 twisted.internet.error.ConnectionLost instance (or a
                 subclass of one of those).
         """
-        self.logger.info('connection lost with reason %r', repr(reason),
+        self.logger.info('connection lost with reason %r', reason,
                          extra=self.log_extra)
         for v in self._vendor_handlers.itervalues():
             v.connection_lost(reason)

@@ -1,3 +1,8 @@
+2011-03-23  Jacob Mandelson  <jacob@mandelson.org>
+
+        * Move connection_made() callback outside of _features_lock
+        critical section.
+
 2011-03-22  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* configure.ac, NEWS: Set the version to 1.1~pre1, and prepare
