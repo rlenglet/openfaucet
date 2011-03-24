@@ -1,7 +1,13 @@
+2011-03-24  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/ofproto.py, src/openfaucet/test_ofproto.py, NEWS:
+	Fix the semantics of actions_len field in OFPT_PACKET_OUT
+	messages: it is a number of bytes, not a number of actions.
+
 2011-03-23  Jacob Mandelson  <jacob@mandelson.org>
 
-        * Move connection_made() callback outside of _features_lock
-        critical section.
+        * src/openfaucet/ofcontroller.py: Move connection_made() callback
+	outside of _features_lock critical section.
 
 2011-03-22  Romain Lenglet  <romain.lenglet@berabera.info>
 

@@ -440,11 +440,11 @@ class TestOpenflowProtocol(unittest2.TestCase):
             ())
         self.assertEqual(
             '\x01\x0d\x00\x28\x00\x00\x00\x00'
-            '\x01\x01\x01\x01\xab\xcd\x00\x02'
+            '\x01\x01\x01\x01\xab\xcd\x00\x18'
             '\x00\x00\x00\x08'
-            '\x12\x34\x9a\xbc'
+                '\x12\x34\x9a\xbc'
             '\x00\x05\x00\x10'
-            '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00',
+                '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00',
             self._get_next_sent_message())
 
     def test_send_packet_out_unbuffered_two_actions(self):
@@ -457,11 +457,11 @@ class TestOpenflowProtocol(unittest2.TestCase):
             ('helloworld',))
         self.assertEqual(
             '\x01\x0d\x00\x32\x00\x00\x00\x00'
-            '\xff\xff\xff\xff\xab\xcd\x00\x02'
+            '\xff\xff\xff\xff\xab\xcd\x00\x18'
             '\x00\x00\x00\x08'
-            '\x12\x34\x9a\xbc'
+                '\x12\x34\x9a\xbc'
             '\x00\x05\x00\x10'
-            '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00'
+                '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00'
             'helloworld',
             self._get_next_sent_message())
 
@@ -473,9 +473,9 @@ class TestOpenflowProtocol(unittest2.TestCase):
                 mock_vendor.MockVendorAction(dummy=0x15263748),),
             ('helloworld',))
         self.assertEqual('\x01\x0d\x00\x2a\x00\x00\x00\x00'
-                         '\xff\xff\xff\xff\xab\xcd\x00\x01'
+                         '\xff\xff\xff\xff\xab\xcd\x00\x10'
                          '\xff\xff\x00\x10' '\x00\x00\x42\x42'
-                         '\x16\x64\x00\x00' '\x15\x26\x37\x48'
+                             '\x16\x64\x00\x00' '\x15\x26\x37\x48'
                          'helloworld',
                          self._get_next_sent_message())
 
@@ -517,11 +517,11 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
         self.proto.dataReceived(
             '\x01\x0d\x00\x28\x00\x00\x00\x00'
-            '\x01\x01\x01\x01\xab\xcd\x00\x02'
+            '\x01\x01\x01\x01\xab\xcd\x00\x18'
             '\x00\x00\x00\x08'
-            '\x12\x34\x9a\xbc'
+                '\x12\x34\x9a\xbc'
             '\x00\x05\x00\x10'
-            '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00')
+                '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00')
         self.assertListEqual(
             [('handle_packet_out', 0x01010101, 0xabcd, (
                 ofaction.ActionOutput(port=0x1234, max_len=0x9abc),
@@ -533,11 +533,11 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
         self.proto.dataReceived(
             '\x01\x0d\x00\x32\x00\x00\x00\x00'
-            '\xff\xff\xff\xff\xab\xcd\x00\x02'
+            '\xff\xff\xff\xff\xab\xcd\x00\x18'
             '\x00\x00\x00\x08'
-            '\x12\x34\x9a\xbc'
+                '\x12\x34\x9a\xbc'
             '\x00\x05\x00\x10'
-            '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00'
+                '\x12\x34\x56\x78\xab\xcd\x00\x00\x00\x00\x00\x00'
             'helloworld')
         self.assertListEqual(
             [('handle_packet_out', 0xffffffff, 0xabcd, (
@@ -550,9 +550,9 @@ class TestOpenflowProtocol(unittest2.TestCase):
 
         self.proto.dataReceived(
             '\x01\x0d\x00\x2a\x00\x00\x00\x00'
-            '\xff\xff\xff\xff\xab\xcd\x00\x01'
+            '\xff\xff\xff\xff\xab\xcd\x00\x10'
             '\xff\xff\x00\x10' '\x00\x00\x42\x42'
-            '\x16\x64\x00\x00' '\x15\x26\x37\x48'
+                '\x16\x64\x00\x00' '\x15\x26\x37\x48'
             'helloworld')
         self.assertListEqual(
           [('handle_packet_out', 0xffffffff, 0xabcd,

@@ -2,8 +2,12 @@ OpenFaucet NEWS - User visible changes.
 
 * Noteworthy changes in release ?.? (????-??-??) [?]
 
-** Fixed deadlock when accessing property features in controller's
-   connection_made() callback.
+** Fixed the encoding and decoding of OFPT_PACKET_OUT messages with
+   one or more actions.
+
+** Removed the deadlock when accessing property features in a
+   controller's connection_made() callback.
+
 
 Copyright 2011 Midokura KK
 

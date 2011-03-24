@@ -732,16 +732,31 @@ class OpenflowProtocol(object):
                                           oferror.OFPBRC_BAD_LEN)
         buffer_id, in_port, actions_len = self._buffer.unpack('!LHH')
 
-        if msg_length < (16 + actions_len * 8):
-            self.logger.error('OFPT_PACKET_OUT message has too small actions '
+        if msg_length < (16 + actions_len):
+            self.logger.error('OFPT_PACKET_OUT message has too high actions '
                               'length %i for message length %i',
                               actions_len, msg_length, extra=self.log_extra)
             self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
                                           oferror.OFPBAC_BAD_LEN)
+        if actions_len % 8 != 0:
+            self.logger.error('OFPT_PACKET_OUT message has unaligned actions '
+                              'length %i', actions_len, extra=self.log_extra)
+            self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
+                                          oferror.OFPBAC_BAD_LEN)
 
-        actions = tuple(self.deserialize_action(self._buffer)
-                        for i in xrange(actions_len))
-        data = self._buffer.read_bytes(self._buffer.message_bytes_left)
+        data_len = msg_length - 16 - actions_len
+
+        actions = []
+        while self._buffer.message_bytes_left > data_len:
+            actions.append(self.deserialize_action(self._buffer))
+        if self._buffer.message_bytes_left != data_len:
+            self.logger.error('OFPT_PACKET_OUT message has invalid actions '
+                              'length %i', actions_len, extra=self.log_extra)
+            self.raise_error_with_request(oferror.OFPET_BAD_ACTION,
+                                          oferror.OFPBAC_BAD_LEN)
+        actions = tuple(actions)
+
+        data = self._buffer.read_bytes(data_len)
         self._log_handle_msg(
             'OFPT_PACKET_OUT', buffer_id=buffer_id, in_port=in_port,
             actions=actions, data=data)
@@ -2107,9 +2122,12 @@ class OpenflowProtocol(object):
             OFPP_CONTROLLER, OFPP_LOCAL, OFPP_NONE)):
             raise ValueError('invalid in_port', in_port)
 
-        all_data = [struct.pack('!LHH', buffer_id, in_port, len(actions))]
+        all_data = []
         for a in actions:
             all_data.extend(self.serialize_action(a))
+        actions_len = sum(len(d) for d in all_data)
+        all_data.insert(0, struct.pack('!LHH', buffer_id, in_port,
+                                       actions_len))
         all_data.extend(data)
         self._send_message(OFPT_PACKET_OUT, data=all_data)
 
