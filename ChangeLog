@@ -1,5 +1,9 @@
 2011-05-05  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* NEWS: Set the release version to 1.1 for the latest changes.
+
+	* configure.ac: Set the version to 1.1.
+
 	* README: Add links to the mailing-lists and online discussion
 	groups.
 
