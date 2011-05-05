@@ -1,3 +1,8 @@
+2011-05-05  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* *.html, *.js, _sources/*.txt, _static/*: Update to the doc
+	generated from commit 07a39af53198eeef60f47411ed39bee275d5413f.
+
 2011-02-14  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* *.html, *.js, _sources/*.txt, _static/*: Update to the doc

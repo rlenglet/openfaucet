@@ -30,7 +30,8 @@ Contents:
   Switch configuration <config>
   Flow actions <action>
   Errors <error>
-
+  Release notes and copyright <news>
+  Distribution license <copying>
 
 Indices and tables
 ~~~~~~~~~~~~~~~~~~

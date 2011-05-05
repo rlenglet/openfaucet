@@ -1,6 +1,6 @@
 # Sphinx inventory version 1
 # Project: OpenFaucet
-# Version: 1.0
+# Version: 1.1
 openfaucet.ofaction.openfaucet.ofproto.OFPP_ALL data action.html
 openfaucet.oferror.openfaucet.oferror.OFPBAC_EPERM data error.html
 openfaucet.oferror.openfaucet.oferror.OpenflowError.__init__ method error.html
