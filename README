@@ -1,2 +1,20 @@
 OpenFaucet is a pure Python implementation of the OpenFlow 1.0.0
-protocol, based on Twisted.
+protocol, based on Twisted.  OpenFaucet can be used to implement both
+switches and controllers in Python, and can be easily extended to
+implement OpenFlow vendor extensions.
+
+Feedback, bug reports, and patches are highly appreciated!
+
+Join the project's mailing-lists and online forums:
+
+  OpenFaucet Discussions
+
+    openfaucet-discuss@googlegroups.com
+    http://groups.google.com/group/openfaucet-discuss
+    General discussions and announcements about OpenFaucet.
+
+  OpenFaucet Bugs
+
+    openfaucet-bug@googlegroups.com
+    http://groups.google.com/group/openfaucet-bug
+    Bug reports, patches, and technical discussions.

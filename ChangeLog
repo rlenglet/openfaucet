@@ -1,5 +1,8 @@
 2011-05-05  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* README: Add links to the mailing-lists and online discussion
+	groups.
+
 	* docs/Makefile.am, docs/index.rst: Add documentation sections
 	containing the NEWS and COPYING files.
 
