@@ -1,3 +1,8 @@
+2011-05-05  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* docs/Makefile.am, docs/index.rst: Add documentation sections
+	containing the NEWS and COPYING files.
+
 2011-03-24  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/openfaucet/ofproto.py, src/openfaucet/test_ofproto.py, NEWS:

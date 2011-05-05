@@ -25,7 +25,9 @@ dist_noinst_DATA = \
 EXTRA_DIST = install.rst.in
 
 SPHINXDATA = $(dist_noinst_DATA) \
-	install.rst
+	install.rst \
+	news.rst \
+	copying.rst
 
 SPHINXOPTS     = -q -N
 PAPEROPT       = -D latex_paper_size=a4
@@ -41,6 +43,8 @@ HTMLDATA = \
 	html/config.html \
 	html/action.html \
 	html/error.html \
+	html/news.html \
+	html/copying.html \
 	html/genindex.html \
 	html/search.html \
 	html/searchindex.js \
@@ -51,6 +55,8 @@ HTMLDATA = \
 	html/_sources/config.txt \
 	html/_sources/action.txt \
 	html/_sources/error.txt \
+	html/_sources/news.txt \
+	html/_sources/copying.txt \
 	html/_static/pygments.css \
 	html/_static/searchtools.js \
 	html/_static/file.png \
@@ -69,10 +75,26 @@ CLEANFILES = \
 	match.doctree \
 	config.doctree \
 	action.doctree \
-	error.doctree
+	error.doctree \
+	news.doctree \
+	copying.doctree \
+	news.rst \
+	copying.rst
 
 clean-local:
 	-rm -rf $(builddir)/html
+
+news.rst: ../NEWS
+	echo "Release notes and copyright" > $@
+	echo "===========================" >> $@
+	echo "" >> $@
+	sed -e 's/^/| /' $< >> $@
+
+copying.rst: ../COPYING
+	echo "Distribution license" > $@
+	echo "====================" >> $@
+	echo "" >> $@
+	sed -e 's/^/| /' $< >> $@
 
 # TODO(romain): Support the "dirhtml" and "singlehtml" builders in
 # addition to "html".
