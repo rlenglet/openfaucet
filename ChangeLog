@@ -1,5 +1,8 @@
 2011-05-05  Romain Lenglet  <romain.lenglet@berabera.info>
 
+	* configure.ac, NEWS: Set the version to 1.2~pre1, and prepare
+	NEWS for future changes.
+
 	* NEWS: Set the release version to 1.1 for the latest changes.
 
 	* configure.ac: Set the version to 1.1.
