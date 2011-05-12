@@ -1,12 +1,13 @@
-openfaucet (1.1-1~pre1) unstable; urgency=low
+openfaucet (1.1-1) unstable; urgency=low
 
   * Make the package non-native.  Change the source format to "3.0 (quilt)".
   * Update Standards-Versions to 3.9.2.0.  Add DM-Upload-Allowed: yes.
   * Add python-twisted-core into Build-Depends.
   * Remove python-zope.interface from Depends since
     python-twisted-core already depends on it.
+  * Initial upload (closes: #626510).
 
- -- Romain Lenglet <romain.lenglet@berabera.info>  Thu, 12 May 2011 21:53:22 +0900
+ -- Romain Lenglet <romain.lenglet@berabera.info>  Thu, 12 May 2011 23:05:04 +0900
 
 openfaucet (1.1) unstable; urgency=low
 
