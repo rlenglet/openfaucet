@@ -2,9 +2,10 @@ Source: openfaucet
 Section: python
 Priority: extra
 Maintainer: Romain Lenglet <romain.lenglet@berabera.info>
+DM-Upload-Allowed: yes
 Build-Depends: debhelper (>= 7.0.50~), autotools-dev, python,
  python-sphinx, python-support, python-unittest2
-Standards-Version: 3.9.1.0
+Standards-Version: 3.9.2.0
 Homepage: http://midokura.github.com/openfaucet/index.html
 Vcs-Git: https://github.com/midokura/openfaucet.git
 Vcs-Browser: https://github.com/midokura/openfaucet
