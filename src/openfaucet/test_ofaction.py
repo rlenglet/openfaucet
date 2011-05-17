@@ -185,7 +185,7 @@ class TestActions(unittest2.TestCase):
 
     def test_deserialize_action_enqueue(self):
         self.buf.append('\x12\x34\x00\x00\x00\x00\x00\x00\x13\x24\x35\x46')
-        self.buf.set_message_boundaries(8)
+        self.buf.set_message_boundaries(12)
         self.assertTupleEqual((0x1234, 0x13243546,),
                               ofaction.ActionEnqueue.deserialize(self.buf))
 
