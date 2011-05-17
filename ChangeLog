@@ -1,7 +1,7 @@
 2011-05-17  Romain Lenglet  <romain.lenglet@berabera.info>
 
-	* src/openfaucet/ofaction.py: Fix the format for OFPAT_ENQUEUE /
-	ActionEnqueue actions.
+	* src/openfaucet/ofaction.py, NEWS: Fix the format for
+	OFPAT_ENQUEUE / ActionEnqueue actions.
 
 2011-05-17  Romain Lenglet  <romain.lenglet@berabera.info>
 

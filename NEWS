@@ -2,6 +2,8 @@ OpenFaucet NEWS - User visible changes.
 
 * Noteworthy changes in release ?.? (????-??-??) [?]
 
+** Fixed the encoding and decoding of OFPAT_ENQUEUE actions.
+
 * Noteworthy changes in release 1.1 (2011-05-05) [stable]
 
 ** Fixed the encoding and decoding of OFPT_PACKET_OUT messages with
