@@ -60,10 +60,10 @@ class TestPortConfig(unittest2.TestCase):
     def test_serialize_every_flag(self):
         for i in xrange(0, 7):
             flag = 1 << i
-        args = [False] * 6
-        args.insert(i, True)
-        pc = ofconfig.PortConfig(*args)
-        self.assertEqual(flag, pc.serialize())
+            args = [False] * 6
+            args.insert(i, True)
+            pc = ofconfig.PortConfig(*args)
+            self.assertEqual(flag, pc.serialize())
 
     def test_serialize_deserialize(self):
         pc = ofconfig.PortConfig(port_down=False, no_stp=True, no_recv=False,

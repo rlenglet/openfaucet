@@ -157,7 +157,7 @@ class PortConfig(collections.namedtuple('PortConfig', (
 
         Args:
             v: A 32-bit unsigned integer that is a serialized form of
-                a PortFeatures object.
+                a PortConfig object.
 
         Returns:
             A new PortConfig object deserialized from the integer.

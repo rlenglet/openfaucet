@@ -1,3 +1,10 @@
+2011-05-24  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/ofconfig.py: Fix documentation of PortConfig
+	object deserialization.
+	* src/openfaucet/test_ofconfig.py: Fix unittest of PortConfig flag
+	serialization to test all flags.
+
 2011-05-17  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/openfaucet/ofaction.py, src/openfaucet/test_ofaction.py,
