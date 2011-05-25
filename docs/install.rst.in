@@ -147,8 +147,8 @@ Installing OpenFaucet
 
   4. Build and install as a Debian GNU/Linux package
 
-    Download the master branch from the git source repository, as
-    described in Step 1.1 above, and install `unittest2
+    Checkout the ``debian`` branch (not the ``master`` branch) from
+    the git source repository, and install `unittest2
     <http://pypi.python.org/pypi/unittest2>`_ and `Sphinx
     <http://sphinx.pocoo.org/>`_.
 
@@ -162,5 +162,5 @@ Installing OpenFaucet
 
     Install the built packages::
 
-      dpkg -i ../python-@PACKAGE@_@VERSION@_all.deb \
-              ../python-@PACKAGE@-doc_@VERSION@_all.deb
+      dpkg -i ../python-@PACKAGE@_@VERSION@*_all.deb \
+              ../python-@PACKAGE@-doc_@VERSION@*_all.deb

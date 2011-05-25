@@ -11,6 +11,23 @@
 	Move class PacketQueue and its unittests, common to OpenFlow 1.0.0
 	and 1.1.0, to new subpackage of_common.
 
+2011-05-24  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/ofconfig.py: Fix documentation of PortConfig
+	object deserialization.
+	* src/openfaucet/test_ofconfig.py: Fix unittest of PortConfig flag
+	serialization to test all flags.
+
+2011-05-17  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/ofaction.py, src/openfaucet/test_ofaction.py,
+	NEWS: Fix the format for OFPAT_ENQUEUE / ActionEnqueue actions.
+
+2011-05-17  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* docs/install.rst.in: Update the documentation to build the
+	Debian package.
+
 2011-05-05  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* configure.ac, NEWS: Set the version to 1.2~pre1, and prepare

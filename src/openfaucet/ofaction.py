@@ -258,7 +258,7 @@ ActionSetTpDst = __action('ActionSetTpDst', OFPAT_SET_TP_DST,
 
 
 ActionEnqueue = __action('ActionEnqueue', OFPAT_ENQUEUE,
-                         '!H2xL', ('port', 'queue_id'))
+                         '!H6xL', ('port', 'queue_id'))
 
 
 # Mapping of all OFPAT_* action types (except OFPAT_VENDOR) to Action* types.
