@@ -27,7 +27,9 @@ nobase_python_PYTHON = \
 	openfaucet/mock_ofcontroller.py \
 	openfaucet/mock_ofproto.py \
 	openfaucet/mock_twisted.py \
-	openfaucet/mock_vendor.py
+	openfaucet/mock_vendor.py \
+	openfaucet/of_common/ofconfig.py \
+	openfaucet/of_1_1_0/ofconfig.py
 
 # Distribute unittests but don't install them.
 UNITTESTS = \
@@ -40,7 +42,9 @@ UNITTESTS = \
 	openfaucet/test_ofproto.py \
 	openfaucet/test_ofprotoops.py \
 	openfaucet/test_ofstats.py \
-        openfaucet/test_midokura.py
+        openfaucet/test_midokura.py \
+	openfaucet/of_common/test_ofconfig.py \
+	openfaucet/of_1_1_0/test_ofconfig.py
 
 # Instead of running every unittest module by setting
 # TESTS = $(UNITTESTS), run them all as a single test suite.

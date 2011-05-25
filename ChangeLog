@@ -1,3 +1,16 @@
+2011-05-25  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/Makefile.am, src/openfaucet/of_1_1_0/__init__.py,
+	src/openfaucet/of_1_1_0/ofconfig.py,
+	src/openfaucet/of_1_1_0/test_ofconfig.py,
+	src/openfaucet/of_common/__init__.py,
+	src/openfaucet/of_common/ofconfig.py,
+	src/openfaucet/of_common/test_ofconfig.py,
+	src/openfaucet/ofconfig.py, src/openfaucet/test_ofconfig.py: Add
+	config structures for OpenFlow 1.1.0 in new subpackage of_1_1_0.
+	Move class PacketQueue and its unittests, common to OpenFlow 1.0.0
+	and 1.1.0, to new subpackage of_common.
+
 2011-05-05  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* configure.ac, NEWS: Set the version to 1.2~pre1, and prepare

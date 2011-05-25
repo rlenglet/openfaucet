@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Encoding/decoding of OpenFlow 1.0.0 switch and port configuration.
+"""Encoding/decoding of OpenFlow 1.1.0 switch and port configuration.
 """
 
 import collections
@@ -23,20 +23,14 @@ from openfaucet.of_common import ofconfig as common_ofconfig
 
 # Physical port config flags.
 OFPPC_PORT_DOWN = 1 << 0
-OFPPC_NO_STP = 1 << 1
 OFPPC_NO_RECV = 1 << 2
-OFPPC_NO_RECV_STP = 1 << 3
-OFPPC_NO_FLOOD = 1 << 4
 OFPPC_NO_FWD = 1 << 5
 OFPPC_NO_PACKET_IN = 1 << 6
 
-# Physical port state flags and constants.
+# Physical port state flags.
 OFPPS_LINK_DOWN = 1 << 0
-OFPPS_STP_LISTEN = 0 << 8  # Not learning or relaying frames.
-OFPPS_STP_LEARN = 1 << 8  # Learning but not relaying frames.
-OFPPS_STP_FORWARD = 2 << 8  # Learning and relaying frames.
-OFPPS_STP_BLOCK = 3 << 8  # Not part of spanning tree.
-OFPPS_STP_MASK = 3 << 8
+OFPPS_BLOCKED = 1 << 1
+OFPPS_LIVE = 1 << 2
 
 # Physical port features flags.
 OFPPF_10MB_HD = 1 << 0
@@ -46,18 +40,21 @@ OFPPF_100MB_FD = 1 << 3
 OFPPF_1GB_HD = 1 << 4
 OFPPF_1GB_FD = 1 << 5
 OFPPF_10GB_FD = 1 << 6
-OFPPF_COPPER = 1 << 7
-OFPPF_FIBER = 1 << 8
-OFPPF_AUTONEG = 1 << 9
-OFPPF_PAUSE = 1 << 10
-OFPPF_PAUSE_ASYM = 1 << 11
+OFPPF_40GB_FD = 1 << 7
+OFPPF_100GB_FD = 1 << 8
+OFPPF_1TB_FD = 1 << 9
+OFPPF_OTHER = 1 << 10
+OFPPF_COPPER = 1 << 11
+OFPPF_FIBER = 1 << 12
+OFPPF_AUTONEG = 1 << 13
+OFPPF_PAUSE = 1 << 14
+OFPPF_PAUSE_ASYM = 1 << 15
 
 # Datapath features capabilities flags.
 OFPC_FLOW_STATS = 1 << 0
 OFPC_TABLE_STATS = 1 << 1
 OFPC_PORT_STATS = 1 << 2
-OFPC_STP = 1 << 3
-OFPC_RESERVED = 1 << 4
+OFPC_GROUP_STATS = 1 << 3
 OFPC_IP_REASM = 1 << 5
 OFPC_QUEUE_STATS = 1 << 6
 OFPC_ARP_MATCH_IP = 1 << 7
@@ -67,20 +64,17 @@ OFPC_FRAG_NORMAL = 0
 OFPC_FRAG_DROP = 1
 OFPC_FRAG_REASM = 2
 OFPC_FRAG_MASK = 3
+OFPC_INVALID_TTL_TO_CONTROLLER = 1 << 2
 
 
 class PortConfig(collections.namedtuple('PortConfig', (
     # Flags to indicate the behavior of the physical port.
-    'port_down', 'no_stp', 'no_recv', 'no_recv_stp', 'no_flood', 'no_fwd',
-    'no_packet_in'))):
+    'port_down', 'no_recv', 'no_fwd', 'no_packet_in'))):
     """The description of the config of a physical port of an OpenFlow switch.
 
     The configuration attributes of a physical port are boolean flags:
         port_down: Port is administratively down.
-        no_stp: Disable 802.1D spanning tree on port.
         no_recv: Drop all packets except 802.1D spanning tree packets.
-        no_recv_stp: Drop received 802.1D STP packets.
-        no_flood: Do not include this port when flooding.
         no_fwd: Drop packets forwarded to port.
         no_packet_in: Do not send packet-in messages for port.
     """
@@ -104,12 +98,12 @@ class PortConfig(collections.namedtuple('PortConfig', (
             opaque to the user, and should only be passed either to a
             call to patch() or in an OFPT_PORT_MOD message.
         """
-        mask = PortConfig(*[prev_config[i] ^ self[i] for i in xrange(0, 7)])
+        mask = PortConfig(*[prev_config[i] ^ self[i] for i in xrange(0, 4)])
         config = self
         # If we wanted to set to false all flags that are not set in mask,
         # we'd create a new PortConfig like
         # config = PortConfig(*[self[i] if mask[i] else False
-        #                       for i in xrange(0, 7)])
+        #                       for i in xrange(0, 4)])
         return (config, mask)
 
     def patch(self, config, mask):
@@ -129,7 +123,7 @@ class PortConfig(collections.namedtuple('PortConfig', (
             A new PortConfig with fields replaced according to the diff.
         """
         return PortConfig(*[config[i] if mask[i] else self[i]
-                            for i in xrange(0, 7)])
+                            for i in xrange(0, 4)])
 
     def serialize(self):
         """Serialize this object into a 32-bit unsigned integer.
@@ -142,10 +136,7 @@ class PortConfig(collections.namedtuple('PortConfig', (
             this object.
         """
         return ((OFPPC_PORT_DOWN if self.port_down else 0)
-                | (OFPPC_NO_STP if self.no_stp else 0)
                 | (OFPPC_NO_RECV if self.no_recv else 0)
-                | (OFPPC_NO_RECV_STP if self.no_recv_stp else 0)
-                | (OFPPC_NO_FLOOD if self.no_flood else 0)
                 | (OFPPC_NO_FWD if self.no_fwd else 0)
                 | (OFPPC_NO_PACKET_IN if self.no_packet_in else 0))
 
@@ -160,22 +151,23 @@ class PortConfig(collections.namedtuple('PortConfig', (
         Returns:
             A new PortConfig object deserialized from the integer.
         """
-        if v & ~((1 << 7) - 1):
+        if v & 0xffffff9a:
             # Be liberal. Ignore those bits instead of raising an
             # exception.
             # TODO(romain): Log this.
             # ('undefined bits set', v)
             pass
-        # The boolean flags are in the same order as the bits, from
-        # LSB to MSB.
-        args = [bool(v & (1 << i)) for i in xrange(0, 7)]
-        return PortConfig(*args)
+        return PortConfig(bool(v & OFPPC_PORT_DOWN),
+                          bool(v & OFPPC_NO_RECV),
+                          bool(v & OFPPC_NO_FWD),
+                          bool(v & OFPPC_NO_PACKET_IN))
 
 
 class PortFeatures(collections.namedtuple('PortFeatures', (
     # Flags to indicate the link modes.
     'mode_10mb_hd', 'mode_10mb_fd', 'mode_100mb_hd', 'mode_100mb_fd',
-    'mode_1gb_hd', 'mode_1gb_fd', 'mode_10gb_fd',
+    'mode_1gb_hd', 'mode_1gb_fd', 'mode_10gb_fd', 'mode_40gb_fd',
+    'mode_100gb_fd', 'mode_1tb_fd', 'mode_other',
     # Flags to indicate the link types.
     'copper', 'fiber',
     # Flags to indicate the link features.
@@ -191,6 +183,10 @@ class PortFeatures(collections.namedtuple('PortFeatures', (
             mode_1gb_hd: 1 Gbps half-duplex rate support.
             mode_1gb_fd: 1 Gbps full-duplex rate support.
             mode_10gb_fd: 10 Gbps full-duplex rate support.
+            mode_40gb_fd: 40 Gbps full-duplex rate support.
+            mode_100gb_fd: 100 Gbps full-duplex rate support.
+            mode_1tb_fd: 1 Tbps full-duplex rate support.
+            mode_other: other rate support, not in the list.
         boolean flags indicating the link types:
             copper: Copper medium.
             fiber: Fiber medium.
@@ -218,6 +214,10 @@ class PortFeatures(collections.namedtuple('PortFeatures', (
                 | (OFPPF_1GB_HD if self.mode_1gb_hd else 0)
                 | (OFPPF_1GB_FD if self.mode_1gb_fd else 0)
                 | (OFPPF_10GB_FD if self.mode_10gb_fd else 0)
+                | (OFPPF_40GB_FD if self.mode_40gb_fd else 0)
+                | (OFPPF_100GB_FD if self.mode_100gb_fd else 0)
+                | (OFPPF_1TB_FD if self.mode_1tb_fd else 0)
+                | (OFPPF_OTHER if self.mode_other else 0)
                 | (OFPPF_COPPER if self.copper else 0)
                 | (OFPPF_FIBER if self.fiber else 0)
                 | (OFPPF_AUTONEG if self.autoneg else 0)
@@ -235,7 +235,7 @@ class PortFeatures(collections.namedtuple('PortFeatures', (
         Returns:
             A new PortFeatures object deserialized from the integer.
         """
-        if v & ~((1 << 12) - 1):
+        if v & ~((1 << 16) - 1):
             # Be liberal. Ignore those bits instead of raising an
             # exception.
             # TODO(romain): Log this.
@@ -243,19 +243,21 @@ class PortFeatures(collections.namedtuple('PortFeatures', (
             pass
         # The boolean flags are in the same order as the bits, from
         # LSB to MSB.
-        args = [bool(v & (1 << i)) for i in xrange(0, 12)]
+        args = [bool(v & (1 << i)) for i in xrange(0, 16)]
         return PortFeatures(*args)
 
 
 class PhyPort(collections.namedtuple('PhyPort', (
     'port_no', 'hw_addr', 'name', 'config',
     # Flags to indicate the current state of the physical port.
-    'state_link_down', 'state_stp',
-    'curr', 'advertised', 'supported', 'peer'))):
+    'state_link_down', 'state_blocked', 'state_live',
+    'curr', 'advertised', 'supported', 'peer',
+    # Port bitrate.
+    'curr_speed', 'max_speed'))):
     """The description of a physical port of an OpenFlow switch.
 
     The attributes of a physical port are:
-        port_no: The port's unique number, as a 16-bit unsigned
+        port_no: The port's unique number, as a 32-bit unsigned
             integer. Must be between 1 and OFPP_MAX.
         hw_addr: The port's MAC address, as a binary string.
         name: The port's human-readable name, limited to 16 characters.
@@ -264,39 +266,43 @@ class PhyPort(collections.namedtuple('PhyPort', (
         state_*: Flags and values to indicate the port's current state:
             state_link_down: A boolean value indicating that no
                 physical link is present.
-            state_stp: Indicates the STP state, either
-                OFPPS_STP_LISTEN (not learning or relaying frames),
-                OFPPS_STP_LEARN (learning but not relaying frames),
-                OFPPS_STP_FORWARD (learning and relaying frames),
-                or OFPPS_STP_BLOCK (not part of spanning tree).
+            state_blocked: A boolean value indicating that the port is
+                blocked.
+            state_live: A boolean value indicating that the port is
+                live for the Fast Failover Group.
         port features, as PortFeatures objects:
             curr: Current features.
             advertised: Features being advertised by the port.
             supported: Features supported by the port.
             peer: Features advertised by peer.
+        curr_speed: The current port bitrate, in kbps, as a 32-bit
+            unsigned integer.
+        max_speed: The maximum port bitrate, in kbps, as a 32-bit
+            unsigned integer.
     """
 
-    FORMAT = '!H6s16sLLLLLL'
+    FORMAT = '!L4x6s2x16sLLLLLLLL'
 
     FORMAT_LENGTH = struct.calcsize(FORMAT)
 
     def serialize(self):
-        """Serialize this object into an OpenFlow ofp_phy_port.
+        """Serialize this object into an OpenFlow ofp_port.
 
         The returned string can be passed to deserialize() to recreate
         a copy of this object.
 
         Returns:
             A binary string that is a serialized form of this object
-            into an OpenFlow ofp_phy_port.
+            into an OpenFlow ofp_port.
         """
         state_ser = ((OFPPS_LINK_DOWN if self.state_link_down else 0)
-                     | (self.state_stp & OFPPS_STP_MASK))
+                     | (OFPPS_BLOCKED if self.state_blocked else 0)
+                     | (OFPPS_LIVE if self.state_live else 0))
         return struct.pack(
             self.FORMAT, self.port_no, self.hw_addr, self.name,
             self.config.serialize(), state_ser, self.curr.serialize(),
             self.advertised.serialize(), self.supported.serialize(),
-            self.peer.serialize())
+            self.peer.serialize(), self.curr_speed, self.max_speed)
 
     @classmethod
     def deserialize(cls, buf):
@@ -314,9 +320,10 @@ class PhyPort(collections.namedtuple('PhyPort', (
                 bytes, or some elements cannot be deserialized.
         """
         (port_no, hw_addr, name, config_ser, state_ser, curr_ser,
-         advertised_ser, supported_ser, peer_ser) = buf.unpack(cls.FORMAT)
+         advertised_ser, supported_ser, peer_ser, curr_speed, max_speed) = \
+         buf.unpack(cls.FORMAT)
 
-        if state_ser & ~(OFPPS_LINK_DOWN | OFPPS_STP_MASK):
+        if state_ser & ~(OFPPS_LINK_DOWN | OFPPS_BLOCKED | OFPPS_LIVE):
             # Be liberal. Ignore those bits instead of raising an
             # exception.
             # TODO(romain): Log this.
@@ -326,19 +333,21 @@ class PhyPort(collections.namedtuple('PhyPort', (
         return PhyPort(port_no, hw_addr, name.rstrip('\x00'),
                        PortConfig.deserialize(config_ser),
                        bool(state_ser & OFPPS_LINK_DOWN),
-                       state_ser & OFPPS_STP_MASK,
+                       bool(state_ser & OFPPS_BLOCKED),
+                       bool(state_ser & OFPPS_LIVE),
                        PortFeatures.deserialize(curr_ser),
                        PortFeatures.deserialize(advertised_ser),
                        PortFeatures.deserialize(supported_ser),
-                       PortFeatures.deserialize(peer_ser))
+                       PortFeatures.deserialize(peer_ser),
+                       curr_speed, max_speed)
 
 
 class SwitchFeatures(collections.namedtuple('SwitchFeatures', (
     'datapath_id', 'n_buffers', 'n_tables',
     # Flags to indicate supported capabilities.
-    'cap_flow_stats', 'cap_table_stats', 'cap_port_stats', 'cap_stp',
+    'cap_flow_stats', 'cap_table_stats', 'cap_port_stats', 'cap_group_stats',
     'cap_ip_reasm', 'cap_queue_stats', 'cap_arp_match_ip',
-    'actions', 'ports'))):
+    'ports'))):
     """The features of an OpenFlow switch.
 
     The attributes of a datapath are:
@@ -350,17 +359,15 @@ class SwitchFeatures(collections.namedtuple('SwitchFeatures', (
             cap_flow_stats: Flow statistics.
             cap_table_stats: Table statistics.
             cap_port_stats: Port statistics.
-            cap_stp: 802.1d spanning tree.
+            cap_group_stats: Group statistics.
             cap_ip_reasm: Can reassemble IP fragments.
             cap_queue_stats: Queue statistics.
             cap_arp_match_ip: Match IP addresses in ARP packets.
-        actions: The frozen set of action types that is supported by
-            the switch.
         ports: A tuple of PhyPort objects defining the physical ports
             of the switch.
     """
 
-    FORMAT = '!QLB3xLL'
+    FORMAT = '!QLB3xL4x'
 
     FORMAT_LENGTH = struct.calcsize(FORMAT)
 
@@ -376,23 +383,21 @@ class SwitchFeatures(collections.namedtuple('SwitchFeatures', (
             ofp_header structure is not included in the generated
             strings.
         """
-        # Encode the ports.
-        features_ser = [port.serialize() for port in self.ports]
-        # Encode the rest of the features.
         capabilities_ser = (
             (OFPC_FLOW_STATS if self.cap_flow_stats else 0)
             | (OFPC_TABLE_STATS if self.cap_table_stats else 0)
             | (OFPC_PORT_STATS if self.cap_port_stats else 0)
-            | (OFPC_STP if self.cap_stp else 0)
+            | (OFPC_GROUP_STATS if self.cap_group_stats else 0)
             | (OFPC_IP_REASM if self.cap_ip_reasm else 0)
             | (OFPC_QUEUE_STATS if self.cap_queue_stats else 0)
             | (OFPC_ARP_MATCH_IP if self.cap_arp_match_ip else 0))
-        actions_ser = 0
-        for action in self.actions:
-            actions_ser |= 1 << action
-        features_ser.insert(0, struct.pack(
-            self.FORMAT, self.datapath_id, self.n_buffers, self.n_tables,
-            capabilities_ser, actions_ser))
+        features_ser = [
+            struct.pack(
+                self.FORMAT, self.datapath_id, self.n_buffers, self.n_tables,
+                capabilities_ser)]
+        # Encode the ports.
+        for port in self.ports:
+            features_ser.append(port.serialize())
         return features_ser
 
     @classmethod
@@ -410,35 +415,20 @@ class SwitchFeatures(collections.namedtuple('SwitchFeatures', (
             ValueError: The buffer has an invalid number of available
                 bytes, or some elements cannot be deserialized.
         """
-        (datapath_id, n_buffers, n_tables, capabilities_ser,
-         actions_ser) = buf.unpack(cls.FORMAT)
+        (datapath_id, n_buffers, n_tables, capabilities_ser) = \
+            buf.unpack(cls.FORMAT)
         args = [datapath_id, n_buffers, n_tables]
 
-        if capabilities_ser & OFPC_RESERVED:
-            # Be liberal. Ignore those bits instead of raising an exception.
-            # TODO(romain): Log this.
-            # ('reserved capabilities bit set', capabilities_ser)
-            pass
-        if capabilities_ser & ~((1 << 8) - 1):
+        if capabilities_ser & 0xffffff10:
             # Be liberal. Ignore those bits instead of raising an exception.
             # TODO(romain): Log this.
             # ('undefined capabilities bits set', capabilities_ser)
             pass
 
         # The boolean flags are in the same order as the bits, from
-        # LSB to MSB.  Skip bit 4 as it is reserved.
+        # LSB to MSB.  Skip bit 4 as it is undefined.
         args.extend(bool(capabilities_ser & (1 << i)) for i in xrange(0, 8)
                     if i != 4)
-
-        # We don't check that all action codes are valid in OpenFlow
-        # 1.0, as the spec specifies only that *should* be the case,
-        # not *must*.
-        actions = []
-        for action in xrange(0, 32):
-            if actions_ser & (1 << action):
-                actions.append(action)
-        args.append(frozenset(actions))
-        # TODO(romain): Test that all mandatory actions are in the set.
 
         # Decode all ports.
         ports = []
@@ -452,7 +442,7 @@ class SwitchFeatures(collections.namedtuple('SwitchFeatures', (
 
 
 class SwitchConfig(collections.namedtuple('SwitchConfig', (
-    'config_frag', 'miss_send_len'))):
+    'config_frag', 'config_invalid_ttl_to_controller', 'miss_send_len'))):
     """The configuration of an OpenFlow switch.
 
     The configuration attributes of a datapath are:
@@ -460,6 +450,9 @@ class SwitchConfig(collections.namedtuple('SwitchConfig', (
             OFPC_FRAG_NORMAL (no special handling for fragments),
             OFPC_FRAG_DROP (drop fragments),
             or OFPC_FRAG_REASM (reassemble, only if supported).
+        config_invalid_ttl_to_controller: A boolean that indicates if
+            IP and MPLS packets with an invalid TTL (i.e. 0 or 1) are
+            to be sent to the controller.
         miss_send_len: The maximum number of bytes of new flow packets
             that the datapath should send to the controller in
             OFPT_PACKET_IN messages.
@@ -480,8 +473,10 @@ class SwitchConfig(collections.namedtuple('SwitchConfig', (
             into an OpenFlow ofp_switch_config. The ofp_header
             structure is not included in the generated string.
         """
-        return struct.pack(self.FORMAT, self.config_frag & OFPC_FRAG_MASK,
-                           self.miss_send_len)
+        config_ser = (self.config_frag & OFPC_FRAG_MASK
+                      | (OFPC_INVALID_TTL_TO_CONTROLLER
+                         if self.config_invalid_ttl_to_controller else 0))
+        return struct.pack(self.FORMAT, config_ser, self.miss_send_len)
 
     @classmethod
     def deserialize(cls, buf):
@@ -498,13 +493,16 @@ class SwitchConfig(collections.namedtuple('SwitchConfig', (
             ValueError: The buffer has an invalid number of available
                 bytes.
         """
-        config_frag, miss_send_len = buf.unpack(cls.FORMAT)
-        if config_frag & ~OFPC_FRAG_MASK:
+        config_ser, miss_send_len = buf.unpack(cls.FORMAT)
+        if config_ser & ~(OFPC_FRAG_MASK | OFPC_INVALID_TTL_TO_CONTROLLER):
             # TODO(romain): Be liberal? Zero out those bits instead of
             # raising an exception?
-            raise ValueError('undefined config bits set', config_frag)
-        return SwitchConfig(config_frag=config_frag,
-                            miss_send_len=miss_send_len)
+            raise ValueError('undefined config bits set', config_ser)
+        return SwitchConfig(
+            config_frag=(config_ser & OFPC_FRAG_MASK),
+            config_invalid_ttl_to_controller=bool(
+                config_ser & OFPC_INVALID_TTL_TO_CONTROLLER),
+            miss_send_len=miss_send_len)
 
 
 PacketQueue = common_ofconfig.PacketQueue
