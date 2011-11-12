@@ -198,7 +198,7 @@ class ActionSetVlanPcp(__action('ActionSetVlanPcp', OFPAT_SET_VLAN_PCP,
         return a
 
 
-ActionStripVlan = __action('ActionStripVlan', OFPAT_STRIP_VLAN, '', ())
+ActionStripVlan = __action('ActionStripVlan', OFPAT_STRIP_VLAN, '4x', ())
 
 
 ActionSetDlSrc = __action('ActionSetDlSrc', OFPAT_SET_DL_SRC,

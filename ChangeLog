@@ -1,3 +1,7 @@
+2011-11-11  Vimal  <j.vimal@gmail.com>
+
+	* src/openfaucet/ofaction.py: Added missing padding in ActionStripVlan
+
 2011-05-24  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* src/openfaucet/ofconfig.py: Fix documentation of PortConfig
