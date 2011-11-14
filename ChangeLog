@@ -1,6 +1,11 @@
+2011-11-14  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* NEWS: Move the latest change comments into the next release's
+	section.
+
 2011-11-11  Vimal  <j.vimal@gmail.com>
 
-	* src/openfaucet/ofaction.py: Added missing padding in ActionStripVlan
+	* src/openfaucet/ofaction.py: Add missing padding in ActionStripVlan.
 
 2011-05-24  Romain Lenglet  <romain.lenglet@berabera.info>
 

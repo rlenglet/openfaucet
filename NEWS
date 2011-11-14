@@ -4,6 +4,8 @@ OpenFaucet NEWS - User visible changes.
 
 ** Fixed the encoding and decoding of OFPAT_ENQUEUE actions.
 
+** Added missing padding in OFPAT_STRIP_VLAN actions.
+
 * Noteworthy changes in release 1.1 (2011-05-05) [stable]
 
 ** Fixed the encoding and decoding of OFPT_PACKET_OUT messages with
@@ -11,8 +13,6 @@ OpenFaucet NEWS - User visible changes.
 
 ** Removed the deadlock when accessing property features in a
    controller's connection_made() callback.
-
-** Added missing padding in ActionStripVlan
 
 Copyright 2011 Midokura KK
 
