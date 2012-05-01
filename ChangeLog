@@ -1,3 +1,8 @@
+2012-04-30  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* docs/match.rst: Update transport port matching example to also
+	match on L3 protocol and L4 protocol.
+
 2011-11-14  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* NEWS: Move the latest change comments into the next release's

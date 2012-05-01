@@ -67,7 +67,8 @@ addresses. :meth:`~openfaucet.ofmatch.Match.create_wildcarded` is a
 helper method to create wildcarded matches::
 
   from openfaucet import ofmatch
-  match = ofmatch.Match.create_wildcarded(in_port=12, tp_dst=80)
+  match = ofmatch.Match.create_wildcarded(in_port=12, dl_type=0x0800,
+                                          nw_proto=6, tp_dst=80)
 
 is equivalent to::
 
