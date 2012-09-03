@@ -24,10 +24,10 @@ Installing OpenFaucet
   1. Download the master branch from git
 
     Clone the repository at URL
-    `git@github.com:midokura/openfaucet.git
-    <https://github.com/midokura/openfaucet>`_::
+    `git@github.com:rlenglet/openfaucet.git
+    <https://github.com/rlenglet/openfaucet>`_::
 
-      git clone git@github.com:midokura/openfaucet.git openfaucet
+      git clone git@github.com:rlenglet/openfaucet.git openfaucet
       cd openfaucet
 
     Install `GNU Autoconf <http://www.gnu.org/software/autoconf/>`_

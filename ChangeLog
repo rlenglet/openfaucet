@@ -1,3 +1,7 @@
+2012-09-02  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* docs/install.rst.in: Update the project's URL.
+
 2012-04-30  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* docs/match.rst: Update transport port matching example to also
