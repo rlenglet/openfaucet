@@ -1,3 +1,8 @@
+2012-10-09  Romain Lenglet  <romain.lenglet@berabera.info>
+
+	* src/openfaucet/test_ofaction.py: Fix unittests after adding the
+	missing padding in ActionStripVlan.
+
 2012-09-02  Romain Lenglet  <romain.lenglet@berabera.info>
 
 	* docs/install.rst.in: Update the project's URL.

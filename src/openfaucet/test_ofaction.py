@@ -74,10 +74,11 @@ class TestActions(unittest2.TestCase):
     def test_serialize_action_strip_vlan(self):
         a = ofaction.ActionStripVlan()
         self.assertEqual(3, a.type)
-        self.assertEqual('', a.serialize())
+        self.assertEqual('\x00\x00\x00\x00', a.serialize())
 
     def test_deserialize_action_strip_vlan(self):
-        self.buf.set_message_boundaries(0)
+        self.buf.append('\x00\x00\x00\x00')
+        self.buf.set_message_boundaries(4)
         self.assertTupleEqual((),
                               ofaction.ActionStripVlan.deserialize(self.buf))
 
